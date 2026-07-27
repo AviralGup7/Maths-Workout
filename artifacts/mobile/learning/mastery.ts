@@ -30,6 +30,21 @@ export const MASTERED_THRESHOLD = 0.85;
 /** Mastery at or below this needs immediate work. */
 export const STRUGGLING_THRESHOLD = 0.55;
 
+/**
+ * Ceiling on mastery that rests entirely on multiple-choice evidence (M4).
+ *
+ * A four-option question carries roughly a 25% guess probability, and choosing
+ * between visible options is *recognition*. Promoting a learner past 0.80 on
+ * recognition alone would claim recall they have never demonstrated — and it
+ * would do so precisely at the threshold where the interaction ladder switches
+ * to typed entry, so the app would be certifying a skill it had never tested.
+ *
+ * Attempts are treated as recall-bearing when the learner produced the answer
+ * rather than picked it: typed entry, multi-select and ordering all qualify,
+ * because none of them can be solved by elimination from four tiles.
+ */
+export const RECOGNITION_CEILING = 0.80;
+
 export interface MasteryEstimate {
   skill: SkillId;
   /** Probability the learner answers a fresh question correctly, 0–1. */
@@ -90,7 +105,11 @@ export function estimateMastery(
   let weightedCorrect = 0;
   let weightTotal = 0;
   window.forEach((a, i) => {
-    const w = 1 + i / window.length; // oldest ≈1.0 → newest ≈2.0
+    const recency = 1 + i / window.length; // oldest ≈1.0 → newest ≈2.0
+    // A correct answer produced with a scaffold on screen is genuine evidence,
+    // but weaker evidence: the child succeeded *with support*. Half weight
+    // keeps the estimate honest without punishing them for accepting help.
+    const w = recency * (a.scaffolded && a.correct ? 0.5 : 1);
     weightTotal += w;
     if (a.correct) weightedCorrect += w;
   });
@@ -101,7 +120,19 @@ export function estimateMastery(
 
   const lastPracticed = relevant[relevant.length - 1].answeredAt;
   const daysSince = Math.max(0, (now - lastPracticed) / DAY_MS);
-  const value = clamp01(applyDecay(smoothed, daysSince));
+  let value = clamp01(applyDecay(smoothed, daysSince));
+
+  // M4 · Anti-inflation guard. Mastery above the recognition ceiling has to be
+  // earned on evidence the learner produced, not selected. Without this the
+  // estimate crosses 0.80 on multiple choice, the interaction ladder promotes
+  // them to typed entry on the strength of it, and the app has certified recall
+  // it never observed.
+  const producedAnswer = relevant.some(
+    a => a.correct && a.interaction && a.interaction !== 'choice',
+  );
+  if (!producedAnswer && value > RECOGNITION_CEILING) {
+    value = RECOGNITION_CEILING;
+  }
 
   // Confidence grows with evidence and shrinks as evidence goes stale.
   const evidence = Math.min(1, relevant.length / 8);

@@ -111,7 +111,7 @@ the dispatcher rather than by a generator.
 **Retry-loop caveat.** The carry/borrow helpers give up after 200 attempts and
 return whatever they last produced, which may violate the intended predicate.
 `subWithBorrow` can also `continue` without assigning `b` when
-`upper < minB`. See [07 Tier 4](./07-testing-strategy.md#tier-4--property-based-tests-with-fast-check).
+`upper < minB`. See the test suite.
 
 ### `makeIntChoices` spread table
 
@@ -123,7 +123,7 @@ const spread = Math.abs(answer) <= 15   ? 2
 ```
 
 No lower bound is applied, which is why negative distractors reach Class 1 —
-[F6](./05-correctness-audit.md#f6).
+F6.
 
 ---
 
@@ -190,14 +190,14 @@ e.g. `3rd_multiplication_medium`.
 
 ⚠️ There is **no schema version key**. A future shape change would silently
 corrupt existing installs — see
-[06 Phase 5.5](./06-improvements.md#storage-migration-pattern).
+the repair backlog.
 
 ---
 
 ## 5. HTTP API contract
 
 Defined by `lib/progressApi.ts`. **The server implementing it is missing** —
-see [03](./03-missing-files.md).
+see the deleted-packages report.
 
 ```
 Base URL:  process.env.EXPO_PUBLIC_DOMAIN
@@ -246,7 +246,7 @@ Body is the same `ProgressData`. Response ignored; errors swallowed.
 | `BASE_PATH` | `scripts/build.js`, `server/serve.js` | no | `/` | Sub-path mounting |
 | `PORT` | `server/serve.js` | no | `3000` | Listen port |
 
-No `.env.example` exists — recommended in [06 Phase 8.7](./06-improvements.md).
+No `.env.example` exists — recommended in the repair backlog.
 
 ---
 

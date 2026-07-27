@@ -35,7 +35,7 @@ are deliberately swallowed.
                                     └─────────────────┘
 ```
 
-The two greyed boxes are the subject of [03-missing-files.md](./03-missing-files.md).
+The two greyed boxes are the subject of the deleted-packages report (since retired).
 
 ---
 
@@ -62,7 +62,7 @@ dependency flow:
 question-generation domain — 21 generators, ~800 lines of the trickiest logic —
 imports nothing but its own siblings. It is deterministic given `Math.random`,
 framework-free, and therefore trivially testable. The audit in
-[05](./05-correctness-audit.md) was only possible because of this boundary: the
+the correctness audit was only possible because of this boundary: the
 generators were bundled with esbuild and fuzzed directly in Node, with zero
 React Native mocking.
 
@@ -152,7 +152,7 @@ error until a branch is written. This is a deliberate, good pattern.
 
 The `mixed` branch recurses once and tags the result with `resolvedCategory` so
 statistics attribute to the real topic rather than to `"mixed"`. Also good —
-though see [F7](./05-correctness-audit.md#f7) for a place where that tag is
+though see F7 for a place where that tag is
 dropped.
 
 ---
@@ -222,7 +222,7 @@ repeat.
 Any stat change re-creates the callback and re-renders every consumer. A
 `useReducer` with a single state object, or splitting into two contexts
 (session vs. persistence), would remove this. See
-[06-improvements.md](./06-improvements.md#i5).
+the repair backlog (since completed).
 
 **d) Single context = broad re-renders.** All 14 values sit in one provider
 value object, which is not memoised. Every state change re-renders every screen
@@ -279,7 +279,7 @@ This is a pragmatic choice because `ChoiceValue = number | string` and some
 categories answer with words (`'Yes'`, `'Hexagon'`). It works, but it is
 fragile with floats — `String(29.999999999999996)` is
 `"29.999999999999996"`, which is what the learner is shown. See
-[F4](./05-correctness-audit.md#f4).
+F4.
 
 ---
 

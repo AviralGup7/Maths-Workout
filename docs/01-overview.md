@@ -26,7 +26,7 @@ Alongside the main funnel are three side modes reachable from the home screen:
 | Categories | 23 declared (`addition` … `algebra`), 21 with generators |
 | Difficulties | `easy`, `medium`, `hard` |
 | Session types | 10 questions, 20 questions, 60-second Blitz |
-| Question format | Multiple choice, 4 options (see [known defect](./05-correctness-audit.md#f3)) |
+| Question format | Multiple choice, 4 options (see known defect F3) |
 | Feedback | Haptics, shake animation, colour state, per-question timer |
 | Persistence | AsyncStorage (local) + optional REST sync |
 | Progress metrics | High scores, per-topic accuracy, tables bests, saved mistakes |
@@ -116,7 +116,7 @@ Maths-Workout/
 
 **Source of truth:** `generators/` is pure and framework-free. This is a good
 boundary — it means the question logic is directly unit-testable without any
-React or native mocking. See [07-testing-strategy.md](./07-testing-strategy.md).
+React or native mocking. See the test suite.
 
 ---
 
@@ -202,4 +202,4 @@ $ cd artifacts/mobile && npx tsc -p tsconfig.json --noEmit
 | `PORT` | `serve.js` | no | Listen port, default `3000` |
 
 There is no `.env.example` in the repository — adding one is recommended in
-[06-improvements.md](./06-improvements.md).
+the repair backlog (since completed).

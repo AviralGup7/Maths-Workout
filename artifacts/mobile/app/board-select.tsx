@@ -9,6 +9,7 @@ import { BOARD_CONFIGS, categoriesFor, CLASS_LABELS } from '@/curriculum/boards'
 import type { Board } from '@/curriculum/boards';
 import { LANGUAGES, t, categoryLabel } from '@/i18n/strings';
 import type { Lang } from '@/i18n/strings';
+import type { TimerPreference } from '@/learning/timerPolicy';
 import colors from '@/constants/colors';
 import { touchSlop } from '@/hooks/useA11y';
 
@@ -24,7 +25,7 @@ const C = colors.light;
 export default function BoardSelectScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { board, setBoard, lang, setLang } = useGame();
+  const { board, setBoard, lang, setLang, timerPref, setTimerPref } = useGame();
 
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -110,6 +111,39 @@ export default function BoardSelectScreen() {
           );
         })}
 
+        {/* §9 M1 — the timer is a setting, not a fact of the app.
+            Timed testing is a documented driver of mathematics anxiety in early
+            primary, so 'auto' turns it off below Class 3. Kept here beside the
+            other preferences rather than buried behind a new settings screen. */}
+        <Text style={[styles.sectionLabel, { marginTop: 22 }]}>
+          {t('questionTimer', lang).toUpperCase()}
+        </Text>
+        <View style={styles.langRow}>
+          {([
+            { key: 'auto' as const, label: t('timerAuto', lang) },
+            { key: 'on'   as const, label: t('timerOn', lang) },
+            { key: 'off'  as const, label: t('timerOff', lang) },
+          ]).map(opt => {
+            const sel = timerPref === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.langChip, sel && styles.langChipOn]}
+                onPress={() => { Haptics.selectionAsync(); setTimerPref(opt.key as TimerPreference); }}
+                activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sel }}
+              >
+                <Text style={[styles.langText, sel && { color: C.primary }]}>{opt.label}</Text>
+                {sel && <Feather name="check" size={15} color={C.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text style={styles.timerNote}>
+          {timerPref === 'auto' ? t('timerAutoNote', lang) : t('timerNote', lang)}
+        </Text>
+
         {/* What actually changes, so the choice is informed rather than arbitrary. */}
         <View style={styles.diffCard}>
           <Text style={styles.diffTitle}>
@@ -188,6 +222,10 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.foreground },
   cardNote: { fontSize: 11.5, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 16 },
   cardMeta: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.mutedForeground, marginTop: 2 },
+  timerNote: {
+    fontSize: 11.5, fontFamily: 'Inter_400Regular', color: C.mutedForeground,
+    marginTop: 8, marginBottom: 4,
+  },
   diffCard: {
     backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
     padding: 14, gap: 12, marginTop: 12,

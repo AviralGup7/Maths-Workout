@@ -12,6 +12,7 @@ import { t, categoryLabel } from '@/i18n/strings';
 import { CLASS_LABELS } from '@/curriculum/boards';
 import { SKILLS } from '@/learning/skills';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from '@/learning/mastery';
+import { biggestGain, growthSentence } from '@/learning/feedback';
 
 const C = colors.light;
 const CATS: Category[] = ['addition', 'subtraction', 'multiplication', 'division', 'mixed'];
@@ -20,7 +21,7 @@ export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router  = useRouter();
   const { progressStats, getHighScore, tablesBest, savedMistakes,
-          mastery, topMisconceptions, rootGapFor, streak, lang } = useGame();
+          mastery, topMisconceptions, rootGapFor, streak, lang, attempts } = useGame();
 
   const [filterClass, setFilterClass] = useState<SchoolClass | 'all'>('all');
 
@@ -60,6 +61,10 @@ export default function ProgressScreen() {
   // ── Direction D: turn raw attempts into actionable insight ────────────────
   const insights = useMemo(() => topMisconceptions().slice(0, 3), [topMisconceptions]);
 
+  // §9 M2 — the mastery model has always computed a trend and shown it nowhere.
+  // Growth-mindset framing needs evidence of growth, and the data already exists.
+  const gain = useMemo(() => biggestGain(attempts), [attempts]);
+
   const skillRows = useMemo(() => {
     return Object.values(mastery)
       .filter(m => m.attempts >= 3 && SKILLS[m.skill])
@@ -82,6 +87,17 @@ export default function ProgressScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: bot + 24 }]} showsVerticalScrollIndicator={false}>
+
+        {/* Growth first: the learner should meet progress before problems. */}
+        {gain && (
+          <>
+            <Text style={styles.sectionLabel}>{t('yourProgress', lang)}</Text>
+            <View style={styles.growthCard}>
+              <Feather name="trending-up" size={16} color={C.easy} />
+              <Text style={styles.growthText}>{growthSentence(gain, lang)}</Text>
+            </View>
+          </>
+        )}
 
         {/* What to work on — named misconceptions with concrete next steps.
             This is the difference between "68% correct" and knowing *why*. */}
@@ -308,6 +324,13 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
+  growthCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: C.easy + '14', borderRadius: 14,
+    borderWidth: 1, borderColor: C.easy + '3A',
+    paddingVertical: 14, paddingHorizontal: 14, marginBottom: 18,
+  },
+  growthText: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.easy },
   insightCard: { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 14, gap: 16 },
   insightRow: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
   insightBadge: {

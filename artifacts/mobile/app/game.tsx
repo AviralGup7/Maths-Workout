@@ -12,10 +12,17 @@ import { MISCONCEPTIONS } from '@/learning/misconceptions';
 import { MISCONCEPTIONS_HI } from '@/i18n/misconceptions-hi';
 import { t, categoryLabel } from '@/i18n/strings';
 import { CLASS_LABELS } from '@/curriculum/boards';
-import { useMotion, FEEDBACK_MS, feedbackDelay } from '@/hooks/useMotion';
+import { useMotion, FEEDBACK_MS, feedbackDelay, readingDelay } from '@/hooks/useMotion';
 import { useAnnounce, touchSlop } from '@/hooks/useA11y';
 import { AnswerSurface } from '@/components/answer/AnswerSurface';
 import { grade, expectedAnswer } from '@/generators/interactions';
+import { praiseFor, praiseText } from '@/learning/feedback';
+import { decideAdaptation } from '@/learning/adaptation';
+import { shouldTeach, buildWorkedExample, canTeach } from '@/learning/workedExamples';
+import type { WorkedExample as WEType } from '@/learning/workedExamples';
+import { WorkedExample } from '@/components/WorkedExample';
+import { extractOperands } from '@/learning/misconceptions';
+import type { Attempt } from '@/learning/attempts';
 
 const PER_Q_SECS = 15;
 /**
@@ -49,7 +56,8 @@ export default function GameScreen() {
     questions, currentIndex, totalQuestions, sessionType,
     submitAnswer, nextQuestion, endGame, isGameOver,
     score, selectedClass, selectedCategory, isTablesMode,
-    saveProgressStats, saveScore, wrongAnswers, recordAttempt, lang,
+    saveProgressStats, saveScore, wrongAnswers, recordAttempt, lang, timerOn,
+    mastery, sessionSkillFor, retargetNext, attempts, selectedClass: cls,
   } = useGame();
 
   // Motion is routed through useMotion so "reduce motion" is honoured without
@@ -72,6 +80,22 @@ export default function GameScreen() {
   const shownAtRef    = useRef<number>(Date.now());
   /** Misconception detected for the current question, surfaced as a hint. */
   const [diagnosis, setDiagnosis] = useState<string | null>(null);
+  /** Process praise for the current correct answer (§9 M3). */
+  const [praise, setPraise] = useState<string | null>(null);
+  /** Was the previous answer in this session wrong? Drives 'recovery' praise. */
+  const lastWrongRef = useRef(false);
+  /** Worked example currently on screen, if any (§1). */
+  const [worked, setWorked] = useState<WEType | null>(null);
+  /** Attempts made in *this* session only — adaptation is per-session. */
+  const sessionLogRef = useRef<Attempt[]>([]);
+  /** Attempt-count at which each skill last taught, for the cooldown. */
+  const taughtAtRef = useRef<Record<string, number[]>>({});
+  /**
+   * True while the *next* answer will have been given with support on screen.
+   * Set when a worked example is dismissed, cleared once its twin is answered,
+   * so a scaffolded success is recorded honestly rather than inflating mastery.
+   */
+  const scaffoldedRef = useRef(false);
   const shakeAnimRef  = useRef<Animated.Value | null>(null);
   const fadeAnimRef   = useRef<Animated.Value | null>(null);
   const scaleAnimRef  = useRef<Animated.Value | null>(null);
@@ -109,6 +133,7 @@ export default function GameScreen() {
     const q = questions[currentIndex];
     setPerQLocked(true);
     setAnswerState('wrong');
+    lastWrongRef.current = true;
     // C12: pass the resolved category so Mixed sessions attribute the miss to
     // the real topic rather than to the literal category "mixed".
     saveProgressStats(false, q?.resolvedCategory);
@@ -123,7 +148,9 @@ export default function GameScreen() {
   }, [perQLocked, questions, currentIndex]); // eslint-disable-line
 
   useEffect(() => {
-    if (isBlitz || perQLocked) return;
+    // §9 M1: below Class 3 (or whenever the learner has turned it off) no
+    // countdown runs at all. The child simply thinks until they answer.
+    if (isBlitz || perQLocked || !timerOn) return;
     timerRef.current = setInterval(() => {
       setPerQTime(prev => {
         if (prev <= 1) {
@@ -135,7 +162,7 @@ export default function GameScreen() {
       });
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [currentIndex, perQLocked, isBlitz]); // eslint-disable-line
+  }, [currentIndex, perQLocked, isBlitz, timerOn]); // eslint-disable-line
 
   // Restart the latency clock and the time budget whenever a question is shown.
   useEffect(() => {
@@ -167,6 +194,8 @@ export default function GameScreen() {
       setPerQTime(secondsFor(questions[currentIndex + 1]));
       setPerQBudget(secondsFor(questions[currentIndex + 1]));
       setDiagnosis(null);
+      setPraise(null);
+      scaffoldedRef.current = false;
       shownAtRef.current = Date.now();
       Animated.parallel([
         motion.timing(fadeAnim,  { toValue: 1, duration: 180 }),
@@ -201,20 +230,57 @@ export default function GameScreen() {
     // Direction D: capture what was chosen and diagnose the underlying error.
     const found = recordAttempt({
       question: currentQuestion, chosen: normalised, correct, latencyMs, timedOut: false,
+      scaffolded: scaffoldedRef.current,
     });
     setDiagnosis(correct ? null : found);
     setAnswerState(correct ? 'correct' : 'wrong');
 
+    // Mirror the attempt into a session-local log. The context log is
+    // debounced and async; in-session adaptation must react to the answer that
+    // was just given, not the one that has finished persisting.
+    const skillNow = sessionSkillFor(currentIndex);
+    if (skillNow) {
+      sessionLogRef.current = [...sessionLogRef.current, {
+        skill: skillNow, correct, answeredAt: Date.now(), latencyMs,
+        chosen: normalised, expected: String(currentQuestion.answer),
+        questionText: currentQuestion.questionText, timedOut: false,
+        misconception: found ?? undefined,
+        interaction: currentQuestion.interaction?.kind ?? 'choice',
+        scaffolded: scaffoldedRef.current || undefined,
+        cls, category: currentQuestion.resolvedCategory ?? selectedCategory,
+        difficulty: 'medium',
+      }];
+    }
+
     if (correct) {
+      // §9 M3 — name what the learner *did*, not that they were right.
+      // Outcome praise reliably produces fixed-mindset attribution; process
+      // praise names something the child controls and can repeat.
+      const kind = praiseFor({
+        mastery: (skillNow ? mastery[skillNow]?.value : undefined) ?? 0.5,
+        latencyMs,
+        afterMistake: lastWrongRef.current,
+        scaffolded: scaffoldedRef.current,
+      });
+      const line = praiseText(kind, lang);
+      // 'plain' is a bare acknowledgement — showing it would be outcome praise
+      // in a box, which is the thing §9 M3 exists to remove. Only a line that
+      // actually names a process earns screen space and reading time.
+      const worthShowing = kind !== 'plain' && !isBlitz;
+      setPraise(worthShowing ? line : null);
+      lastWrongRef.current = false;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      a11yAnnounce(lang === 'hi' ? 'सही' : 'Correct');
-      // 280 ms rather than 450: still reads clearly, but removes ~1.7 s from a
-      // ten-question session. The next question is already generated, so the
-      // paint after this pause is immediate.
-      const pause = feedbackDelay(
-        isBlitz ? FEEDBACK_MS.correctBlitz : FEEDBACK_MS.correct, motion.reduced);
+      a11yAnnounce(line);
+      // 280 ms is right for a bare tick, but too short to read a sentence —
+      // measured in-browser, the praise line was painted and gone. Extended
+      // only when there is something to read, so the fast path is preserved.
+      const pause = worthShowing
+        ? readingDelay(FEEDBACK_MS.correctPraised, motion.reduced)
+        : feedbackDelay(
+            isBlitz ? FEEDBACK_MS.correctBlitz : FEEDBACK_MS.correct, motion.reduced);
       motion.pulse(scaleAnim, 1.03).start(() => setTimeout(advanceQuestion, pause));
     } else {
+      lastWrongRef.current = true;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       a11yAnnounce(
         (lang === 'hi' ? 'गलत। सही उत्तर ' : 'Incorrect. The answer is ')
@@ -227,8 +293,83 @@ export default function GameScreen() {
         isConstructed ? FEEDBACK_MS.wrongConstructed
         : isBlitz ? FEEDBACK_MS.wrongBlitz : FEEDBACK_MS.wrong,
         motion.reduced);
-      shake(() => setTimeout(advanceQuestion, pause));
+
+      // Blitz is exempt from all of this. It is a 60-second race the child
+      // chose; stopping to teach mid-race would be both unwelcome and unread.
+      const intervention = isBlitz ? null : planIntervention(skillNow, found);
+      if (intervention?.kind === 'teach' && intervention.example) {
+        // Hold the question on screen and teach. `advanceQuestion` is deferred
+        // until the child dismisses the worked example.
+        shake(() => setTimeout(() => setWorked(intervention.example!), pause));
+      } else {
+        shake(() => setTimeout(advanceQuestion, pause));
+      }
     }
+  };
+
+  /**
+   * Decide what should happen after a wrong answer (§1 and §3).
+   *
+   * Returns a worked example to show, or null when the session should simply
+   * continue — possibly after quietly retargeting the next question to a
+   * prerequisite or a confidence item, neither of which the child perceives.
+   */
+  const planIntervention = (
+    skill: string | null,
+    misconception: string | null,
+  ): { kind: 'teach'; example: WEType | null } | { kind: 'continue' } | null => {
+    if (!skill) return null;
+
+    const decision = decideAdaptation({
+      sessionLog: sessionLogRef.current,
+      currentSkill: skill,
+      estimates: mastery,
+      candidates: Object.keys(mastery),
+    });
+
+    // M2/M3 — invisible: the plan changes, the interface does not.
+    if (decision.kind === 'descend' || decision.kind === 'confidence') {
+      retargetNext(decision.skill, decision.kind === 'descend' ? 'easy' : undefined);
+      return { kind: 'continue' };
+    }
+
+    // §1 — teach only when practice cannot fix it and the gates all pass.
+    const teachable = decision.kind === 'teach' && canTeach(skill);
+    if (!teachable) return { kind: 'continue' };
+
+    const allow = shouldTeach({
+      skill,
+      sessionLog: sessionLogRef.current,
+      log: attempts,
+      estimates: mastery,
+      taughtAt: taughtAtRef.current[skill] ?? [],
+    });
+    if (!allow) return { kind: 'continue' };
+
+    const q = questions[currentIndex];
+    const example = buildWorkedExample({
+      skill,
+      questionText: q.questionText,
+      operands: extractOperands(q.questionText),
+      answer: Number(q.answer),
+      chosen: selectedChoice ?? undefined,
+      misconception: misconception ?? undefined,
+      explain: (id, l) => {
+        const hi = MISCONCEPTIONS_HI[id];
+        const info = l === 'hi' && hi ? hi : MISCONCEPTIONS[id];
+        return info?.explanation;
+      },
+    });
+    if (!example) return { kind: 'continue' };
+
+    // Record the teaching event for the cooldown, then serve a twin: same
+    // skill and difficulty, new operands. Applying the method immediately is
+    // the completion-problem step, and it is what earns the fade.
+    const seen = attempts.filter(a => a.skill === skill).length;
+    taughtAtRef.current[skill] = [...(taughtAtRef.current[skill] ?? []), seen];
+    retargetNext(skill);
+
+    return { kind: 'teach', example };
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -323,16 +464,19 @@ export default function GameScreen() {
         </View>
       )}
 
-      {/* Timer bar */}
-      <View style={styles.timerRow}>
-        <View style={styles.timerTrack}>
-          <View style={[styles.timerFill, {
-            width: `${timerPct * 100}%` as unknown as number,
-            backgroundColor: timerColor,
-          }]} />
+      {/* Timer bar — absent entirely when timing is off, rather than shown
+          frozen. A stationary countdown still reads as being watched. */}
+      {(timerOn || isBlitz) && (
+        <View style={styles.timerRow}>
+          <View style={styles.timerTrack}>
+            <View style={[styles.timerFill, {
+              width: `${timerPct * 100}%` as unknown as number,
+              backgroundColor: timerColor,
+            }]} />
+          </View>
+          <Text style={[styles.timerText, { color: timerColor }]}>{timerVal}s</Text>
         </View>
-        <Text style={[styles.timerText, { color: timerColor }]}>{timerVal}s</Text>
-      </View>
+      )}
 
       {/* Question card */}
       <Animated.View style={[
@@ -352,19 +496,43 @@ export default function GameScreen() {
       </Animated.View>
 
       {/* Answer grid */}
-      {/* Answer surface — dispatches on interaction type. The screen itself
-          stays agnostic: timing, scoring, feedback and diagnosis are shared. */}
-      <AnswerSurface
-        question={currentQuestion}
-        locked={perQLocked}
-        wasCorrect={answerState === 'idle' ? null : answerState === 'correct'}
-        selectedChoice={selectedChoice}
-        onSubmit={handleSubmit}
-      />
+      {/* §1 — while a worked example is up it takes the place of the answer
+          surface entirely. Leaving the options visible would invite the child
+          to guess again instead of reading the method. */}
+      {worked ? (
+        <WorkedExample
+          example={worked}
+          lang={lang}
+          onDone={() => {
+            setWorked(null);
+            // The next question is the twin: same structure, new numbers. It
+            // counts as scaffolded, so succeeding on it does not overstate
+            // what the learner can do unaided.
+            scaffoldedRef.current = true;
+            advanceQuestion();
+          }}
+        />
+      ) : (
+        <AnswerSurface
+          question={currentQuestion}
+          locked={perQLocked}
+          wasCorrect={answerState === 'idle' ? null : answerState === 'correct'}
+          selectedChoice={selectedChoice}
+          onSubmit={handleSubmit}
+        />
+      )}
+
+      {/* §9 M3 — process praise. Names the action, not the outcome. */}
+      {praise && answerState === 'correct' && (
+        <View style={styles.praiseBox} accessibilityLiveRegion="polite">
+          <Feather name="check-circle" size={14} color={C.correct} />
+          <Text style={styles.praiseText}>{praise}</Text>
+        </View>
+      )}
 
       {/* Direction D — explain *why* the answer was wrong, not merely that it was.
           Shown only when a specific misconception was identified. */}
-      {diagnosis && MISCONCEPTIONS[diagnosis] && (() => {
+      {diagnosis && !worked && MISCONCEPTIONS[diagnosis] && (() => {
         // Feedback must be in the learner's language, not just the questions.
         const hi = MISCONCEPTIONS_HI[diagnosis];
         const info = lang === 'hi' && hi ? hi : MISCONCEPTIONS[diagnosis];
@@ -384,6 +552,12 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 18 },
+  praiseBox: {
+    flexDirection: 'row', gap: 8, alignItems: 'center',
+    marginTop: 12, paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: C.correct + '14', borderRadius: 12,
+  },
+  praiseText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.correct },
   diagnosisBox: {
     flexDirection: 'row', gap: 9, alignItems: 'flex-start',
     marginTop: 12, padding: 12,

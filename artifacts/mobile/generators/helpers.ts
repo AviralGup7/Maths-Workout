@@ -70,23 +70,76 @@ export function subWithBorrow(minA: number, maxA: number, minB: number, maxB: nu
 
 // ─── Choice generators ────────────────────────────────────────────────────────
 
+// ─── Distractor plausibility (§5A of docs/14) ────────────────────────────────
+//
+// The audit measured that 100% of sampled questions contained at least one
+// option more than 50% away from the answer. A child who cannot compute 47 × 8
+// can still eliminate 12 and 900, so a "correct" answer often measured
+// test-wiseness rather than arithmetic. Every numeric distractor is now bounded
+// by DISTRACTOR_MAX_RATIO of the answer's magnitude.
+//
+// The absolute floor exists because a ratio alone collapses on small answers:
+// 25% of 4 is 1, which leaves no room for three distinct wrong options.
+
+/** Hard cap on how far a distractor may sit from the answer, as a ratio. */
+export const DISTRACTOR_MAX_RATIO = 0.25;
+/** Absolute floor, so small answers still have a usable window. */
+export const DISTRACTOR_MIN_SPREAD = 2;
+
+/** Maximum permitted distance between a distractor and the answer. */
+export function distractorSpread(answer: number): number {
+  return Math.max(DISTRACTOR_MIN_SPREAD, Math.round(Math.abs(answer) * DISTRACTOR_MAX_RATIO));
+}
+
+/**
+ * Structured near-misses, in the order a child is most likely to produce them.
+ *
+ * Priority 2 of the three-tier scheme: priority 1 is misconception output
+ * (`diagnosticDistractors`), priority 3 is a random value inside the cap.
+ * These are the errors that arise from a slip rather than a faulty rule —
+ * off-by-one, a dropped or spurious ten, a reversed pair of digits.
+ */
+export function structuredNearMisses(answer: number): number[] {
+  const out: number[] = [answer + 1, answer - 1];
+  const spread = distractorSpread(answer);
+  if (spread >= 10) out.push(answer + 10, answer - 10);
+  // Digit reversal: 63 → 36. Only meaningful for two-digit-plus answers.
+  const digits = String(Math.abs(Math.trunc(answer)));
+  if (digits.length >= 2) {
+    const reversed = Number([...digits].reverse().join(''));
+    if (reversed !== Math.abs(answer)) out.push(Math.sign(answer || 1) * reversed);
+  }
+  return out;
+}
+
 export function makeIntChoices(answer: number, opts: { allowNegative?: boolean } = {}): number[] {
   // Negative distractors confuse learners who have not met negative numbers yet
   // (they are introduced in Class 6). Default to suppressing them unless the
   // answer is itself negative, i.e. we are already in the integers topic.
   const allowNegative = opts.allowNegative ?? answer < 0;
-  const spread = Math.abs(answer) <= 15 ? 2 : Math.abs(answer) <= 100 ? 7 : Math.abs(answer) <= 1000 ? 25 : 100;
+  const spread = distractorSpread(answer);
   const wrong = new Set<number>();
+  const admit = (w: number) => {
+    if (w === answer || !Number.isFinite(w)) return;
+    if (!allowNegative && w < 0) return;
+    if (Math.abs(w - answer) > spread) return;
+    if (wrong.size < 3) wrong.add(w);
+  };
+
+  // Priority 2 — structured near-misses first, so the options a child would
+  // actually arrive at are the ones on screen.
+  for (const w of structuredNearMisses(answer)) admit(w);
+
+  // Priority 3 — random fill, still inside the cap.
   let tries = 0;
   while (wrong.size < 3 && tries < 300) {
     tries++;
     const delta = ri(-spread, spread);
-    if (delta === 0) continue;
-    const w = answer + delta;
-    if (!allowNegative && w < 0) continue;
-    if (w !== answer) wrong.add(w);
+    if (delta !== 0) admit(answer + delta);
   }
-  // Guarantee four options even when the non-negative window is tight.
+  // Guarantee four options even when the non-negative window is tight. The cap
+  // is relaxed here only as a last resort — it is better to show a slightly
+  // distant option than a grid with three tiles.
   let step = 1;
   while (wrong.size < 3 && step < 1000) {
     const w = answer + step;
@@ -102,12 +155,16 @@ export function makeDecChoices(answer: number, step = 0.1, opts: { allowNegative
   const allowNegative = opts.allowNegative ?? answer < 0;
   const round = (n: number) => Math.round(n * 100) / 100;
   const wrong = new Set<number>();
+  // Decimals are compared, not estimated, so the cap is expressed in steps:
+  // never more than 4 steps away, and never beyond the 25% ratio either.
+  const cap = Math.max(step * 2, Math.abs(answer) * DISTRACTOR_MAX_RATIO);
   let tries = 0;
   while (wrong.size < 3 && tries < 300) {
     tries++;
     const delta = ri(1, 4) * step * (Math.random() < 0.5 ? 1 : -1);
     const w = round(answer + delta);
     if (!allowNegative && w < 0) continue;
+    if (Math.abs(w - answer) > cap + 1e-9) continue;
     if (w !== answer) wrong.add(w);
   }
   // Guarantee four options when the non-negative window is tight.
@@ -163,17 +220,23 @@ export function makeDiagnosticChoices(
     map[String(value)] = misconception;
   }
 
-  // Top up with plausible near-misses so there are always four options.
-  const spread = Math.abs(answer) <= 15 ? 2 : Math.abs(answer) <= 100 ? 7 : Math.abs(answer) <= 1000 ? 25 : 100;
+  // Priority 2 — structured near-misses, then priority 3 — random within the
+  // ±25% cap. Both are bounded so an eliminable option cannot reach the grid.
+  const spread = distractorSpread(answer);
+  const admit = (candidate: number) => {
+    if (!Number.isFinite(candidate)) return;
+    if (!allowNegative && candidate < 0) return;
+    if (candidate === answer || chosen.includes(candidate)) return;
+    if (Math.abs(candidate - answer) > spread) return;
+    if (chosen.length < 3) chosen.push(candidate);
+  };
+  for (const w of structuredNearMisses(answer)) admit(w);
+
   let guard = 0;
   while (chosen.length < 3 && guard < 400) {
     guard++;
     const delta = ri(-spread, spread);
-    if (delta === 0) continue;
-    const candidate = answer + delta;
-    if (!allowNegative && candidate < 0) continue;
-    if (candidate === answer || chosen.includes(candidate)) continue;
-    chosen.push(candidate);
+    if (delta !== 0) admit(answer + delta);
   }
 
   // Last-resort fill, guaranteeing four distinct options.

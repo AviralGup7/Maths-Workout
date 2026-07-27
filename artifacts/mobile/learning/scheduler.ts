@@ -28,6 +28,45 @@ import { DEFAULT_BOARD } from '../curriculum/boards';
 export const TARGET_SUCCESS_LOW = 0.7;
 export const TARGET_SUCCESS_HIGH = 0.85;
 
+/**
+ * Target minimum projected success rate for a session (M1 · success floor).
+ *
+ * The audit simulated a struggling learner and measured a session where the
+ * weak skill was 14 of 20 questions at ~5% expected success. The learner is
+ * inside their zone of proximal development at 70–85%; at 5% they are simply
+ * failing, and the motivational damage outlasts any content gain.
+ *
+ * 0.60 rather than 0.70: the floor is a *safety net*, not the target. Pulling
+ * every session up to 0.70 would dilute genuine remediation. Sessions should
+ * usually land in the target band naturally; this stops the pathological case.
+ *
+ * IMPORTANT — this is a target, not a guarantee, and the distinction is
+ * deliberate. The floor competes with `MAX_DILUTION_RATIO` below, and the
+ * dilution cap deliberately wins. A learner who is weak at everything in their
+ * session cannot be lifted to 0.60 without replacing so much of the session
+ * that no remediation is left, at which point the app would be flattering the
+ * child rather than teaching them. In that case the floor raises success as far
+ * as it honestly can and stops. Callers must not assume attainment.
+ */
+export const SESSION_SUCCESS_FLOOR = 0.60;
+
+/**
+ * Hard ceiling on how much of a session the success floor may replace.
+ *
+ * Without this the floor becomes an avoidance mechanism: the easiest way to
+ * make a session "successful" is to stop asking anything difficult.
+ */
+export const MAX_DILUTION_RATIO = 0.5;
+
+/**
+ * Ceiling on how much of a session may go to already-secure skills.
+ *
+ * Retrieval practice keeps mastered skills mastered, but a session spent
+ * confirming what a learner can already do is a session that taught nothing.
+ * Bounded on both sides: at least the maintenance reserve, at most this.
+ */
+export const OVER_PRACTICE_CAP = 0.25;
+
 export interface ScheduledSkill {
   skill: SkillId;
   /** Higher is more urgent. */
@@ -171,7 +210,12 @@ export function buildSession(
   // reaches the harder interaction types (typed recall rather than
   // recognition), since those are gated on high mastery.
   const focusTarget    = focus.length  > 0 ? Math.max(1, Math.round(count * 0.70)) : 0;
-  const maintainTarget = secure.length > 0 ? Math.max(1, Math.round(count * 0.15)) : 0;
+  // Bounded above by OVER_PRACTICE_CAP: ceiling effects waste session time that
+  // belongs to the frontier. A skill above 0.90 is not learning, it is
+  // confirming.
+  const maintainTarget = secure.length > 0
+    ? Math.min(Math.floor(count * OVER_PRACTICE_CAP), Math.max(1, Math.round(count * 0.15)))
+    : 0;
 
   let fi = 0, mi = 0, ni = 0;
   const take = (pool: ScheduledSkill[], cursor: number) => pool[cursor % pool.length];
@@ -195,7 +239,103 @@ export function buildSession(
     }
   }
 
-  return shuffleLight(session);
+  return shuffleLight(applySuccessFloor(session, ranked, estimates, count));
+}
+
+/** Expected proportion of a planned session the learner will answer correctly. */
+export function projectedSuccess(
+  session: ScheduledSkill[],
+  estimates: Record<SkillId, MasteryEstimate>,
+): number {
+  if (session.length === 0) return 1;
+  const total = session.reduce((sum, s) => {
+    const e = estimates[s.skill];
+    // An unattempted skill sits at the 0.5 prior, which is the honest guess.
+    return sum + (e && e.attempts > 0 ? e.value : 0.5);
+  }, 0);
+  return total / session.length;
+}
+
+/**
+ * M1 · Success floor.
+ *
+ * Repeatedly swap the single hardest item for the most secure alternative until
+ * the projected success rate clears the floor. Swapping the *weakest* item each
+ * time is deliberate: it removes the most damaging question in the session,
+ * while leaving the rest of the remediation intact.
+ *
+ * The weak skill is diluted, never removed — the learner still meets it, and
+ * mastery still reports honestly. What changes is that they also answer enough
+ * questions correctly to stay in the session at all.
+ */
+export function applySuccessFloor(
+  session: ScheduledSkill[],
+  ranked: ScheduledSkill[],
+  estimates: Record<SkillId, MasteryEstimate>,
+  count: number,
+): ScheduledSkill[] {
+  if (session.length === 0) return session;
+
+  const valueOf = (s: ScheduledSkill) => {
+    const e = estimates[s.skill];
+    return e && e.attempts > 0 ? e.value : 0.5;
+  };
+
+  // Candidates to swap in, most secure first. Prerequisites of the failing
+  // skill are the pedagogically correct filler, and they rank high here
+  // naturally because a prerequisite is by definition more secure than the
+  // skill built on it — if it were not, it would be the gap.
+  const relief = [...ranked].sort((a, b) => valueOf(b) - valueOf(a));
+  if (relief.length === 0) return session;
+
+  const out = [...session];
+  // Bounded: at most half the session may be replaced, so remediation survives.
+  const maxSwaps = Math.floor(count * MAX_DILUTION_RATIO);
+  let swaps = 0;
+  let reliefCursor = 0;
+
+  /** Occurrences of each skill currently in the plan. */
+  const occurrences = new Map<SkillId, number>();
+  for (const s of out) occurrences.set(s.skill, (occurrences.get(s.skill) ?? 0) + 1);
+
+  while (projectedSuccess(out, estimates) < SESSION_SUCCESS_FLOOR && swaps < maxSwaps) {
+    // Hardest remaining item that is *not* the last copy of its skill.
+    //
+    // This guard is what makes the floor a dilution rather than an avoidance
+    // mechanism. Without it the scheduler quietly stops showing a child the one
+    // thing they most need to practise, which is a far worse failure than the
+    // low success rate it was introduced to fix — the app would look like it
+    // was working while silently abandoning the learner's actual gap.
+    let worstIdx = -1;
+    for (let i = 0; i < out.length; i++) {
+      if ((occurrences.get(out[i].skill) ?? 0) <= 1) continue;
+      // A `gap` item is a weak skill that *blocks other skills*. It is the
+      // highest-value question in the session and the reason the session was
+      // scheduled this way at all. Diluting around it is correct; removing it
+      // to flatter the success projection defeats the purpose.
+      if (out[i].reason === 'gap') continue;
+      if (worstIdx === -1 || valueOf(out[i]) < valueOf(out[worstIdx])) worstIdx = i;
+    }
+    if (worstIdx === -1) break;   // nothing left that may legitimately be swapped
+
+    // Spread relief across distinct skills rather than repeating the single
+    // most secure one, which would trade a demoralising session for a boring.
+    const replacement = relief[reliefCursor % relief.length];
+    reliefCursor++;
+    // No relief available that is actually easier — the learner is weak across
+    // the board, and swapping would achieve nothing but churn.
+    if (valueOf(replacement) <= valueOf(out[worstIdx])) {
+      if (reliefCursor >= relief.length) break;
+      continue;
+    }
+
+    occurrences.set(out[worstIdx].skill, (occurrences.get(out[worstIdx].skill) ?? 1) - 1);
+    occurrences.set(replacement.skill, (occurrences.get(replacement.skill) ?? 0) + 1);
+    out[worstIdx] = { ...replacement, difficulty: 'easy' };
+    swaps++;
+  }
+
+  return out;
 }
 
 /**

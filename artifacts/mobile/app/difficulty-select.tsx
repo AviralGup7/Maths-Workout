@@ -10,25 +10,36 @@ import {
 } from '@/context/GameContext';
 import colors from '@/constants/colors';
 import { touchSlop } from '@/hooks/useA11y';
+import { t, categoryLabel } from '@/i18n/strings';
+import { CLASS_LABELS } from '@/curriculum/boards';
 
 const C = colors.light;
 
-const DIFF_META: { key: Difficulty; label: string; icon: keyof typeof Feather.glyphMap; color: string; desc: string }[] = [
-  { key: 'easy',   label: 'Easy',   icon: 'smile',       color: C.easy,   desc: 'Smaller numbers, no carrying' },
-  { key: 'medium', label: 'Medium', icon: 'zap',         color: C.medium, desc: 'Carrying, borrowing, mid-range' },
-  { key: 'hard',   label: 'Hard',   icon: 'trending-up', color: C.hard,   desc: 'Large numbers, full operations' },
+// Labels are held as i18n keys, not literals: this screen previously hardcoded
+// English, so a Hindi-medium learner met an all-English setup screen halfway
+// through an otherwise translated flow. The strings already existed in
+// i18n/strings.ts — they had simply never been wired up here.
+const DIFF_META: {
+  key: Difficulty; labelKey: string; descKey: string;
+  icon: keyof typeof Feather.glyphMap; color: string;
+}[] = [
+  { key: 'easy',   labelKey: 'easy',   descKey: 'easyDesc',   icon: 'smile',       color: C.easy },
+  { key: 'medium', labelKey: 'medium', descKey: 'mediumDesc', icon: 'zap',         color: C.medium },
+  { key: 'hard',   labelKey: 'hard',   descKey: 'hardDesc',   icon: 'trending-up', color: C.hard },
 ];
 
-const SESSION_META: { key: SessionType; label: string; sub: string; icon: keyof typeof Feather.glyphMap }[] = [
-  { key: '10q',     label: '10 Questions', sub: '~3 minutes',      icon: 'list' },
-  { key: '20q',     label: '20 Questions', sub: '~6 minutes',      icon: 'layers' },
-  { key: 'timed60', label: '60s Blitz',    sub: 'As many as you can!', icon: 'clock' },
+const SESSION_META: {
+  key: SessionType; labelKey: string; subKey: string; icon: keyof typeof Feather.glyphMap;
+}[] = [
+  { key: '10q',     labelKey: 'tenQuestions',    subKey: 'aboutMinutes',    icon: 'list' },
+  { key: '20q',     labelKey: 'twentyQuestions', subKey: 'aboutSixMinutes', icon: 'layers' },
+  { key: 'timed60', labelKey: 'blitz',           subKey: 'asManyAsYouCan',  icon: 'clock' },
 ];
 
 export default function DifficultySelectScreen() {
   const insets = useSafeAreaInsets();
   const router  = useRouter();
-  const { selectedClass, selectedCategory, startGame, getHighScore } = useGame();
+  const { selectedClass, selectedCategory, startGame, getHighScore, lang } = useGame();
 
   const [selDiff, setSelDiff]       = useState<Difficulty>('easy');
   const [selSession, setSelSession] = useState<SessionType>('10q');
@@ -52,14 +63,14 @@ export default function DifficultySelectScreen() {
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Set Up Game</Text>
+          <Text style={styles.headerTitle}>{t('setUpGame', lang)}</Text>
           <View style={styles.breadcrumb}>
             <View style={[styles.crumbPill, { backgroundColor: classConfig.color + '22' }]}>
-              <Text style={[styles.crumbText, { color: classConfig.color }]}>{classConfig.label}</Text>
+              <Text style={[styles.crumbText, { color: classConfig.color }]}>{CLASS_LABELS[classConfig.key][lang === 'hi' ? 'hi' : 'en']}</Text>
             </View>
             <Feather name="chevron-right" size={12} color={C.mutedForeground} />
             <View style={[styles.crumbPill, { backgroundColor: catMeta.color + '22' }]}>
-              <Text style={[styles.crumbText, { color: catMeta.color }]}>{catMeta.label}</Text>
+              <Text style={[styles.crumbText, { color: catMeta.color }]}>{categoryLabel(selectedCategory, lang)}</Text>
             </View>
           </View>
         </View>
@@ -68,7 +79,7 @@ export default function DifficultySelectScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Difficulty */}
-        <Text style={styles.sectionLabel}>DIFFICULTY</Text>
+        <Text style={styles.sectionLabel}>{t('difficulty', lang)}</Text>
         <View style={styles.diffList}>
           {DIFF_META.map(d => {
             const best = getHighScore(selectedClass, d.key, selectedCategory);
@@ -81,21 +92,21 @@ export default function DifficultySelectScreen() {
                 activeOpacity={0.8}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: sel }}
-                accessibilityLabel={d.label}
-                accessibilityHint={d.desc}
+                accessibilityLabel={t(d.labelKey, lang)}
+                accessibilityHint={t(d.descKey, lang)}
               >
                 <View style={[styles.diffIcon, { backgroundColor: d.color + '22' }]}>
                   <Feather name={d.icon} size={22} color={d.color} />
                 </View>
                 <View style={styles.diffBody}>
-                  <Text style={[styles.diffLabel, { color: d.color }]}>{d.label}</Text>
-                  <Text style={styles.diffDesc}>{d.desc}</Text>
+                  <Text style={[styles.diffLabel, { color: d.color }]}>{t(d.labelKey, lang)}</Text>
+                  <Text style={styles.diffDesc}>{t(d.descKey, lang)}</Text>
                 </View>
                 <View style={styles.diffRight}>
                   {best > 0 && (
                     <View style={styles.bestPill}>
                       <Feather name="star" size={10} color={C.gold} />
-                      <Text style={styles.bestText}>Best: {best}</Text>
+                      <Text style={styles.bestText}>{t('best', lang)}: {best}</Text>
                     </View>
                   )}
                   {sel && <Feather name="check-circle" size={18} color={d.color} />}
@@ -106,7 +117,7 @@ export default function DifficultySelectScreen() {
         </View>
 
         {/* Session type */}
-        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>SESSION TYPE</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>{t('sessionType', lang)}</Text>
         <View style={styles.sessionRow}>
           {SESSION_META.map(s => {
             const sel = selSession === s.key;
@@ -118,11 +129,11 @@ export default function DifficultySelectScreen() {
                 activeOpacity={0.8}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: sel }}
-                accessibilityLabel={`${s.label}, ${s.sub}`}
+                accessibilityLabel={`${t(s.labelKey, lang)}, ${t(s.subKey, lang)}`}
               >
                 <Feather name={s.icon} size={20} color={sel ? C.primary : C.mutedForeground} />
-                <Text style={[styles.sessionLabel, sel && { color: C.primary }]}>{s.label}</Text>
-                <Text style={styles.sessionSub}>{s.sub}</Text>
+                <Text style={[styles.sessionLabel, sel && { color: C.primary }]}>{t(s.labelKey, lang)}</Text>
+                <Text style={styles.sessionSub}>{t(s.subKey, lang)}</Text>
               </TouchableOpacity>
             );
           })}
@@ -134,7 +145,7 @@ export default function DifficultySelectScreen() {
         <TouchableOpacity style={styles.startBtn} onPress={handleStart} activeOpacity={0.85}
           accessibilityRole="button" accessibilityLabel="Start practice">
           <Feather name="play" size={20} color="#fff" />
-          <Text style={styles.startText}>Start{selSession === 'timed60' ? ' Blitz!' : ' Game'}</Text>
+          <Text style={styles.startText}>{t(selSession === 'timed60' ? 'startBlitz' : 'startGame', lang)}</Text>
         </TouchableOpacity>
       </View>
     </View>

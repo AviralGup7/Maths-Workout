@@ -103,4 +103,4 @@ export function useMotion(): Motion {
 
 // Timing constants live in ./motionRules so they can be imported without
 // pulling in React Native.
-export { FEEDBACK_MS, feedbackDelay } from './motionRules';
+export { FEEDBACK_MS, feedbackDelay, readingDelay, MIN_READING_MS } from './motionRules';

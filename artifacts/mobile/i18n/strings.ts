@@ -134,6 +134,17 @@ export const S: Dict = {
   improving:        { en: 'improving',         hi: 'सुधार हो रहा है' },
   slipping:         { en: 'slipping',          hi: 'कमज़ोर हो रहा है' },
   notStarted:       { en: 'Not started',       hi: 'शुरू नहीं हुआ' },
+  yourProgress:     { en: 'GROWING',           hi: 'प्रगति' },
+
+  // ── Timer setting (§9 M1) ───────────────────────────────────────────────
+  // Navigation/settings labels stay bilingual under the semi-Hindi policy so
+  // an accidental language switch is always recoverable.
+  questionTimer:    { en: 'Question timer',    hi: 'प्रश्न टाइमर · Question timer' },
+  timerOn:          { en: 'On',                hi: 'चालू · On' },
+  timerOff:         { en: 'Off',               hi: 'बंद · Off' },
+  timerAuto:        { en: 'Auto',              hi: 'स्वतः · Auto' },
+  timerAutoNote:    { en: 'Off below Class 3', hi: 'कक्षा 3 से पहले बंद' },
+  timerNote:        { en: 'Blitz always keeps its clock', hi: 'ब्लिट्ज़ में घड़ी हमेशा चलती है' },
 };
 
 /** Look up a UI string. Falls back to English if a Hindi value is missing. */

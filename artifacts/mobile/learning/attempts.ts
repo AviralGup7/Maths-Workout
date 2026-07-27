@@ -36,6 +36,21 @@ export interface Attempt {
   timedOut: boolean;
   /** Detected misconception id, if any (Direction D). */
   misconception?: string;
+  /**
+   * How the answer was given.
+   *
+   * Absent means multiple choice, which keeps every pre-existing stored row
+   * valid. The distinction matters for the anti-inflation guard (M4): tapping
+   * one of four tiles is recognition and carries a ~25% guess probability,
+   * whereas typing, selecting a set or building a sequence is recall.
+   */
+  interaction?: 'choice' | 'entry' | 'multiSelect' | 'ordering';
+  /**
+   * True when the learner reached this answer with a scaffold on screen
+   * (hint or worked example). Such attempts contribute reduced weight to
+   * mastery, so support never inflates the estimate.
+   */
+  scaffolded?: boolean;
   cls: SchoolClass;
   category: Category;
   difficulty: Difficulty;

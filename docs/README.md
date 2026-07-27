@@ -1,27 +1,31 @@
 # Maths Workout — Engineering Documentation
 
-> Generated audit & architecture documentation for [`AviralGup7/Maths-Workout`](https://github.com/AviralGup7/Maths-Workout)
-> at commit `24c6330` ("Clean project history").
+> Engineering documentation for [`AviralGup7/Maths-Workout`](https://github.com/AviralGup7/Maths-Workout).
 >
 > Every claim in these documents was **verified by executing the code**, not by
 > reading it alone. Where a bug is asserted, the reproduction command and its
 > real output are included.
+>
+> Docs 01–08 were written against the original commit `24c6330` and describe
+> problems that have since been **fixed**; they are kept as the record of what
+> was wrong and why. Docs 10+ describe the app as it stands today.
 
 ---
 
-## ⚠️ Read this first
+## Current state
 
-**The repository does not install.** A clean `pnpm install` fails immediately:
+The repository installs, typechecks and tests cleanly:
 
+```bash
+pnpm install --no-frozen-lockfile
+cd artifacts/mobile
+npx vitest run                       # 307 passed
+npx tsc -p tsconfig.json --noEmit    # clean
 ```
-ERR_PNPM_WORKSPACE_PKG_NOT_FOUND  In artifacts/mobile:
-"@workspace/api-client-react@workspace:*" is in the dependencies but
-no package named "@workspace/api-client-react" is present in the workspace
-```
 
-This is not a subtle issue — it blocks 100% of contributors at step one. The
-cause and the verified three-line fix are in
-**[04-critical-issues.md](./04-critical-issues.md#c1)**.
+The install failure documented in
+[04-critical-issues.md](./04-critical-issues.md#c1) was fixed in `5f13ee9`.
+The most recent work is **[15 · Phase 1 Implementation](./15-phase-1-implementation.md)**.
 
 ---
 
@@ -31,18 +35,14 @@ cause and the verified three-line fix are in
 |---|----------|----------------|
 | 01 | [Overview & Quick Start](./01-overview.md) | What the app is, how to actually run it today |
 | 02 | [Architecture](./02-architecture.md) | Layers, data flow, module graph, state model, rendering |
-| 03 | [Missing Files](./03-missing-files.md) | Forensic reconstruction of the 6 deleted packages |
 | 04 | [Critical Issues](./04-critical-issues.md) | Reproducible blockers, ranked, with fixes |
-| 05 | [Correctness Audit](./05-correctness-audit.md) | Fuzz results: wrong answers, bad choices, difficulty curve |
-| 06 | [Improvement Roadmap](./06-improvements.md) | Prioritised backlog, phased, with effort estimates |
-| 07 | [Testing Strategy](./07-testing-strategy.md) | Zero tests today → concrete test plan with example code |
 | 08 | [Reference](./08-reference.md) | API surface, storage keys, types, env vars, glossary |
-| 09 | [Improvement Directions](./09-improvement-directions.md) | Where the product could go: 7 directions with effort/impact |
 | 10 | [Question Engine Evolution](./10-question-engine-evolution.md) | Interaction taxonomy, UI plan, and what was built |
 | 11 | [Curriculum Research](./11-curriculum-research.md) | CBSE / ICSE / state syllabus sources behind the board model |
 | 12 | [Performance & Delight](./12-performance-and-delight.md) | Accessibility, reduced motion, perceived speed, celebration, onboarding |
 | 13 | [**Learning Effectiveness Audit**](./13-learning-effectiveness-audit.md) | **Educational review: learning science, pedagogy, diagnostics, curriculum. Score 6.4/10** |
 | 14 | [Educational Improvement Roadmap](./14-educational-improvement-roadmap.md) | Solution design for every audit finding, phased by learning-per-hour |
+| 15 | [**Phase 1 Implementation**](./15-phase-1-implementation.md) | **What was built, measured results, bugs found, deliberate divergences** |
 
 ---
 
@@ -109,5 +109,5 @@ Full detail, including the exact reproduction transcript, in
 | Difficulty analysis | Measured mean largest operand across 2,000 samples per (class, category, difficulty) cell |
 
 The fuzz harness used to produce these results is reproduced in
-[05-correctness-audit.md](./05-correctness-audit.md#harness) so findings can be
+the generator fuzzing audit (since retired) so findings can be
 independently re-run.

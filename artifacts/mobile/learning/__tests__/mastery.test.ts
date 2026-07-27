@@ -30,8 +30,11 @@ describe('mastery estimation', () => {
   });
 
   it('rises with consistent success', () => {
+    // Typed entry, not multiple choice: the anti-inflation guard caps
+    // recognition-only evidence at RECOGNITION_CEILING (0.80), which sits below
+    // MASTERED_THRESHOLD by design.
     const log = Array.from({ length: 10 }, (_, i) =>
-      attempt({ correct: true, answeredAt: NOW - i * 1000 }));
+      attempt({ correct: true, answeredAt: NOW - i * 1000, interaction: 'entry' }));
     const e = estimateMastery('add.within10', log, NOW);
     expect(e.value).toBeGreaterThan(MASTERED_THRESHOLD);
     expect(e.confidence).toBeGreaterThan(0.7);
@@ -288,7 +291,7 @@ describe('spaced repetition', () => {
       Array.from({ length: 8 }, () => attempt({ correct: false })), NOW);
     expect(difficultyFor(weak)).toBe('easy');
     const strong = estimateMastery('add.within10',
-      Array.from({ length: 20 }, (_, i) => attempt({ correct: true, answeredAt: NOW - i * 1000 })), NOW);
+      Array.from({ length: 20 }, (_, i) => attempt({ correct: true, interaction: 'entry', answeredAt: NOW - i * 1000 })), NOW);
     expect(difficultyFor(strong)).toBe('hard');
   });
 });

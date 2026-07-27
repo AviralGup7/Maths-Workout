@@ -25,6 +25,8 @@ import { expectedAnswer, pickInteraction, toEntry } from '../generators/interact
 import type { Board } from '../curriculum/boards';
 import { DEFAULT_BOARD, categoriesFor, BOARD_CONFIGS } from '../curriculum/boards';
 import type { Lang } from '../i18n/strings';
+import type { TimerPreference } from '../learning/timerPolicy';
+import { timerEnabledForSession } from '../learning/timerPolicy';
 import { genWordProblemsI18n } from '../generators/word-problems-i18n';
 import { genMoneyI18n } from '../generators/money-i18n';
 import {
@@ -43,7 +45,7 @@ import type { MasteryEstimate } from '../learning/mastery';
 import { estimateAll, findRootGap } from '../learning/mastery';
 import type { SkillId } from '../learning/skills';
 import { resolveSkill, SKILLS } from '../learning/skills';
-import { buildSession, categoryForSkill } from '../learning/scheduler';
+import { buildSession, categoryForSkill, difficultyFor } from '../learning/scheduler';
 import { diagnose, summariseMisconceptions } from '../learning/misconceptions';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ const DEVICE_ID_KEY      = '@maths_workout_device_id';
 const ATTEMPTS_KEY       = '@maths_workout_v3_attempts';
 const SCHEMA_VERSION_KEY = '@maths_workout_schema_version';
 const BOARD_KEY          = '@maths_workout_board';
+const TIMER_PREF_KEY     = '@maths_workout_timer_pref';
 const LANG_KEY           = '@maths_workout_lang';
 const CURRENT_SCHEMA     = 3;
 /** Daily practice target used for the streak/goal display. */
@@ -165,9 +168,22 @@ interface GameContextType {
   recordAttempt:    (args: {
                       question: Question; chosen: string; correct: boolean;
                       latencyMs: number; timedOut: boolean;
+                      /** True when a hint or worked example was on screen. */
+                      scaffolded?: boolean;
                     }) => string | null;
   /** Weakest prerequisite behind a struggling skill, for explaining *why*. */
   rootGapFor:       (skill: SkillId) => SkillId | null;
+  /** The skill the question at `index` exercises, when the scheduler chose it. */
+  sessionSkillFor:  (index: number) => SkillId | null;
+  /**
+   * Replace the upcoming question with one drawn from `skill`.
+   *
+   * Used for the completion-problem twin after a worked example, and for
+   * prerequisite descent (§3 M2) and the circuit-breaker (§3 M3). Rewrites the
+   * plan in place so mid-session adaptation needs no new session machinery.
+   * Returns false when no question could be generated for that skill.
+   */
+  retargetNext:     (skill: SkillId, difficulty?: Difficulty) => boolean;
   /** Most frequent misconceptions across recent practice. */
   topMisconceptions: () => ReturnType<typeof summariseMisconceptions>;
 
@@ -180,6 +196,16 @@ interface GameContextType {
   setLang:          (l: Lang) => void;
   /** True until the stored board/language preference has been read. */
   prefsLoaded:      boolean;
+
+  // ── Timer (§9 M1) ───────────────────────────────────────────────────────
+  /**
+   * Whether the per-question countdown runs. 'auto' defaults by class —
+   * off below Class 3, where timing is an anxiety driver rather than a spur.
+   */
+  timerPref:        TimerPreference;
+  setTimerPref:     (p: TimerPreference) => void;
+  /** Resolved for the current class and session. Blitz always keeps its clock. */
+  timerOn:          boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -207,6 +233,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [board,            setBoardState]       = useState<Board>(DEFAULT_BOARD);
   const [lang,             setLangState]        = useState<Lang>('en');
   const [prefsLoaded,      setPrefsLoaded]      = useState(false);
+  const [timerPref,        setTimerPrefState]   = useState<TimerPreference>('auto');
   const [isAdaptive,       setIsAdaptive]       = useState(false);
   /** Skills chosen by the scheduler for the current session, index-aligned to `questions`. */
   const sessionSkillsRef = useRef<SkillId[]>([]);
@@ -329,15 +356,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem(LANG_KEY, l).catch(() => {});
   }, []);
 
+  const setTimerPref = useCallback((p: TimerPreference) => {
+    setTimerPrefState(p);
+    AsyncStorage.setItem(TIMER_PREF_KEY, p).catch(() => {});
+  }, []);
+
   /** Read stored preferences once on mount, before the first render that matters. */
   const loadPrefs = useCallback(async () => {
     try {
-      const [b, l] = await Promise.all([
+      const [b, l, tp] = await Promise.all([
         AsyncStorage.getItem(BOARD_KEY),
         AsyncStorage.getItem(LANG_KEY),
+        AsyncStorage.getItem(TIMER_PREF_KEY),
       ]);
       if (b && BOARD_CONFIGS.some(c => c.key === b)) setBoardState(b as Board);
       if (l === 'hi' || l === 'en') setLangState(l);
+      if (tp === 'on' || tp === 'off' || tp === 'auto') setTimerPrefState(tp);
     } catch { /* defaults apply */ }
     finally { setPrefsLoaded(true); }
   }, []);
@@ -350,6 +384,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const mastery = useMemo(() => estimateAll(attempts), [attempts]);
   const streak = useMemo(() => currentStreak(attempts), [attempts]);
   const answeredToday = useMemo(() => todayCount(attempts), [attempts]);
+
+  /**
+   * Resolved timer state for the session on screen.
+   * Blitz is exempt: there the clock is the activity the child chose, not
+   * pressure imposed on ordinary practice.
+   */
+  const timerOn = useMemo(
+    () => timerEnabledForSession(timerPref, selectedClass, sessionType === 'timed60' && !isTablesMode),
+    [timerPref, selectedClass, sessionType, isTablesMode],
+  );
 
   /**
    * Interaction-rich alternatives for skills where a different input modality
@@ -515,8 +559,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    * Captures the three fields the legacy model discarded — when, how long, and
    * what was chosen — then runs misconception diagnosis on wrong answers.
    */
-  const recordAttempt = useCallback(({ question, chosen, correct, latencyMs, timedOut }: {
+  const recordAttempt = useCallback(({ question, chosen, correct, latencyMs, timedOut, scaffolded }: {
     question: Question; chosen: string; correct: boolean; latencyMs: number; timedOut: boolean;
+    scaffolded?: boolean;
   }): string | null => {
     const category = question.resolvedCategory ?? selectedCategory;
     const skill = sessionSkillsRef.current[currentIndex]
@@ -535,6 +580,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       skill, correct, answeredAt: Date.now(), latencyMs, chosen,
       expected: String(question.answer), questionText: question.questionText,
       timedOut, misconception: misconception ?? undefined,
+      // Recorded so the anti-inflation guard can tell recognition from recall.
+      // Absent `interaction` on a question means multiple choice.
+      interaction: question.interaction?.kind ?? 'choice',
+      scaffolded: scaffolded || undefined,
       cls: selectedClass, category, difficulty,
     };
 
@@ -554,9 +603,52 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const rootGapFor = useCallback(
     (skill: SkillId) => findRootGap(skill, mastery), [mastery]);
 
+  /**
+   * Which skill a given question exercises.
+   *
+   * Falls back to resolving from class/category/difficulty so manual sessions —
+   * which the scheduler never planned — still report a skill.
+   */
+  const sessionSkillFor = useCallback((index: number): SkillId | null => {
+    const planned = sessionSkillsRef.current[index];
+    if (planned) return planned;
+    const q = questions[index];
+    if (!q) return null;
+    const cat = q.resolvedCategory ?? selectedCategory;
+    return resolveSkill(selectedClass, isTablesMode ? 'tables' : cat, difficulty);
+  }, [questions, selectedClass, selectedCategory, difficulty, isTablesMode]);
+
   const topMisconceptions = useCallback(
     () => summariseMisconceptions(attempts.slice(-200).map(a => a.misconception)),
     [attempts]);
+
+  /**
+   * Swap the next question for one on `skill`.
+   *
+   * The session plan is a plain array, so in-session adaptation is a splice
+   * rather than a rebuild — the child never notices anything but a different
+   * question. Failure is silent and non-fatal: if the generator cannot serve
+   * this skill at this class, the planned question simply stands.
+   */
+  const retargetNext = useCallback((skill: SkillId, diff?: Difficulty): boolean => {
+    const target = currentIndex + 1;
+    if (target >= totalQuestions) return false;
+    const cat = categoryForSkill(skill);
+    const level = mastery[skill]?.value ?? 0.5;
+    const useDiff = diff ?? difficultyFor(mastery[skill]);
+    try {
+      const q = buildQuestion(selectedClass, useDiff, cat, skill, level);
+      setQuestions(prev => {
+        const next = [...prev];
+        next[target] = q;
+        return next;
+      });
+      sessionSkillsRef.current[target] = skill;
+      return true;
+    } catch {
+      return false;
+    }
+  }, [currentIndex, totalQuestions, mastery, buildQuestion, selectedClass]);
 
   const startTablesGame = useCallback((tableNum: number) => {
     sessionSkillsRef.current = [];
@@ -695,8 +787,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       highScores, progressStats, tablesBest, savedMistakes,
       saveScore, saveProgressStats, clearMistake, loadAll, getHighScore,
       attempts, mastery, streak, answeredToday,
-      startAdaptiveSession, isAdaptive, recordAttempt, rootGapFor, topMisconceptions,
+      startAdaptiveSession, isAdaptive, recordAttempt, rootGapFor, sessionSkillFor, retargetNext, topMisconceptions,
       board, setBoard, lang, setLang, prefsLoaded,
+      timerPref, setTimerPref, timerOn,
     }}>
       {children}
     </GameContext.Provider>

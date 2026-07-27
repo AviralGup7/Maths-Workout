@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { FEEDBACK_MS, feedbackDelay } from '../motionRules';
+import { FEEDBACK_MS, feedbackDelay, readingDelay, MIN_READING_MS } from '../motionRules';
 import { MIN_TOUCH, touchSlop } from '../a11yRules';
 import { STREAK_MILESTONES, isStreakMilestone } from '../../components/celebrationRules';
 
@@ -232,5 +232,29 @@ describe('onboarding', () => {
 
   it('respects reduced motion in its transitions', () => {
     expect(src).toContain('useMotion');
+  });
+});
+
+// ─── Reading time survives reduced motion ────────────────────────────────────
+
+describe('readingDelay', () => {
+  it('keeps text on screen long enough to read under reduced motion', () => {
+    // feedbackDelay alone clamps to 400 ms, which removes the information
+    // along with the movement. Reduced motion must not mean unreadable.
+    expect(readingDelay(FEEDBACK_MS.correctPraised, true)).toBeGreaterThanOrEqual(900);
+    expect(feedbackDelay(FEEDBACK_MS.correctPraised, true)).toBeLessThanOrEqual(400);
+  });
+
+  it('does not stretch a pause that was already short', () => {
+    expect(readingDelay(200, true)).toBeLessThanOrEqual(200);
+    expect(readingDelay(200, false)).toBeLessThanOrEqual(200);
+  });
+
+  it('leaves normal motion untouched', () => {
+    expect(readingDelay(FEEDBACK_MS.correctPraised, false)).toBe(FEEDBACK_MS.correctPraised);
+  });
+
+  it('gives a praise line more time than a bare tick', () => {
+    expect(FEEDBACK_MS.correctPraised).toBeGreaterThan(FEEDBACK_MS.correct);
   });
 });

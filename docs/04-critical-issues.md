@@ -367,7 +367,7 @@ in the UI indicates this. Reinstalling the app permanently loses all progress.
 
 ### Cause
 
-`artifacts/api-server` was deleted (see [03](./03-missing-files.md)), so
+`artifacts/api-server` was deleted (see the deleted-packages report), so
 `/api/progress/:deviceId` does not exist. Both client functions swallow the
 resulting error by design:
 
@@ -426,7 +426,7 @@ return parsed.success ? parsed.data : null;
 
 `zod` is already a dependency of the mobile app, so this costs nothing.
 
-**Long term** — rebuild the backend ([Option B](./03-missing-files.md#option-b--rebuild-the-backend-12-days)),
+**Long term** — rebuild the backend (Option B),
 adding the authentication that the original design lacked.
 
 ---
@@ -783,7 +783,7 @@ $ ls .github
 | `.env.example` | `EXPO_PUBLIC_DOMAIN` is required by `build` and undocumented |
 | `CONTRIBUTING.md` | pnpm-only enforcement is a `preinstall` hook with no explanation |
 
-See [07-testing-strategy.md](./07-testing-strategy.md) for a concrete plan.
+See the test suite for a concrete plan.
 
 ---
 
@@ -821,5 +821,5 @@ Day 1 (2 h)      C4 → C7 → C8 → C12  user-visible correctness bugs
 Day 2 (2 h)      C5 → C9 → C11       theming + timers + storage hygiene
 Week 1           C13                  README, CI, first tests
 Week 2+          C6 → C10             backend rebuild + stats migration
-Backlog          C14 and the items in 06-improvements.md
+Backlog          C14 (the repair backlog itself is now complete)
 ```
