@@ -184,14 +184,57 @@ genuinely larger sum for an ICSE learner than a state-board one.
 
 ## 6 · Localisation notes
 
-- **Currency** — `₹` throughout; `€` removed. Amounts use Indian conventions.
+- **Currency** — `₹` throughout; `€` removed. Real Indian denominations
+  (coins ₹1/₹2/₹5/₹10, notes ₹10–₹500). Euro-cent phrasing like "9c + 2c" is
+  gone; paise are effectively out of circulation so amounts are whole rupees.
 - **Names** — Aarav, Priya, Rohan, Ananya, Kabir, Diya, Meera, Arjun replace
   Tom and Jane.
-- **Contexts** — cricket, rangoli, tiffin, autos, mangoes, festivals.
+- **Contexts** — cricket, tiffin, mangoes, laddoos, festivals.
 - **Class labels** — "Class 1" not "1st Class" (Irish convention).
-- **Hindi** — full UI translation plus Hindi question templates. Numerals stay
-  in Western Arabic form, which is standard in Indian maths teaching; Devanagari
-  digits are not used for arithmetic.
+
+### 6.1 The "semi-Hindi" policy
+
+Hindi mode is **deliberately partial**, mirroring how Hindi-medium schooling
+actually works in India — and protecting a child who switches language by
+accident.
+
+**Translated — what is being *learned*:**
+
+| | |
+|---|---|
+| Question text | `8 − 3 = ?` phrased in Hindi where it has words |
+| Category names | जोड़, घटाव, गुणा, भाग |
+| Topic descriptions | full Hindi |
+| Misconception diagnosis | full Hindi — a child struggling in Hindi must be told *why* in Hindi |
+| Encouragement, results | full Hindi |
+
+**Kept in English — what is being *navigated* or *computed*:**
+
+| | Rule | Example |
+|---|---|---|
+| **Numerals** | Always Western Arabic, never Devanagari | `कक्षा 5`, not `कक्षा ५` |
+| **Navigation** | Bilingual, Latin always present | `पूरा · Done`, `वापस · Back` |
+| **Language control** | Bilingual | `भाषा चुनें · Select Language` |
+| **Board acronyms** | Latin retained | CBSE, ICSE, State Board |
+| **Units and symbols** | Untranslated | km, cm, kg, %, ₹, °C |
+
+**Why numerals stay Western Arabic.** Indian maths teaching and every board
+exam use `1 2 3`, including in Hindi-medium classrooms. Devanagari digits in an
+arithmetic app would be actively confusing — the child would have to translate
+before computing.
+
+**Why navigation is bilingual.** This is the escape hatch. A child who taps
+हिन्दी by mistake can still find *Back*, *Done*, *Home* and *Select Language*
+without needing an adult. A fully translated interface strands a non-Hindi
+reader with no way out.
+
+Enforced by tests in `i18n/__tests__/i18n.test.ts`:
+
+- no shipped string, category, class label, board note, question phrase or
+  misconception may contain a Devanagari digit
+- every escape-hatch string must retain its English word
+- every escape-hatch string must contain Latin characters
+- generated Hindi questions are scanned for Devanagari digits
 
 ---
 

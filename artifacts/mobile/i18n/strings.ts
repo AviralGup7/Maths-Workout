@@ -1,12 +1,30 @@
-// ─── Localisation ────────────────────────────────────────────────────────────
-// English and Hindi. Hindi is a first-class mode, not an afterthought: question
-// text, category names, misconception explanations and remediation advice are
-// all translated, because a child practising in Hindi should get feedback in
-// Hindi too.
+// ─── Localisation: the "semi-Hindi" policy ───────────────────────────────────
 //
-// Numerals stay in Western Arabic form (1, 2, 3) rather than Devanagari
-// (१, २, ३). That matches how arithmetic is actually taught and examined in
-// Indian schools, including in Hindi-medium classrooms.
+// Hindi mode is deliberately NOT a full translation. It mirrors how Hindi-medium
+// schooling in India actually works, and it protects a child who switches
+// language by accident.
+//
+// TRANSLATED (the learning content)
+//   · question text, category names, topic descriptions
+//   · misconception explanations and remediation — a child struggling in Hindi
+//     must be told *why* in Hindi
+//   · encouragement and result messages
+//
+// KEPT IN ENGLISH (or shown bilingually)
+//   · NUMERALS — always Western Arabic (1, 2, 3), never Devanagari (१, २, ३).
+//     Indian maths teaching and every board exam use Western Arabic digits,
+//     including in Hindi-medium classrooms. Devanagari digits in an arithmetic
+//     app would be actively confusing.
+//   · NAVIGATION — Back, Home, Done, Cancel and the language control are shown
+//     bilingually ("वापस · Back"). This is the escape hatch: a child who taps
+//     हिन्दी by mistake can still find their way back without help.
+//   · SETTINGS — board names (CBSE / ICSE), language names, and the technical
+//     labels around them stay in Latin script, because that is how they appear
+//     on every school document and in common speech.
+//   · UNITS and symbols — km, cm, kg, %, ₹ — used as-is in Hindi-medium texts.
+//
+// The rule of thumb: translate what is being *learned*; keep what is being
+// *navigated* recognisable in both languages.
 
 export type Lang = 'en' | 'hi';
 
@@ -21,13 +39,13 @@ export const S: Dict = {
   // ── App / navigation ────────────────────────────────────────────────────
   appName:          { en: 'Maths Workout',     hi: 'गणित अभ्यास' },
   tagline:          { en: 'Train your mental arithmetic every day', hi: 'हर दिन अपना गणित अभ्यास करें' },
-  back:             { en: 'Back',              hi: 'वापस' },
+  back:             { en: 'Back',              hi: 'वापस · Back' },
   next:             { en: 'Next',              hi: 'आगे' },
-  done:             { en: 'Done',              hi: 'पूरा' },
+  done:             { en: 'Done',              hi: 'पूरा · Done' },
   check:            { en: 'Check',             hi: 'जाँचें' },
-  cancel:           { en: 'Cancel',            hi: 'रद्द करें' },
-  quit:             { en: 'Quit',              hi: 'छोड़ें' },
-  keepPlaying:      { en: 'Keep Playing',      hi: 'खेलते रहें' },
+  cancel:           { en: 'Cancel',            hi: 'रद्द · Cancel' },
+  quit:             { en: 'Quit',              hi: 'छोड़ें · Quit' },
+  keepPlaying:      { en: 'Keep Playing',      hi: 'जारी रखें · Keep Playing' },
 
   // ── Home ────────────────────────────────────────────────────────────────
   smartPractice:    { en: 'Smart Practice',    hi: 'स्मार्ट अभ्यास' },
@@ -45,15 +63,15 @@ export const S: Dict = {
   practiceToClear:  { en: 'Practice to clear them from your list', hi: 'अभ्यास करके सूची से हटाएँ' },
 
   // ── Board selection ─────────────────────────────────────────────────────
-  selectBoard:      { en: 'Select Board',      hi: 'बोर्ड चुनें' },
+  selectBoard:      { en: 'Select Board',      hi: 'बोर्ड चुनें · Select Board' },
   selectBoardSub:   { en: 'Topics and difficulty follow your syllabus', hi: 'विषय और कठिनाई आपके पाठ्यक्रम अनुसार' },
-  changeBoard:      { en: 'Change board',      hi: 'बोर्ड बदलें' },
-  board:            { en: 'Board',             hi: 'बोर्ड' },
+  changeBoard:      { en: 'Change board',      hi: 'बोर्ड बदलें · Change board' },
+  board:            { en: 'Board',             hi: 'बोर्ड · Board' },
   topicsAvailable:  { en: 'topics available',  hi: 'विषय उपलब्ध' },
 
   // ── Language ────────────────────────────────────────────────────────────
-  language:         { en: 'Language',          hi: 'भाषा' },
-  selectLanguage:   { en: 'Select Language',   hi: 'भाषा चुनें' },
+  language:         { en: 'Language',          hi: 'भाषा · Language' },
+  selectLanguage:   { en: 'Select Language',   hi: 'भाषा चुनें · Select Language' },
 
   // ── Class / category / difficulty ───────────────────────────────────────
   selectClass:      { en: 'Select Class',      hi: 'कक्षा चुनें' },
@@ -70,11 +88,11 @@ export const S: Dict = {
   easyDesc:         { en: 'Smaller numbers, no carrying', hi: 'छोटी संख्याएँ, हासिल नहीं' },
   mediumDesc:       { en: 'Carrying, borrowing, mid-range', hi: 'हासिल और उधार, मध्यम संख्याएँ' },
   hardDesc:         { en: 'Large numbers, full operations', hi: 'बड़ी संख्याएँ, पूर्ण संक्रियाएँ' },
-  tenQuestions:     { en: '10 Questions',      hi: '१० प्रश्न' },
-  twentyQuestions:  { en: '20 Questions',      hi: '२० प्रश्न' },
-  blitz:            { en: '60s Blitz',         hi: '६० सेकंड' },
-  aboutMinutes:     { en: '~3 minutes',        hi: 'लगभग ३ मिनट' },
-  aboutSixMinutes:  { en: '~6 minutes',        hi: 'लगभग ६ मिनट' },
+  tenQuestions:     { en: '10 Questions',      hi: '10 प्रश्न' },
+  twentyQuestions:  { en: '20 Questions',      hi: '20 प्रश्न' },
+  blitz:            { en: '60s Blitz',         hi: '60s ब्लिट्ज़' },
+  aboutMinutes:     { en: '~3 minutes',        hi: 'लगभग 3 मिनट' },
+  aboutSixMinutes:  { en: '~6 minutes',        hi: 'लगभग 6 मिनट' },
   asManyAsYouCan:   { en: 'As many as you can!', hi: 'जितने हो सकें!' },
   startGame:        { en: 'Start Practice',    hi: 'अभ्यास शुरू करें' },
   startBlitz:       { en: 'Start Blitz!',      hi: 'तेज़ अभ्यास शुरू!' },
@@ -98,7 +116,7 @@ export const S: Dict = {
   correct:          { en: 'Correct',           hi: 'सही' },
   wrong:            { en: 'Wrong',             hi: 'गलत' },
   playAgain:        { en: 'Play Again',        hi: 'फिर खेलें' },
-  home:             { en: 'Home',              hi: 'होम' },
+  home:             { en: 'Home',              hi: 'होम · Home' },
   newBest:          { en: 'New Best!',         hi: 'नया रिकॉर्ड!' },
   keepTraining:     { en: 'Keep Training!',    hi: 'अभ्यास जारी रखें!' },
   wellDone:         { en: 'Well done!',        hi: 'शाबाश!' },
@@ -124,6 +142,33 @@ export function t(key: keyof typeof S | string, lang: Lang): string {
   if (!entry) return key as string;
   return (lang === 'hi' ? entry.hi : entry.en) || entry.en;
 }
+
+// ─── Numeral policy ──────────────────────────────────────────────────────────
+
+/** Devanagari digits, kept only so we can detect and reject them. */
+const DEVANAGARI_DIGITS = /[\u0966-\u096F]/;
+
+/**
+ * Format a number for display.
+ *
+ * Always Western Arabic, in every language. Indian maths teaching and board
+ * exams use 1/2/3 even in Hindi-medium classrooms, so Devanagari digits would
+ * be actively confusing in an arithmetic app.
+ */
+export function num(value: number | string): string {
+  return String(value);
+}
+
+/** True if a string contains Devanagari digits — used by tests as a guard. */
+export function hasDevanagariDigits(text: string): boolean {
+  return DEVANAGARI_DIGITS.test(text);
+}
+
+/**
+ * Units and symbols are never translated: Hindi-medium textbooks write
+ * "5 km", "250 g", "40%" and "₹50" exactly as English ones do.
+ */
+export const UNITS_UNTRANSLATED = ['km', 'm', 'cm', 'mm', 'kg', 'g', 'l', 'ml', '%', '₹', '°C'];
 
 // ─── Category names ──────────────────────────────────────────────────────────
 

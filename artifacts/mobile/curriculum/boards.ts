@@ -195,12 +195,12 @@ export function scaleBound(board: Board, value: number, min = 1): number {
  * say "Class 1".
  */
 export const CLASS_LABELS: Record<SchoolClass, { en: string; hi: string; age: string }> = {
-  '1st': { en: 'Class 1', hi: 'कक्षा १', age: '6–7' },
-  '2nd': { en: 'Class 2', hi: 'कक्षा २', age: '7–8' },
-  '3rd': { en: 'Class 3', hi: 'कक्षा ३', age: '8–9' },
-  '4th': { en: 'Class 4', hi: 'कक्षा ४', age: '9–10' },
-  '5th': { en: 'Class 5', hi: 'कक्षा ५', age: '10–11' },
-  '6th': { en: 'Class 6', hi: 'कक्षा ६', age: '11–12' },
+  '1st': { en: 'Class 1', hi: 'कक्षा 1', age: '6–7' },
+  '2nd': { en: 'Class 2', hi: 'कक्षा 2', age: '7–8' },
+  '3rd': { en: 'Class 3', hi: 'कक्षा 3', age: '8–9' },
+  '4th': { en: 'Class 4', hi: 'कक्षा 4', age: '9–10' },
+  '5th': { en: 'Class 5', hi: 'कक्षा 5', age: '10–11' },
+  '6th': { en: 'Class 6', hi: 'कक्षा 6', age: '11–12' },
 };
 
 /** Theme shown on the topic screen, per board and class. */
