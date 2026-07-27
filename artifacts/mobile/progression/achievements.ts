@@ -40,6 +40,27 @@ export interface AchievementContext {
 }
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
+
+/**
+ * Credit for a skill on the way to secure, not only once it arrives.
+ *
+ * docs/21 · §8. Mastery-gated achievements tested `value >= MASTERED_THRESHOLD`
+ * and nothing else, so a learner whose skills sat at 0.70–0.80 scored exactly
+ * ZERO on them — no bar, no sense of movement. Measured on a struggling learner
+ * after a full year of real practice: 8 of 15 achievements at 0.00, including
+ * every mastery, diversity and depth achievement. That learner had genuinely
+ * improved across 31 skills; the wall told them they had done nothing.
+ *
+ * A skill at 0.70 is most of the way to 0.85 and should read that way. Full
+ * credit still requires genuine mastery — this only stops the last stretch
+ * being invisible.
+ */
+const towardMastery = (value: number): number => {
+  if (value >= MASTERED_THRESHOLD) return 1;
+  // Below the struggling threshold, no credit: this is not "nearly there".
+  if (value <= 0.55) return 0;
+  return clamp((value - 0.55) / (MASTERED_THRESHOLD - 0.55)) * 0.8;
+};
 const mastered = (ctx: AchievementContext) =>
   Object.values(ctx.estimates).filter(m => m.value >= MASTERED_THRESHOLD);
 
@@ -56,8 +77,8 @@ export const ACHIEVEMENTS: Achievement[] = [
     progress: ctx => {
       const foundations = Object.values(SKILLS)
         .filter(s => s.introducedIn === '1st').map(s => s.id);
-      const done = foundations.filter(
-        s => (ctx.estimates[s]?.value ?? 0) >= MASTERED_THRESHOLD).length;
+      const done = foundations.reduce(
+        (sum, s) => sum + towardMastery(ctx.estimates[s]?.value ?? 0), 0);
       return clamp(done / Math.max(1, foundations.length));
     },
   },
@@ -68,12 +89,13 @@ export const ACHIEVEMENTS: Achievement[] = [
     description: { en: 'Times tables secure, from memory', hi: 'पहाड़े याद से पक्के' },
     progress: ctx => {
       const tables = ['mul.tables.easy', 'mul.tables.mid', 'mul.tables.full'];
-      const done = tables.filter(s => {
+      const done = tables.reduce((sum, s) => {
         const e = ctx.estimates[s];
-        if (!e || e.value < MASTERED_THRESHOLD) return false;
+        if (!e) return sum;
         // Must be earned on produced evidence, not recognition.
-        return ctx.log.some(a => a.skill === s && a.correct && a.interaction && a.interaction !== 'choice');
-      }).length;
+        const produced = ctx.log.some(a => a.skill === s && a.correct && a.interaction && a.interaction !== 'choice');
+        return produced ? sum + towardMastery(e.value) : sum;
+      }, 0);
       return clamp(done / tables.length);
     },
   },
@@ -228,9 +250,13 @@ export const ACHIEVEMENTS: Achievement[] = [
         if (!byCategory.has(cat)) byCategory.set(cat, []);
         byCategory.get(cat)!.push(est.value);
       }
-      if (byCategory.size < 4) return 0;
-      const strong = [...byCategory.values()]
-        .filter(vs => vs.reduce((a, b) => a + b, 0) / vs.length >= 0.70).length;
+      // Partial credit for breadth in progress. A hard 0.70 cliff per category
+      // meant a learner strong across five categories at 0.68 scored zero.
+      if (byCategory.size < 4) return clamp(byCategory.size / 4) * 0.3;
+      const strong = [...byCategory.values()].reduce((sum, vs) => {
+        const mean = vs.reduce((a, b) => a + b, 0) / vs.length;
+        return sum + (mean >= 0.70 ? 1 : clamp((mean - 0.45) / 0.25) * 0.7);
+      }, 0);
       return clamp(strong / byCategory.size);
     },
   },
@@ -245,7 +271,10 @@ export const ACHIEVEMENTS: Achievement[] = [
     progress: ctx => {
       const tried = Object.values(ctx.estimates).filter(m => m.attempts >= 3);
       if (tried.length < 10) return clamp(tried.length / 10) * 0.5;
-      const secure = tried.filter(m => m.value >= 0.80).length;
+      // Approaching-secure skills count partially, so the bar moves as the
+      // learner improves rather than only when they cross 0.80.
+      const secure = tried.reduce(
+        (sum, m) => sum + (m.value >= 0.80 ? 1 : clamp((m.value - 0.55) / 0.25) * 0.6), 0);
       const weak = tried.filter(m => m.value < 0.50).length;
       return weak > 0 ? clamp(secure / 10) * 0.5 : clamp(secure / 10);
     },
@@ -264,8 +293,8 @@ export const ACHIEVEMENTS: Achievement[] = [
       const typed = new Set(
         ctx.log.filter(a => a.correct && a.interaction && a.interaction !== 'choice')
           .map(a => a.skill));
-      const count = [...typed].filter(
-        s => (ctx.estimates[s]?.value ?? 0) >= MASTERED_THRESHOLD).length;
+      const count = [...typed].reduce(
+        (sum, s) => sum + towardMastery(ctx.estimates[s]?.value ?? 0), 0);
       return clamp(count / 10);
     },
   },
@@ -278,12 +307,16 @@ export const ACHIEVEMENTS: Achievement[] = [
       hi: 'सीखने के 60 दिन बाद भी पक्का',
     },
     progress: ctx => {
+      // Scored on the BEST candidate rather than as a pass/fail, so a learner
+      // holding a skill at 0.75 for two months can see how close they are.
+      let best = 0;
       for (const [skill, est] of Object.entries(ctx.estimates)) {
-        if (est.value < MASTERED_THRESHOLD) continue;
         const first = ctx.log.find(a => a.skill === skill)?.answeredAt;
-        if (first && ctx.now - first >= 60 * DAY_MS) return 1;
+        if (!first) continue;
+        const age = clamp((ctx.now - first) / (60 * DAY_MS));
+        best = Math.max(best, towardMastery(est.value) * age);
       }
-      return 0;
+      return clamp(best);
     },
   },
 

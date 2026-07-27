@@ -283,11 +283,28 @@ function estimateFromRelevant(
   // their weight. They are still real evidence — a child who taps is telling us
   // something — but not evidence we should be confident about.
   const GUESS_LATENCY_MS = 1200;
-  const credible = relevant.reduce(
-    (sum, a) => sum + (a.latencyMs > 0 && a.latencyMs < GUESS_LATENCY_MS ? 0.25 : 1),
-    0,
-  );
-  const evidence = Math.min(1, credible / 8);
+  let credible = 0;
+  let tapCount = 0;
+  for (const a of relevant) {
+    const tap = a.latencyMs > 0 && a.latencyMs < GUESS_LATENCY_MS;
+    if (tap) tapCount++;
+    credible += tap ? 0.25 : 1;
+  }
+  let evidence = Math.min(1, credible / 8);
+
+  // Discounting each tap individually is not enough on its own: at 0.25 apiece,
+  // 700 taps still clear the 8-attempt bar many times over, and the model
+  // reported 0.99 confidence on skills where the learner's true ability was
+  // 0.03 and 94.6% of their answers were sub-200ms. Volume was still buying
+  // certainty, just more slowly.
+  //
+  // What matters is the PROPORTION of the evidence that is credible. A log that
+  // is overwhelmingly taps cannot support a confident estimate at any length —
+  // there is no amount of not-looking that adds up to having looked.
+  if (relevant.length > 0) {
+    const credibleShare = 1 - tapCount / relevant.length;
+    evidence *= credibleShare;
+  }
   const freshness = Math.pow(0.5, daysSince / (DECAY_HALF_LIFE_DAYS * 2));
   const confidence = clamp01(evidence * (0.4 + 0.6 * freshness));
 
