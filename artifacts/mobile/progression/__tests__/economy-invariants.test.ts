@@ -17,6 +17,7 @@
 import { describe, it, expect } from 'vitest';
 import { recordAnswer, type AnswerState } from '../recordAnswer';
 import { levelForXp } from '../levels';
+import { estimateMastery } from '../../learning/mastery';
 import { MAX_XP_PER_QUESTION } from '../xp';
 
 const START = Date.UTC(2026, 0, 1, 9);
@@ -150,5 +151,58 @@ describe('I4 · volume cannot substitute for progress', () => {
       st = r.state;
       expect(r.award.total).toBeLessThanOrEqual(MAX_XP_PER_QUESTION);
     }
+  });
+});
+
+describe('I5 · difficulty selection cannot be farmed', () => {
+  it('easy content does not out-earn adaptive content per question', () => {
+    // docs/21. The estimator ignored difficulty, so a correct EASY answer moved
+    // mastery exactly as far as a correct hard one — and since XP is paid for
+    // delta-mastery, "stay on easy" became the most profitable strategy in the
+    // app. Measured: an always-easy learner earned 86,404 XP against 54,935 for
+    // the same learner on adaptive difficulty, while learning slightly less.
+    //
+    // Asserted per QUESTION rather than per year, so the test is about the
+    // pricing rule and not about how much either learner practised.
+    const answersPerSkill = 60;
+    const run = (difficulty: 'easy' | 'medium') => {
+      let st = blank();
+      let now = START;
+      for (let i = 0; i < answersPerSkill; i++) {
+        // Same underlying success rate; only the stated difficulty differs.
+        const correct = i % 5 !== 0;
+        st = recordAnswer(st, {
+          question: q(`q-${difficulty}-${i}`),
+          chosen: correct ? '7' : '1', correct,
+          latencyMs: 5000, timedOut: false, plannedSkill: SKILL,
+          cls: '4th', sessionCategory: 'addition', difficulty,
+          isTablesMode: false, now: now += 40_000,
+        }).state;
+      }
+      return st.totalXp / answersPerSkill;
+    };
+    expect(run('easy')).toBeLessThanOrEqual(run('medium'));
+  });
+
+  it('mastery itself moves further on harder evidence', () => {
+    // The multiplier alone is not enough, and asserting only on XP hides that:
+    // the DIFFICULTY_MULTIPLIER would satisfy the check above even with a
+    // difficulty-blind estimator, leaving the underlying exploit — inflating
+    // the mastery estimate with easy wins — wide open. Since XP is paid for
+    // delta-mastery, the estimator is where this has to be true.
+    const climb = (difficulty: 'easy' | 'hard') => {
+      let st = blank();
+      let now = START;
+      for (let i = 0; i < 12; i++) {
+        st = recordAnswer(st, {
+          question: { questionText: `q${i}`, answer: '7', choices: [], interaction: { kind: 'entry', inputMode: 'integer' } } as never,
+          chosen: '7', correct: true, latencyMs: 6000, timedOut: false,
+          plannedSkill: SKILL, cls: '4th', sessionCategory: 'addition',
+          difficulty, isTablesMode: false, now: now += 40_000,
+        }).state;
+      }
+      return estimateMastery(SKILL, st.log, now).value;
+    };
+    expect(climb('hard')).toBeGreaterThan(climb('easy'));
   });
 });

@@ -56,13 +56,48 @@ describe('mastery estimation', () => {
 
   it('weights recent evidence more heavily than old', () => {
     // Five early failures, then five recent successes → should read as improving.
+    //
+    // Stated at MEDIUM difficulty deliberately. docs/21 gave the estimator an
+    // asymmetric view of difficulty — failing an easy item is strong evidence
+    // of a gap, succeeding on one is weak evidence of mastery — so five easy
+    // failures genuinely should NOT be erased by five easy successes. That is
+    // the intended behaviour, not a regression, and pinning this fixture to
+    // easy would have tested the difficulty weighting rather than the recency
+    // weighting it is named for.
     const log = [
-      ...Array.from({ length: 5 }, (_, i) => attempt({ correct: false, answeredAt: NOW - (10 - i) * 1000 })),
-      ...Array.from({ length: 5 }, (_, i) => attempt({ correct: true, answeredAt: NOW - (5 - i) * 1000 })),
+      ...Array.from({ length: 5 }, (_, i) => attempt({ correct: false, difficulty: 'medium', answeredAt: NOW - (10 - i) * 1000 })),
+      ...Array.from({ length: 5 }, (_, i) => attempt({ correct: true, difficulty: 'medium', answeredAt: NOW - (5 - i) * 1000 })),
     ];
     const e = estimateMastery('add.within10', log, NOW);
     expect(e.value).toBeGreaterThan(0.5);
     expect(e.trend).toBeGreaterThan(0);
+  });
+
+  it('an easy failure counts for more than an easy success', () => {
+    // The asymmetry that stops "stay on easy content" being the most
+    // profitable strategy in the app: succeeding at something you would be
+    // expected to succeed at is weak evidence, failing it is strong evidence.
+    // Typed entry, so the recognition ceiling (0.80) does not clamp both sides
+    // to the same value and hide the difference being tested.
+    const easyWins = Array.from({ length: 8 }, (_, i) =>
+      attempt({ correct: true, difficulty: 'easy', interaction: 'entry', answeredAt: NOW - (8 - i) * 1000 }));
+    const hardWins = Array.from({ length: 8 }, (_, i) =>
+      attempt({ correct: true, difficulty: 'hard', interaction: 'entry', answeredAt: NOW - (8 - i) * 1000 }));
+    expect(estimateMastery('add.within10', hardWins, NOW).value)
+      .toBeGreaterThan(estimateMastery('add.within10', easyWins, NOW).value);
+
+    // Mixed with some successes so neither side is clamped at the 0 floor,
+    // which would again hide the difference rather than test it.
+    const mix = (difficulty: 'easy' | 'hard') => [
+      ...Array.from({ length: 2 }, (_, i) =>
+        attempt({ correct: true, difficulty, interaction: 'entry', answeredAt: NOW - (8 - i) * 1000 })),
+      ...Array.from({ length: 6 }, (_, i) =>
+        attempt({ correct: false, difficulty, interaction: 'entry', answeredAt: NOW - (6 - i) * 1000 })),
+    ];
+    const easyLosses = mix('easy');
+    const hardLosses = mix('hard');
+    expect(estimateMastery('add.within10', easyLosses, NOW).value)
+      .toBeLessThan(estimateMastery('add.within10', hardLosses, NOW).value);
   });
 
   it('decays toward uncertainty as time passes', () => {

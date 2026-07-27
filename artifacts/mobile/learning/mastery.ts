@@ -149,6 +149,37 @@ function estimateFromRelevant(
   const rawAccuracy = totalCorrect / relevant.length;
 
   // Weighted accuracy over the recency window.
+  /**
+   * Evidence value of an attempt, by the DIFFICULTY of the question asked.
+   *
+   * docs/21. The estimator ignored difficulty entirely, so a correct answer on
+   * an easy item moved mastery exactly as far as a correct answer on a hard
+   * one. Since XP is paid for Δmastery, that made staying on easy content the
+   * most profitable strategy in the app: a simulated "always easy" learner
+   * finished a year with an estimated mastery sum of 37.0 against a true 30.9,
+   * and earned 86,404 XP — 57% more than the same learner on adaptive
+   * difficulty (54,935) while learning slightly less.
+   *
+   * The asymmetry is the point, and it mirrors how evidence actually works:
+   *
+   *   · succeeding on an EASY item is weak evidence of mastery (you would
+   *     expect it at almost any ability), but failing one is STRONG evidence
+   *     of a gap
+   *   · succeeding on a HARD item is strong evidence, while failing one is
+   *     weak evidence of anything — hard items are supposed to be failed
+   *     sometimes
+   *
+   * Treating success and failure symmetrically would let a learner farm easy
+   * wins OR dodge accountability by only attempting hard items. This closes
+   * both at once.
+   */
+  const evidenceWeight = (a: Attempt): number => {
+    if (a.correct) {
+      return a.difficulty === 'easy' ? 0.8 : a.difficulty === 'hard' ? 1.2 : 1;
+    }
+    return a.difficulty === 'easy' ? 1.15 : a.difficulty === 'hard' ? 0.85 : 1;
+  };
+
   const window = relevant.slice(-RECENCY_WINDOW);
   let weightedCorrect = 0;
   let weightTotal = 0;
@@ -157,7 +188,7 @@ function estimateFromRelevant(
     // A correct answer produced with a scaffold on screen is genuine evidence,
     // but weaker evidence: the child succeeded *with support*. Half weight
     // keeps the estimate honest without punishing them for accepting help.
-    const w = recency * (a.scaffolded && a.correct ? 0.5 : 1);
+    const w = recency * (a.scaffolded && a.correct ? 0.5 : 1) * evidenceWeight(a);
     weightTotal += w;
     if (a.correct) weightedCorrect += w;
   });
