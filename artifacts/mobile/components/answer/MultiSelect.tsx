@@ -80,7 +80,8 @@ export function MultiSelect({
             disabled={locked}
             activeOpacity={0.75}
             accessibilityRole="checkbox"
-            accessibilityState={{ checked: selected.includes(String(o)) }}
+            accessibilityLabel={`${o}`}
+            accessibilityState={{ checked: selected.includes(String(o)), disabled: locked }}
           >
             <Text style={[styles.chipText, { color: chipTextColor(o) }]}>{String(o)}</Text>
             {locked && correctSet.has(String(o)) && (
@@ -95,6 +96,12 @@ export function MultiSelect({
         onPress={submit}
         disabled={locked || selected.length === 0}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Check answer"
+        accessibilityHint={
+          selected.length === 0 ? 'Select at least one option first'
+          : `Submit ${selected.length} selected`
+        }
       >
         <Feather name="check" size={18} color="#fff" />
         <Text style={styles.submitText}>

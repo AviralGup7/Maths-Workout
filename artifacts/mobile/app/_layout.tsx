@@ -29,6 +29,7 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="welcome" options={{ gestureEnabled: false }} />
       <Stack.Screen name="board-select" />
       <Stack.Screen name="class-select" />
       <Stack.Screen name="category-select" />

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -6,6 +6,11 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { Celebration, isStreakMilestone } from '@/components/Celebration';
+import type { CelebrationReason } from '@/components/Celebration';
+import { useMotion } from '@/hooks/useMotion';
+import { useAnnounce, touchSlop } from '@/hooks/useA11y';
+import { t } from '@/i18n/strings';
 
 const C = colors.light;
 
@@ -30,7 +35,7 @@ export default function ResultsScreen() {
     score, totalQuestions, difficulty, selectedClass, selectedCategory,
     sessionType, isTablesMode, selectedTable,
     getHighScore, saveScore, startGame, startTablesGame,
-    wrongAnswers, savedMistakes,
+    wrongAnswers, savedMistakes, streak, lang,
   } = useGame();
 
   const scoreAnimRef = useRef<Animated.Value | null>(null);
@@ -53,6 +58,34 @@ export default function ResultsScreen() {
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
 
+  // The single most valuable moment to mark is not a high score — it is
+  // persistence. Streak milestones and personal bests get a celebration;
+  // routine completion does not, because celebrating everything means nothing.
+  const [celebration, setCelebration] = useState<{ reason: CelebrationReason; message: string } | null>(null);
+  const motion = useMotion();
+  const a11yAnnounce = useAnnounce();
+
+  useEffect(() => {
+    // Screen-reader users get no feedback from stars appearing.
+    a11yAnnounce(
+      lang === 'hi'
+        ? `परिणाम: ${totalQuestions} में से ${score} सही`
+        : `Result: ${score} correct out of ${totalQuestions}`,
+    );
+
+    if (isStreakMilestone(streak)) {
+      setCelebration({
+        reason: 'streak',
+        message: lang === 'hi' ? `${streak} दिन का अभ्यास!` : `${streak} day streak!`,
+      });
+    } else if (isNewBest && !isTablesMode) {
+      setCelebration({
+        reason: 'best',
+        message: lang === 'hi' ? 'नया रिकॉर्ड!' : 'New personal best!',
+      });
+    }
+  }, []); // eslint-disable-line
+
   useEffect(() => {
     saveScore();
     Haptics.notificationAsync(stars >= 2 ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning);
@@ -73,10 +106,20 @@ export default function ResultsScreen() {
   };
 
   return (
+    <>
+    {celebration && (
+      <Celebration
+        visible
+        reason={celebration.reason}
+        message={celebration.message}
+        onDone={() => setCelebration(null)}
+      />
+    )}
     <Animated.View style={[styles.container, { paddingTop: top + 10, paddingBottom: bot + 20, opacity: fadeAnim }]}>
       {/* Nav */}
       <View style={styles.topNav}>
-        <TouchableOpacity onPress={() => router.replace('/')} style={styles.homeBtn}>
+        <TouchableOpacity onPress={() => router.replace('/')} style={styles.homeBtn}
+          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Home">
           <Feather name="home" size={20} color={C.mutedForeground} />
         </TouchableOpacity>
         <View style={styles.navBadges}>
@@ -158,12 +201,14 @@ export default function ResultsScreen() {
             </Text>
           </TouchableOpacity>
         )}
-        <TouchableOpacity style={styles.secBtn} onPress={() => router.replace('/class-select')} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.secBtn} onPress={() => router.replace('/class-select')} activeOpacity={0.8}
+          accessibilityRole="button" accessibilityLabel="Change class">
           <Feather name="layers" size={16} color={C.primary} />
           <Text style={[styles.secBtnText, { color: C.primary }]}>Change</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>
+    </>
   );
 }
 

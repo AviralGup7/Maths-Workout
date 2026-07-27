@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { useGame } from '@/context/GameContext';
 import type { WrongAnswer } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { touchSlop } from '@/hooks/useA11y';
 
 const C = colors.light;
 
@@ -293,7 +294,8 @@ export default function MistakeReviewScreen() {
   return (
     <View style={[styles.container, { paddingTop: top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
+          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>

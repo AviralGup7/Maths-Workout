@@ -8,6 +8,8 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SEEN_WELCOME_KEY } from './welcome';
 import { DAILY_GOAL } from '@/context/GameContext';
 import { BOARD_CONFIGS, CLASS_LABELS } from '@/curriculum/boards';
 import { t, categoryLabel } from '@/i18n/strings';
@@ -19,10 +21,21 @@ export default function HomeScreen() {
   const router = useRouter();
   const { loadAll, progressStats, highScores, savedMistakes,
           streak, answeredToday, startAdaptiveSession, selectedClass,
-          board, lang } = useGame();
+          board, lang, prefsLoaded } = useGame();
   const boardCfg = BOARD_CONFIGS.find(b => b.key === board)!;
 
   useEffect(() => { loadAll(); }, []);
+
+  // First run: send the child through onboarding once. Waits for prefsLoaded so
+  // a returning user never sees a flash of the welcome screen.
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    let alive = true;
+    AsyncStorage.getItem(SEEN_WELCOME_KEY)
+      .then(seen => { if (alive && !seen) router.replace('/welcome'); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [prefsLoaded]); // eslint-disable-line
 
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -106,6 +119,8 @@ export default function HomeScreen() {
             style={styles.mistakeCard}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/mistake-review'); }}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={`${savedMistakes.length} ${t(savedMistakes.length === 1 ? 'mistakeToReview' : 'mistakesToReview', lang)}`}
           >
             <View style={styles.mistakeIconBox}>
               <Feather name="alert-circle" size={20} color={C.hard} />
@@ -133,6 +148,9 @@ export default function HomeScreen() {
             }}
             onLongPress={handleStart}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={t('smartPractice', lang)}
+            accessibilityHint={t('smartPracticeSub', lang)}
           >
             <View style={styles.quickIconBox}>
               <Feather name="zap" size={22} color="#fff" />
@@ -142,11 +160,13 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <View style={styles.quickCol}>
-            <TouchableOpacity style={styles.quickCardSmall} onPress={() => { Haptics.selectionAsync(); router.push('/tables-mode'); }} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.quickCardSmall} onPress={() => { Haptics.selectionAsync(); router.push('/tables-mode'); }} activeOpacity={0.8}
+              accessibilityRole="button" accessibilityLabel={t('timesTables', lang).replace('\n', ' ')}>
               <Feather name="grid" size={18} color={C.catTables} />
               <Text style={styles.quickCardSmallText}>{t('timesTables', lang)}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.quickCardSmall} onPress={() => { Haptics.selectionAsync(); router.push('/progress'); }} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.quickCardSmall} onPress={() => { Haptics.selectionAsync(); router.push('/progress'); }} activeOpacity={0.8}
+              accessibilityRole="button" accessibilityLabel={t('myProgress', lang).replace('\n', ' ')}>
               <Feather name="bar-chart-2" size={18} color={C.catAddition} />
               <Text style={styles.quickCardSmallText}>{t('myProgress', lang)}</Text>
             </TouchableOpacity>

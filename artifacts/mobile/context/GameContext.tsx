@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useMemo } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchProgress, pushProgress } from '../lib/progressApi';
 import type { ProgressData } from '../lib/progressApi';
@@ -468,6 +469,46 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setWrongAnswers([]);
   }, [mastery, buildQuestion, board]);
 
+  // ── Debounced persistence ───────────────────────────────────────────────
+  // The attempt log is the source of truth, but it is also the largest thing we
+  // store. Writing it synchronously on every answer serialises the entire array
+  // — nearly a megabyte for a heavy user — inside the feedback pause, where the
+  // child is waiting for the next question.
+  //
+  // Instead we hold the latest snapshot in a ref and flush on a short timer, on
+  // game end, and when the app backgrounds. No data is at risk: the flush window
+  // is under two seconds and AsyncStorage writes are atomic per key.
+  const pendingRef = useRef<Attempt[] | null>(null);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushAttempts = useCallback(async () => {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    pendingRef.current = null;
+    if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+    try {
+      await AsyncStorage.setItem(ATTEMPTS_KEY, JSON.stringify(pending));
+      await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA));
+    } catch { /* offline-first: in-memory state remains correct */ }
+  }, []);
+
+  const schedulePersist = useCallback((next: Attempt[]) => {
+    pendingRef.current = next;
+    if (flushTimerRef.current) return;         // a flush is already queued
+    flushTimerRef.current = setTimeout(() => {
+      flushTimerRef.current = null;
+      void flushAttempts();
+    }, 1500);
+  }, [flushAttempts]);
+
+  // Never lose progress to a backgrounded or killed app.
+  React.useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state !== 'active') void flushAttempts();
+    });
+    return () => { sub.remove(); void flushAttempts(); };
+  }, [flushAttempts]);
+
   /**
    * Record one answered question (Directions C & D).
    *
@@ -499,10 +540,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     setAttempts(prev => {
       const next = appendAttempts(prev, [attempt]);
-      // Persist and re-derive counters; failures are non-fatal (offline-first).
-      AsyncStorage.setItem(ATTEMPTS_KEY, JSON.stringify(next)).catch(() => {});
-      AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA)).catch(() => {});
       setProgressStats(deriveLegacyStats(next));
+      // Persistence is debounced rather than written here: serialising the log
+      // on every answer costs ~945 KB of JSON at the 4000-attempt cap, which is
+      // visible jank on a low-end device mid-session.
+      schedulePersist(next);
       return next;
     });
 
@@ -564,7 +606,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     else setCurrentIndex(prev => prev + 1);
   }, [currentIndex, totalQuestions]);
 
-  const endGame = useCallback(() => setIsGameOver(true), []);
+  const endGame = useCallback(() => {
+    setIsGameOver(true);
+    void flushAttempts();          // don't leave a session unsaved
+  }, [flushAttempts]);
 
   // ─── Persistence — local-first, then background server sync ──────────
 

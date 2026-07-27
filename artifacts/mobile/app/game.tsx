@@ -12,6 +12,8 @@ import { MISCONCEPTIONS } from '@/learning/misconceptions';
 import { MISCONCEPTIONS_HI } from '@/i18n/misconceptions-hi';
 import { t, categoryLabel } from '@/i18n/strings';
 import { CLASS_LABELS } from '@/curriculum/boards';
+import { useMotion, FEEDBACK_MS, feedbackDelay } from '@/hooks/useMotion';
+import { useAnnounce, touchSlop } from '@/hooks/useA11y';
 import { AnswerSurface } from '@/components/answer/AnswerSurface';
 import { grade, expectedAnswer } from '@/generators/interactions';
 
@@ -49,6 +51,12 @@ export default function GameScreen() {
     score, selectedClass, selectedCategory, isTablesMode,
     saveProgressStats, saveScore, wrongAnswers, recordAttempt, lang,
   } = useGame();
+
+  // Motion is routed through useMotion so "reduce motion" is honoured without
+  // every call site remembering; a11yAnnounce speaks results to screen readers,
+  // which otherwise get no feedback from a colour change.
+  const motion = useMotion();
+  const a11yAnnounce = useAnnounce();
 
   const isBlitz = sessionType === 'timed60' && !isTablesMode;
 
@@ -143,20 +151,14 @@ export default function GameScreen() {
 
   // ─── Animations ───────────────────────────────────────────────────────────
 
-  const shake = (cb?: () => void) => {
-    Animated.sequence([
-      Animated.timing(shakeAnim, { toValue: 10,  duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -10, duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 7,   duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: -7,  duration: 55, useNativeDriver: true }),
-      Animated.timing(shakeAnim, { toValue: 0,   duration: 55, useNativeDriver: true }),
-    ]).start(cb);
-  };
+  // Under reduced motion this completes instantly, but still fires `cb`, so the
+  // flow continues and the wrong answer is still reported.
+  const shake = (cb?: () => void) => motion.shake(shakeAnim).start(cb);
 
   const advanceQuestion = () => {
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 0,    duration: 120, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 0.95, duration: 120, useNativeDriver: true }),
+      motion.timing(fadeAnim,  { toValue: 0,    duration: 120 }),
+      motion.timing(scaleAnim, { toValue: 0.95, duration: 120 }),
     ]).start(() => {
       nextQuestion();
       setAnswerState('idle');
@@ -167,8 +169,8 @@ export default function GameScreen() {
       setDiagnosis(null);
       shownAtRef.current = Date.now();
       Animated.parallel([
-        Animated.timing(fadeAnim,  { toValue: 1, duration: 180, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
+        motion.timing(fadeAnim,  { toValue: 1, duration: 180 }),
+        motion.timing(scaleAnim, { toValue: 1, duration: 180 }),
       ]).start();
     });
   };
@@ -205,15 +207,26 @@ export default function GameScreen() {
 
     if (correct) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 1.03, duration: 90, useNativeDriver: true }),
-        Animated.timing(scaleAnim, { toValue: 1,    duration: 90, useNativeDriver: true }),
-      ]).start(() => setTimeout(advanceQuestion, isBlitz ? 300 : 450));
+      a11yAnnounce(lang === 'hi' ? 'सही' : 'Correct');
+      // 280 ms rather than 450: still reads clearly, but removes ~1.7 s from a
+      // ten-question session. The next question is already generated, so the
+      // paint after this pause is immediate.
+      const pause = feedbackDelay(
+        isBlitz ? FEEDBACK_MS.correctBlitz : FEEDBACK_MS.correct, motion.reduced);
+      motion.pulse(scaleAnim, 1.03).start(() => setTimeout(advanceQuestion, pause));
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Non-choice surfaces reveal the correct answer, so allow longer to read it.
-      const pause = currentQuestion.interaction && currentQuestion.interaction.kind !== 'choice'
-        ? 1500 : (isBlitz ? 400 : 600);
+      a11yAnnounce(
+        (lang === 'hi' ? 'गलत। सही उत्तर ' : 'Incorrect. The answer is ')
+        + expectedAnswer(currentQuestion));
+      // Wrong answers keep a longer pause on purpose: the child needs time to
+      // read the diagnosis. Rushing past a mistake defeats the point of
+      // detecting it. Constructed responses reveal the solution, so longer again.
+      const isConstructed = !!currentQuestion.interaction && currentQuestion.interaction.kind !== 'choice';
+      const pause = feedbackDelay(
+        isConstructed ? FEEDBACK_MS.wrongConstructed
+        : isBlitz ? FEEDBACK_MS.wrongBlitz : FEEDBACK_MS.wrong,
+        motion.reduced);
       shake(() => setTimeout(advanceQuestion, pause));
     }
   };
@@ -277,6 +290,9 @@ export default function GameScreen() {
             );
           }}
           style={styles.xBtn}
+          hitSlop={touchSlop(40)}
+          accessibilityRole="button"
+          accessibilityLabel="Leave practice"
         >
           <Feather name="x" size={20} color={C.mutedForeground} />
         </TouchableOpacity>

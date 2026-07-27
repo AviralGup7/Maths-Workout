@@ -9,6 +9,7 @@ import {
   Category, getAvailableCategories,
 } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { touchSlop } from '@/hooks/useA11y';
 import { CLASS_LABELS, CLASS_THEME } from '@/curriculum/boards';
 import { t, categoryLabel, categoryDesc } from '@/i18n/strings';
 
@@ -68,6 +69,9 @@ export default function CategorySelectScreen() {
         style={[styles.card, { borderColor: meta.color + '44' }]}
         onPress={() => handleSelect(cat)}
         activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={categoryLabel(cat, lang)}
+        accessibilityHint={categoryDesc(cat, lang)}
       >
         <View style={[styles.iconBox, { backgroundColor: meta.color + '22' }]}>
           <Feather name={meta.icon as any} size={24} color={meta.color} />
@@ -106,7 +110,8 @@ export default function CategorySelectScreen() {
   return (
     <View style={[styles.container, { paddingTop: top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
+          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>

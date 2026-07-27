@@ -9,6 +9,7 @@ import {
   Difficulty, SessionType,
 } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { touchSlop } from '@/hooks/useA11y';
 
 const C = colors.light;
 
@@ -46,7 +47,8 @@ export default function DifficultySelectScreen() {
   return (
     <View style={[styles.container, { paddingTop: top, paddingBottom: bot + 16 }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
+          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -77,6 +79,10 @@ export default function DifficultySelectScreen() {
                 style={[styles.diffCard, sel && { borderColor: d.color, borderWidth: 2 }]}
                 onPress={() => { Haptics.selectionAsync(); setSelDiff(d.key); }}
                 activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sel }}
+                accessibilityLabel={d.label}
+                accessibilityHint={d.desc}
               >
                 <View style={[styles.diffIcon, { backgroundColor: d.color + '22' }]}>
                   <Feather name={d.icon} size={22} color={d.color} />
@@ -110,6 +116,9 @@ export default function DifficultySelectScreen() {
                 style={[styles.sessionCard, sel && { borderColor: C.primary, borderWidth: 2, backgroundColor: C.primary + '18' }]}
                 onPress={() => { Haptics.selectionAsync(); setSelSession(s.key); }}
                 activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sel }}
+                accessibilityLabel={`${s.label}, ${s.sub}`}
               >
                 <Feather name={s.icon} size={20} color={sel ? C.primary : C.mutedForeground} />
                 <Text style={[styles.sessionLabel, sel && { color: C.primary }]}>{s.label}</Text>
@@ -122,7 +131,8 @@ export default function DifficultySelectScreen() {
 
       {/* Start */}
       <View style={styles.startWrap}>
-        <TouchableOpacity style={styles.startBtn} onPress={handleStart} activeOpacity={0.85}>
+        <TouchableOpacity style={styles.startBtn} onPress={handleStart} activeOpacity={0.85}
+          accessibilityRole="button" accessibilityLabel="Start practice">
           <Feather name="play" size={20} color="#fff" />
           <Text style={styles.startText}>Start{selSession === 'timed60' ? ' Blitz!' : ' Game'}</Text>
         </TouchableOpacity>

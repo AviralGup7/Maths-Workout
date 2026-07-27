@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, SchoolClass, getAvailableCategories } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { touchSlop } from '@/hooks/useA11y';
 import { CLASS_LABELS } from '@/curriculum/boards';
 import { t } from '@/i18n/strings';
 
@@ -28,7 +29,8 @@ export default function ClassSelectScreen() {
   return (
     <View style={[styles.container, { paddingTop: top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
+          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
@@ -55,7 +57,9 @@ export default function ClassSelectScreen() {
           const acc = attempted > 0 ? Math.round((correct / attempted) * 100) : -1;
 
           return (
-            <TouchableOpacity key={cls.key} style={[styles.card, { borderColor: cls.color + '44' }]} onPress={() => handleSelect(cls.key)} activeOpacity={0.8}>
+            <TouchableOpacity key={cls.key} style={[styles.card, { borderColor: cls.color + '44' }]} onPress={() => handleSelect(cls.key)} activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`${CLASS_LABELS[cls.key][lang === 'hi' ? 'hi' : 'en']}, ${cats.length} ${t('topicsAvailable', lang)}`}>
               <View style={[styles.accent, { backgroundColor: cls.color }]} />
               <View style={styles.body}>
                 <View style={styles.topRow}>

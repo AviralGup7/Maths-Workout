@@ -71,7 +71,11 @@ export function NumericEntry({
 
   return (
     <View style={styles.wrap}>
-      <View style={[styles.display, locked && { borderColor: tone }]}>
+      <View
+        style={[styles.display, locked && { borderColor: tone }]}
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={value === '' ? 'No answer entered' : `Your answer: ${value}`}
+      >
         <Text style={[styles.value, { color: tone }]} numberOfLines={1} adjustsFontSizeToFit>
           {display || ' '}
         </Text>
@@ -93,7 +97,8 @@ export function NumericEntry({
               onPress={() => press(k)}
               disabled={locked}
               activeOpacity={0.7}
-              accessibilityLabel={k === 'del' ? 'Delete' : k}
+              accessibilityRole="button"
+              accessibilityLabel={k === 'del' ? 'Delete last digit' : `Digit ${k}`}
             >
               {k === 'del'
                 ? <Feather name="delete" size={20} color={C.mutedForeground} />
@@ -108,7 +113,10 @@ export function NumericEntry({
         onPress={submit}
         disabled={locked || value === ''}
         activeOpacity={0.85}
+        accessibilityRole="button"
         accessibilityLabel="Check answer"
+        accessibilityHint={value === '' ? 'Enter a number first' : `Submit ${value}`}
+        accessibilityState={{ disabled: locked || value === '' }}
       >
         <Feather name="check" size={18} color="#fff" />
         <Text style={styles.submitText}>Check</Text>

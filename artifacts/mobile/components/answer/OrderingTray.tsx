@@ -84,6 +84,13 @@ export function OrderingTray({
               onPress={() => v !== undefined && remove(idx)}
               disabled={locked || v === undefined}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={
+                v === undefined
+                  ? `Position ${idx + 1} of ${items.length}, empty`
+                  : `Position ${idx + 1}: ${v}`
+              }
+              accessibilityHint={v === undefined ? undefined : 'Removes this item'}
             >
               {v !== undefined
                 ? <Text style={[styles.slotText, { color: slotTone(idx) }]}>{String(v)}</Text>
@@ -109,7 +116,15 @@ export function OrderingTray({
       {!locked && (
         <View style={styles.pool}>
           {remaining.map((v, i) => (
-            <TouchableOpacity key={i} style={styles.poolChip} onPress={() => place(v)} activeOpacity={0.75}>
+            <TouchableOpacity
+              key={i}
+              style={styles.poolChip}
+              onPress={() => place(v)}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={`${v}`}
+              accessibilityHint={`Place at position ${placed.length + 1}`}
+            >
               <Text style={styles.poolText}>{String(v)}</Text>
             </TouchableOpacity>
           ))}

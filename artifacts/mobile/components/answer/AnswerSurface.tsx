@@ -104,6 +104,9 @@ function ChoiceGrid({
     ? 16
     : question.choices.some(c => Math.abs(Number(c)) > 999) ? 22 : 28;
 
+  // Screen readers read "−" as "minus sign"; spell the operation out instead.
+  const formatChoiceLabel = (v: ChoiceValue): string => String(v).replace('−', 'minus ');
+
   const format = (v: ChoiceValue): string => {
     if (typeof v === 'string') return v;
     if (!Number.isInteger(v)) return v.toFixed(2).replace(/\.?0+$/, '');
@@ -134,6 +137,13 @@ function ChoiceGrid({
           onPress={() => onSubmit(choice)}
           activeOpacity={0.75}
           disabled={locked}
+          accessibilityRole="button"
+          accessibilityLabel={`${formatChoiceLabel(choice)}`}
+          accessibilityHint={locked ? undefined : 'Answer option'}
+          accessibilityState={{
+            disabled: locked,
+            selected: locked && String(choice) === selectedChoice,
+          }}
         >
           <Text style={[styles.tileTextBase, { fontSize, color: textColor(choice) }]}>
             {format(choice)}

@@ -10,6 +10,7 @@ import type { Board } from '@/curriculum/boards';
 import { LANGUAGES, t, categoryLabel } from '@/i18n/strings';
 import type { Lang } from '@/i18n/strings';
 import colors from '@/constants/colors';
+import { touchSlop } from '@/hooks/useA11y';
 
 const C = colors.light;
 
@@ -41,7 +42,8 @@ export default function BoardSelectScreen() {
   return (
     <View style={[styles.container, { paddingTop: top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
+          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>

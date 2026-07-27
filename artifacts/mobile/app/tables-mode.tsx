@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { touchSlop } from '@/hooks/useA11y';
 
 const C = colors.light;
 const TABLES = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -43,7 +44,8 @@ export default function TablesModeScreen() {
   return (
     <View style={[styles.container, { paddingTop: top }]}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
+          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
