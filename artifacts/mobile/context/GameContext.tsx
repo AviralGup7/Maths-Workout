@@ -21,6 +21,11 @@ import type {
 } from '../generators';
 import { generateQuestion, generateTablesQuestions } from '../generators';
 import { expectedAnswer, pickInteraction, toEntry } from '../generators/interactions';
+import type { Board } from '../curriculum/boards';
+import { DEFAULT_BOARD, categoriesFor, BOARD_CONFIGS } from '../curriculum/boards';
+import type { Lang } from '../i18n/strings';
+import { genWordProblemsI18n } from '../generators/word-problems-i18n';
+import { genMoneyI18n } from '../generators/money-i18n';
 import {
   genFactorSelect, genPrimeSelect, genMultipleSelect,
   genOrderNumbers, genOrderDecimals, genOrderFractions,
@@ -48,6 +53,8 @@ const SAVED_MISTAKES_KEY = '@maths_workout_v2_saved_mistakes';
 const DEVICE_ID_KEY      = '@maths_workout_device_id';
 const ATTEMPTS_KEY       = '@maths_workout_v3_attempts';
 const SCHEMA_VERSION_KEY = '@maths_workout_schema_version';
+const BOARD_KEY          = '@maths_workout_board';
+const LANG_KEY           = '@maths_workout_lang';
 const CURRENT_SCHEMA     = 3;
 /** Daily practice target used for the streak/goal display. */
 export const DAILY_GOAL  = 10;
@@ -162,6 +169,16 @@ interface GameContextType {
   rootGapFor:       (skill: SkillId) => SkillId | null;
   /** Most frequent misconceptions across recent practice. */
   topMisconceptions: () => ReturnType<typeof summariseMisconceptions>;
+
+  // ── Board and language ──────────────────────────────────────────────────
+  /** Selected education board; drives which topics are available. */
+  board:            Board;
+  setBoard:         (b: Board) => void;
+  /** Interface and question language. */
+  lang:             Lang;
+  setLang:          (l: Lang) => void;
+  /** True until the stored board/language preference has been read. */
+  prefsLoaded:      boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -186,6 +203,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [tablesBest,       setTablesBest]       = useState<Record<number, number>>({});
   const [savedMistakes,    setSavedMistakes]    = useState<WrongAnswer[]>([]);
   const [attempts,         setAttempts]         = useState<Attempt[]>([]);
+  const [board,            setBoardState]       = useState<Board>(DEFAULT_BOARD);
+  const [lang,             setLangState]        = useState<Lang>('en');
+  const [prefsLoaded,      setPrefsLoaded]      = useState(false);
   const [isAdaptive,       setIsAdaptive]       = useState(false);
   /** Skills chosen by the scheduler for the current session, index-aligned to `questions`. */
   const sessionSkillsRef = useRef<SkillId[]>([]);
@@ -295,6 +315,34 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Game flow ────────────────────────────────────────────────────────
 
+  // ── Preferences: board and language ───────────────────────────────────
+  // Persisted immediately so the choice survives a restart. Failures are
+  // non-fatal; the in-memory value still applies for this session.
+  const setBoard = useCallback((b: Board) => {
+    setBoardState(b);
+    AsyncStorage.setItem(BOARD_KEY, b).catch(() => {});
+  }, []);
+
+  const setLang = useCallback((l: Lang) => {
+    setLangState(l);
+    AsyncStorage.setItem(LANG_KEY, l).catch(() => {});
+  }, []);
+
+  /** Read stored preferences once on mount, before the first render that matters. */
+  const loadPrefs = useCallback(async () => {
+    try {
+      const [b, l] = await Promise.all([
+        AsyncStorage.getItem(BOARD_KEY),
+        AsyncStorage.getItem(LANG_KEY),
+      ]);
+      if (b && BOARD_CONFIGS.some(c => c.key === b)) setBoardState(b as Board);
+      if (l === 'hi' || l === 'en') setLangState(l);
+    } catch { /* defaults apply */ }
+    finally { setPrefsLoaded(true); }
+  }, []);
+
+  React.useEffect(() => { loadPrefs(); }, [loadPrefs]);
+
   // ── Learning engine ───────────────────────────────────────────────────
   // Derived, never stored: mastery is always recomputed from the log so a
   // change to the estimator can never leave stale values behind.
@@ -340,11 +388,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const q = variants[Math.floor(Math.random() * variants.length)](cls, diff);
       return { ...q, resolvedCategory: q.resolvedCategory ?? cat };
     }
-    const q = generateQuestion(cls, diff, cat);
+    // Word problems must be read before they can be solved, so a Hindi-medium
+    // learner needs them in Hindi — otherwise we test English, not maths.
+    const q =
+      cat === 'word_problems' ? genWordProblemsI18n(cls, diff, lang, board) :
+      cat === 'money'         ? genMoneyI18n(cls, diff, lang, board) :
+      generateQuestion(cls, diff, cat, board);
     // The ladder: secure skills lose the multiple-choice scaffold.
     const withLadder = pickInteraction(level, { entry: true }) === 'entry' ? toEntry(q) : q;
     return { ...withLadder, resolvedCategory: withLadder.resolvedCategory ?? cat };
-  }, [INTERACTIVE_VARIANTS]);
+  }, [INTERACTIVE_VARIANTS, board, lang]);
 
   const startGame = useCallback(
     (cls: SchoolClass, diff: Difficulty, cat: Category, sess: SessionType) => {
@@ -380,7 +433,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    */
   const startAdaptiveSession = useCallback((cls: SchoolClass, sess: SessionType) => {
     const count = sess === '20q' ? 20 : sess === 'timed60' ? 60 : 10;
-    const plan = buildSession(cls, mastery, count);
+    const plan = buildSession(cls, mastery, count, Date.now(), board);
 
     const qs: Question[] = [];
     const skills: SkillId[] = [];
@@ -413,7 +466,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setScore(0);
     setIsGameOver(false);
     setWrongAnswers([]);
-  }, [mastery, buildQuestion]);
+  }, [mastery, buildQuestion, board]);
 
   /**
    * Record one answered question (Directions C & D).
@@ -598,6 +651,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       saveScore, saveProgressStats, clearMistake, loadAll, getHighScore,
       attempts, mastery, streak, answeredToday,
       startAdaptiveSession, isAdaptive, recordAttempt, rootGapFor, topMisconceptions,
+      board, setBoard, lang, setLang, prefsLoaded,
     }}>
       {children}
     </GameContext.Provider>

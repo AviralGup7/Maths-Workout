@@ -6,6 +6,9 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, SchoolClass, Category } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { MISCONCEPTIONS_HI } from '@/i18n/misconceptions-hi';
+import { t, categoryLabel } from '@/i18n/strings';
+import { CLASS_LABELS } from '@/curriculum/boards';
 import { SKILLS } from '@/learning/skills';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from '@/learning/mastery';
 
@@ -16,7 +19,7 @@ export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router  = useRouter();
   const { progressStats, getHighScore, tablesBest, savedMistakes,
-          mastery, topMisconceptions, rootGapFor, streak } = useGame();
+          mastery, topMisconceptions, rootGapFor, streak, lang } = useGame();
 
   const [filterClass, setFilterClass] = useState<SchoolClass | 'all'>('all');
 
@@ -70,8 +73,8 @@ export default function ProgressScreen() {
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>My Progress</Text>
-          <Text style={styles.headerSub}>{totalAtt} questions answered</Text>
+          <Text style={styles.headerTitle}>{t('myProgress', lang).replace('\n', ' ')}</Text>
+          <Text style={styles.headerSub}>{totalAtt} {t('questionsAnswered', lang)}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -82,7 +85,7 @@ export default function ProgressScreen() {
             This is the difference between "68% correct" and knowing *why*. */}
         {insights.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>WHAT TO WORK ON</Text>
+            <Text style={styles.sectionLabel}>{t('whatToWorkOn', lang)}</Text>
             <View style={styles.insightCard}>
               {insights.map(({ id, count, info }) => (
                 <View key={id} style={styles.insightRow}>
@@ -90,12 +93,20 @@ export default function ProgressScreen() {
                     <Text style={styles.insightCount}>{count}×</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.insightTitle}>{info.label}</Text>
-                    <Text style={styles.insightBody}>{info.explanation}</Text>
-                    <View style={styles.insightFix}>
-                      <Feather name="arrow-right" size={11} color={C.easy} />
-                      <Text style={styles.insightFixText}>{info.remediation}</Text>
-                    </View>
+                    {(() => {
+                      const hi = MISCONCEPTIONS_HI[id];
+                      const copy = lang === 'hi' && hi ? hi : info;
+                      return (
+                        <>
+                          <Text style={styles.insightTitle}>{copy.label}</Text>
+                          <Text style={styles.insightBody}>{copy.explanation}</Text>
+                          <View style={styles.insightFix}>
+                            <Feather name="arrow-right" size={11} color={C.easy} />
+                            <Text style={styles.insightFixText}>{copy.remediation}</Text>
+                          </View>
+                        </>
+                      );
+                    })()}
                   </View>
                 </View>
               ))}
@@ -106,7 +117,7 @@ export default function ProgressScreen() {
         {/* Per-skill mastery, weakest first, with the root cause where known. */}
         {skillRows.length > 0 && (
           <>
-            <Text style={[styles.sectionLabel, { marginTop: 20 }]}>SKILL MASTERY</Text>
+            <Text style={[styles.sectionLabel, { marginTop: 20 }]}>{t('skillMastery', lang)}</Text>
             <View style={styles.insightCard}>
               {skillRows.map(m => {
                 const pct = Math.round(m.value * 100);
@@ -124,12 +135,12 @@ export default function ProgressScreen() {
                     </View>
                     {gap && SKILLS[gap] && (
                       <Text style={styles.skillGap}>
-                        Likely cause: {SKILLS[gap].label} needs work first
+                        {t('likelyCause', lang)}: {SKILLS[gap].label} — {t('needsWorkFirst', lang)}
                       </Text>
                     )}
                     {m.trend !== 0 && Math.abs(m.trend) > 0.15 && (
                       <Text style={[styles.skillTrend, { color: m.trend > 0 ? C.easy : C.medium }]}>
-                        {m.trend > 0 ? '▲ improving' : '▼ slipping'}
+                        {m.trend > 0 ? `▲ ${t('improving', lang)}` : `▼ ${t('slipping', lang)}`}
                       </Text>
                     )}
                   </View>

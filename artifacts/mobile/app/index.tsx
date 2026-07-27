@@ -9,6 +9,8 @@ import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META } from '@/context/GameContext';
 import colors from '@/constants/colors';
 import { DAILY_GOAL } from '@/context/GameContext';
+import { BOARD_CONFIGS, CLASS_LABELS } from '@/curriculum/boards';
+import { t, categoryLabel } from '@/i18n/strings';
 
 const C = colors.light;
 
@@ -16,7 +18,9 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { loadAll, progressStats, highScores, savedMistakes,
-          streak, answeredToday, startAdaptiveSession, selectedClass } = useGame();
+          streak, answeredToday, startAdaptiveSession, selectedClass,
+          board, lang } = useGame();
+  const boardCfg = BOARD_CONFIGS.find(b => b.key === board)!;
 
   useEffect(() => { loadAll(); }, []);
 
@@ -54,8 +58,23 @@ export default function HomeScreen() {
           <View style={styles.iconRing}>
             <Text style={styles.iconText}>∑</Text>
           </View>
-          <Text style={styles.appName}>Maths{'\n'}Workout</Text>
-          <Text style={styles.tagline}>Train your mental arithmetic every day</Text>
+          <Text style={styles.appName}>{t('appName', lang)}</Text>
+          <Text style={styles.tagline}>{t('tagline', lang)}</Text>
+          <TouchableOpacity
+            style={[styles.boardPill, { borderColor: boardCfg.colour + '66', backgroundColor: boardCfg.colour + '18' }]}
+            onPress={() => { Haptics.selectionAsync(); router.push('/board-select'); }}
+            activeOpacity={0.8}
+            accessibilityLabel={t('changeBoard', lang)}
+          >
+            <Text style={[styles.boardPillText, { color: boardCfg.colour }]}>
+              {lang === 'hi' ? boardCfg.labelHi : boardCfg.label}
+            </Text>
+            <Text style={styles.boardPillDot}>·</Text>
+            <Text style={[styles.boardPillText, { color: boardCfg.colour }]}>
+              {lang === 'hi' ? 'हिन्दी' : 'EN'}
+            </Text>
+            <Feather name="chevron-down" size={13} color={boardCfg.colour} />
+          </TouchableOpacity>
         </View>
 
         {/* Streak and daily goal — the habit loop */}
@@ -63,11 +82,11 @@ export default function HomeScreen() {
           <View style={styles.streakBox}>
             <Feather name="zap" size={15} color={C.gold} />
             <Text style={styles.streakNum}>{streak}</Text>
-            <Text style={styles.streakLbl}>day{streak === 1 ? '' : 's'}</Text>
+            <Text style={styles.streakLbl}>{t(streak === 1 ? 'day' : 'days', lang)}</Text>
           </View>
           <View style={styles.goalBox}>
             <View style={styles.goalTop}>
-              <Text style={styles.goalLbl}>Today's goal</Text>
+              <Text style={styles.goalLbl}>{t('todaysGoal', lang)}</Text>
               <Text style={styles.goalNum}>
                 {Math.min(answeredToday, DAILY_GOAL)}/{DAILY_GOAL}
               </Text>
@@ -93,9 +112,9 @@ export default function HomeScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.mistakeCardTitle}>
-                {savedMistakes.length} mistake{savedMistakes.length !== 1 ? 's' : ''} to review
+                {savedMistakes.length} {t(savedMistakes.length === 1 ? 'mistakeToReview' : 'mistakesToReview', lang)}
               </Text>
-              <Text style={styles.mistakeCardSub}>Practice to clear them from your list</Text>
+              <Text style={styles.mistakeCardSub}>{t('practiceToClear', lang)}</Text>
             </View>
             <Feather name="chevron-right" size={16} color={C.hard} />
           </TouchableOpacity>
@@ -118,18 +137,18 @@ export default function HomeScreen() {
             <View style={styles.quickIconBox}>
               <Feather name="zap" size={22} color="#fff" />
             </View>
-            <Text style={styles.quickCardTitle}>Smart Practice</Text>
-            <Text style={styles.quickCardSub}>Picks what you need · hold to choose</Text>
+            <Text style={styles.quickCardTitle}>{t('smartPractice', lang)}</Text>
+            <Text style={styles.quickCardSub}>{t('smartPracticeSub', lang)}</Text>
           </TouchableOpacity>
 
           <View style={styles.quickCol}>
             <TouchableOpacity style={styles.quickCardSmall} onPress={() => { Haptics.selectionAsync(); router.push('/tables-mode'); }} activeOpacity={0.8}>
               <Feather name="grid" size={18} color={C.catTables} />
-              <Text style={styles.quickCardSmallText}>Times{'\n'}Tables</Text>
+              <Text style={styles.quickCardSmallText}>{t('timesTables', lang)}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickCardSmall} onPress={() => { Haptics.selectionAsync(); router.push('/progress'); }} activeOpacity={0.8}>
               <Feather name="bar-chart-2" size={18} color={C.catAddition} />
-              <Text style={styles.quickCardSmallText}>My{'\n'}Progress</Text>
+              <Text style={styles.quickCardSmallText}>{t('myProgress', lang)}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -138,8 +157,8 @@ export default function HomeScreen() {
         {totalAttempted > 0 && (
           <>
             <View style={styles.sectionRow}>
-              <Text style={styles.sectionLabel}>ACCURACY BY TOPIC</Text>
-              <Text style={styles.sectionSub}>{totalAttempted} questions answered</Text>
+              <Text style={styles.sectionLabel}>{t('accuracyByTopic', lang)}</Text>
+              <Text style={styles.sectionSub}>{totalAttempted} {t('questionsAnswered', lang)}</Text>
             </View>
             <View style={styles.statsCard}>
               {catStats.map(({ cat, pct, att }) => {
@@ -147,7 +166,7 @@ export default function HomeScreen() {
                 return (
                   <View key={cat} style={styles.statRow}>
                     <View style={[styles.statDot, { backgroundColor: meta.color }]} />
-                    <Text style={styles.statLabel}>{meta.label}</Text>
+                    <Text style={styles.statLabel}>{categoryLabel(cat, lang)}</Text>
                     <View style={styles.statBarTrack}>
                       <View style={[styles.statBarFill, {
                         width: pct >= 0 ? `${pct}%` as unknown as number : 0,
@@ -165,7 +184,7 @@ export default function HomeScreen() {
         )}
 
         {/* Classes strip */}
-        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>CLASSES</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>{t('classes', lang)}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classStrip} contentContainerStyle={{ gap: 8, paddingRight: 4 }}>
           {CLASS_CONFIGS.map(cls => {
             const hsEntries = Object.entries(highScores).filter(([k]) => k.startsWith(cls.key + '_'));
@@ -177,7 +196,7 @@ export default function HomeScreen() {
                 onPress={() => { Haptics.selectionAsync(); router.push('/class-select'); }}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.classChipLabel, { color: cls.color }]}>{cls.label}</Text>
+                <Text style={[styles.classChipLabel, { color: cls.color }]}>{CLASS_LABELS[cls.key][lang === 'hi' ? 'hi' : 'en']}</Text>
                 {best > 0 && (
                   <View style={styles.chipBadge}>
                     <Feather name="star" size={9} color={C.gold} />
@@ -189,7 +208,9 @@ export default function HomeScreen() {
           })}
         </ScrollView>
 
-        <Text style={styles.hint}>6 class levels · 6 practice categories · 3 difficulty levels</Text>
+        <Text style={styles.hint}>
+          {lang === 'hi' ? boardCfg.fullNameHi : boardCfg.fullName}
+        </Text>
       </ScrollView>
     </View>
   );
@@ -207,6 +228,12 @@ const styles = StyleSheet.create({
   iconText: { fontSize: 38, color: C.primary, fontFamily: 'Inter_700Bold' },
   appName: { fontSize: 44, fontFamily: 'Inter_700Bold', color: C.foreground, textAlign: 'center', lineHeight: 50, marginBottom: 8 },
   tagline: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
+  boardPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12,
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1,
+  },
+  boardPillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
+  boardPillDot: { fontSize: 12, color: C.mutedForeground },
 
   quickRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   streakRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },

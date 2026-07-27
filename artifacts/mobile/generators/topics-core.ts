@@ -2,7 +2,7 @@
 // Covers: shapes, time, money, place_value, measurement
 // Curriculum alignment:
 //   Time    — Class 1/2: basic facts & simple duration; Class 3+: full duration & calendars
-//   Money   — Class 1: coins to 20c; Class 2: change from €1; Class 3+: larger amounts
+//   Money   — Class 1: coins to 20c; Class 2: change from ₹1; Class 3+: larger amounts
 //   PlaceValue — Class 2: tens/units only; Class 3: HTU; Class 4+: thousands
 
 import { SchoolClass, Difficulty, Question } from './types';
@@ -123,7 +123,7 @@ export function genMoney(cls: SchoolClass, diff: Difficulty): Question {
     return pick(qs)();
   }
 
-  // Class 2: up to €1, change from €1
+  // Class 2: up to ₹1, change from ₹1
   if (cls === '2nd') {
     const easy: TQ[] = [
       () => { const a = ri(5, 20); const b = ri(1, a - 1); return { questionText: `I have ${a}c and spend ${b}c.\nHow much is left?`, answer: a - b, choices: makeIntChoices(a - b) }; },
@@ -134,7 +134,7 @@ export function genMoney(cls: SchoolClass, diff: Difficulty): Question {
       () => { const a = ri(2, 5); const price = ri(5, 20); return { questionText: `${a} items cost ${price}c each.\nTotal cost?`, answer: a * price, choices: makeIntChoices(a * price) }; },
     ];
     const hard: TQ[] = [
-      () => { const price = ri(40, 95); return { questionText: `An item costs ${price}c.\nI pay €1.00. Change = ___c?`, answer: 100 - price, choices: makeIntChoices(100 - price) }; },
+      () => { const price = ri(40, 95); return { questionText: `An item costs ${price}c.\nI pay ₹1.00. Change = ___c?`, answer: 100 - price, choices: makeIntChoices(100 - price) }; },
       () => { const a = ri(2, 4); const price = ri(15, 35); return { questionText: `${a} books cost ${price}c each.\nTotal cost?`, answer: a * price, choices: makeIntChoices(a * price) }; },
     ];
     return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();
@@ -150,8 +150,8 @@ export function genMoney(cls: SchoolClass, diff: Difficulty): Question {
     () => { const a = ri(2, 5); const price = ri(5, 20); return { questionText: `${a} items cost ${price}c each.\nTotal cost?`, answer: a * price, choices: makeIntChoices(a * price) }; },
   ];
   const hard: TQ[] = [
-    () => { const a = ri(2, 5); const each = ri(25, 99); return { questionText: `${a} books cost €${(a * each / 100).toFixed(2)} in total.\nOne book costs ___c?`, answer: each, choices: makeIntChoices(each) }; },
-    () => { const price = ri(100, 500); const pay = Math.ceil(price / 100) * 100; return { questionText: `An item costs ${price}c.\nI pay €${pay / 100}. Change = ___c?`, answer: pay - price, choices: makeIntChoices(pay - price) }; },
+    () => { const a = ri(2, 5); const each = ri(25, 99); return { questionText: `${a} books cost ₹${(a * each / 100).toFixed(2)} in total.\nOne book costs ___c?`, answer: each, choices: makeIntChoices(each) }; },
+    () => { const price = ri(100, 500); const pay = Math.ceil(price / 100) * 100; return { questionText: `An item costs ${price}c.\nI pay ₹${pay / 100}. Change = ___c?`, answer: pay - price, choices: makeIntChoices(pay - price) }; },
   ];
   return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();
 }

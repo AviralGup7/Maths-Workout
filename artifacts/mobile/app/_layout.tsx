@@ -6,9 +6,21 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
   Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, useFonts,
 } from '@expo-google-fonts/inter';
+// Inter has no Devanagari glyphs — without this, Hindi renders as tofu boxes.
+import {
+  NotoSansDevanagari_400Regular,
+  NotoSansDevanagari_500Medium,
+  NotoSansDevanagari_600SemiBold,
+  NotoSansDevanagari_700Bold,
+} from '@expo-google-fonts/noto-sans-devanagari';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { GameProvider } from '@/context/GameContext';
+import { installScriptAwareText } from '@/components/ScriptAwareText';
+
+// Substitute Noto Sans Devanagari wherever Hindi text appears, since Inter has
+// no Devanagari glyphs. Installed before first render.
+installScriptAwareText();
 import { StatusBar } from 'expo-status-bar';
 
 SplashScreen.preventAutoHideAsync();
@@ -17,6 +29,7 @@ function RootLayoutNav() {
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="board-select" />
       <Stack.Screen name="class-select" />
       <Stack.Screen name="category-select" />
       <Stack.Screen name="difficulty-select" />
@@ -32,6 +45,8 @@ function RootLayoutNav() {
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold,
+    NotoSansDevanagari_400Regular, NotoSansDevanagari_500Medium,
+    NotoSansDevanagari_600SemiBold, NotoSansDevanagari_700Bold,
   });
 
   useEffect(() => {

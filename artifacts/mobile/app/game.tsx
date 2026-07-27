@@ -9,6 +9,9 @@ import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, ChoiceValue } from '@/context/GameContext';
 import colors from '@/constants/colors';
 import { MISCONCEPTIONS } from '@/learning/misconceptions';
+import { MISCONCEPTIONS_HI } from '@/i18n/misconceptions-hi';
+import { t, categoryLabel } from '@/i18n/strings';
+import { CLASS_LABELS } from '@/curriculum/boards';
 import { AnswerSurface } from '@/components/answer/AnswerSurface';
 import { grade, expectedAnswer } from '@/generators/interactions';
 
@@ -44,7 +47,7 @@ export default function GameScreen() {
     questions, currentIndex, totalQuestions, sessionType,
     submitAnswer, nextQuestion, endGame, isGameOver,
     score, selectedClass, selectedCategory, isTablesMode,
-    saveProgressStats, saveScore, wrongAnswers, recordAttempt,
+    saveProgressStats, saveScore, wrongAnswers, recordAttempt, lang,
   } = useGame();
 
   const isBlitz = sessionType === 'timed60' && !isTablesMode;
@@ -261,12 +264,12 @@ export default function GameScreen() {
               timerRef.current = null;
             }
             Alert.alert(
-              'Leave Game?',
-              'Any wrong answers so far will still be saved for review.',
+              t('leaveGame', lang),
+              t('leaveGameBody', lang),
               [
-                { text: 'Keep Playing', style: 'cancel' },
+                { text: t('keepPlaying', lang), style: 'cancel' },
                 {
-                  text: 'Quit',
+                  text: t('quit', lang),
                   style: 'destructive',
                   onPress: () => { if (score > 0 || wrongAnswers.length > 0) saveScore(); router.back(); },
                 },
@@ -279,10 +282,10 @@ export default function GameScreen() {
         </TouchableOpacity>
         <View style={styles.topMid}>
           <View style={[styles.pill, { backgroundColor: classColor + '22' }]}>
-            <Text style={[styles.pillText, { color: classColor }]}>{classConfig?.label}</Text>
+            <Text style={[styles.pillText, { color: classColor }]}>{classConfig ? CLASS_LABELS[classConfig.key][lang === 'hi' ? 'hi' : 'en'] : ''}</Text>
           </View>
           <View style={[styles.pill, { backgroundColor: catMeta.color + '22' }]}>
-            <Text style={[styles.pillText, { color: catMeta.color }]}>{catMeta.label}</Text>
+            <Text style={[styles.pillText, { color: catMeta.color }]}>{isTablesMode ? t('timesTables', lang).replace('\n', ' ') : categoryLabel(activeCategory, lang)}</Text>
           </View>
         </View>
         <View style={styles.scorePill}>
@@ -345,15 +348,20 @@ export default function GameScreen() {
 
       {/* Direction D — explain *why* the answer was wrong, not merely that it was.
           Shown only when a specific misconception was identified. */}
-      {diagnosis && MISCONCEPTIONS[diagnosis] && (
-        <View style={styles.diagnosisBox} accessibilityLiveRegion="polite">
-          <Feather name="info" size={14} color={C.medium} style={{ marginTop: 1 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.diagnosisTitle}>{MISCONCEPTIONS[diagnosis].label}</Text>
-            <Text style={styles.diagnosisText}>{MISCONCEPTIONS[diagnosis].explanation}</Text>
+      {diagnosis && MISCONCEPTIONS[diagnosis] && (() => {
+        // Feedback must be in the learner's language, not just the questions.
+        const hi = MISCONCEPTIONS_HI[diagnosis];
+        const info = lang === 'hi' && hi ? hi : MISCONCEPTIONS[diagnosis];
+        return (
+          <View style={styles.diagnosisBox} accessibilityLiveRegion="polite">
+            <Feather name="info" size={14} color={C.medium} style={{ marginTop: 1 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.diagnosisTitle}>{info.label}</Text>
+              <Text style={styles.diagnosisText}>{info.explanation}</Text>
+            </View>
           </View>
-        </View>
-      )}
+        );
+      })()}
     </View>
   );
 }

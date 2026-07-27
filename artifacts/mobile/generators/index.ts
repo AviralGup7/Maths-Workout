@@ -12,18 +12,20 @@ import { genCounting, genNumberSense } from './early-years';
 import { genShapes, genTime, genMoney, genPlaceValue, genMeasurement } from './topics-core';
 import { genFractions, genDecimals } from './fractions-decimals';
 import { genWordProblems, genFactors, genGeometry, genPercentages, genData, genRatio, genIntegers, genAlgebra } from './advanced';
+import { categoriesFor, DEFAULT_BOARD } from '../curriculum/boards';
+import type { Board } from '../curriculum/boards';
 
 export { generateTablesQuestions };
 
 // ─── Class metadata ──────────────────────────────────────────────────────────
 
 export const CLASS_CONFIGS: ClassConfig[] = [
-  { key: '1st', label: '1st Class', ageRange: 'Age 6–7',  color: '#FF6B6B' },
-  { key: '2nd', label: '2nd Class', ageRange: 'Age 7–8',  color: '#FF9F43' },
-  { key: '3rd', label: '3rd Class', ageRange: 'Age 8–9',  color: '#FDD835' },
-  { key: '4th', label: '4th Class', ageRange: 'Age 9–10', color: '#26C6DA' },
-  { key: '5th', label: '5th Class', ageRange: 'Age 10–11',color: '#42A5F5' },
-  { key: '6th', label: '6th Class', ageRange: 'Age 11–12',color: '#AB47BC' },
+  { key: '1st', label: 'Class 1', ageRange: 'Age 6–7',  color: '#FF6B6B' },
+  { key: '2nd', label: 'Class 2', ageRange: 'Age 7–8',  color: '#FF9F43' },
+  { key: '3rd', label: 'Class 3', ageRange: 'Age 8–9',  color: '#FDD835' },
+  { key: '4th', label: 'Class 4', ageRange: 'Age 9–10', color: '#26C6DA' },
+  { key: '5th', label: 'Class 5', ageRange: 'Age 10–11',color: '#42A5F5' },
+  { key: '6th', label: 'Class 6', ageRange: 'Age 11–12',color: '#AB47BC' },
 ];
 
 // ─── Category metadata ───────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ export const CATEGORY_META: Record<Category, { label: string; icon: string; colo
   number_sense:   { label: 'Number Sense',     icon: 'eye',              color: '#AB47BC', symbol: '≈',   desc: 'Compare, order, and understand numbers' },
   shapes:         { label: 'Shapes',           icon: 'triangle',         color: '#5C6BC0', symbol: '△',   desc: 'Identify and measure 2D shapes' },
   time:           { label: 'Time',             icon: 'clock',            color: '#00ACC1', symbol: '⏱',   desc: 'Read the clock and calculate time' },
-  money:          { label: 'Money',            icon: 'dollar-sign',      color: '#66BB6A', symbol: '€',   desc: 'Coins, notes and giving change' },
+  money:          { label: 'Money',            icon: 'dollar-sign',      color: '#66BB6A', symbol: '₹',   desc: 'Coins, notes and giving change' },
   place_value:    { label: 'Place Value',      icon: 'align-right',      color: '#FFA726', symbol: '000', desc: 'Hundreds, tens and ones' },
   measurement:    { label: 'Measurement',      icon: 'activity',         color: '#8D6E63', symbol: 'cm',  desc: 'Length, mass and capacity units' },
   fractions:      { label: 'Fractions',        icon: 'pocket',           color: '#EF5350', symbol: '½',   desc: 'Parts of a whole number' },
@@ -55,7 +57,11 @@ export const CATEGORY_META: Record<Category, { label: string; icon: string; colo
 };
 
 // ─── Curriculum-aligned topic lists per class ─────────────────────────────────
-// Based on Irish primary school curriculum:
+// NOTE: this table is the legacy CBSE-default fallback. The authoritative,
+// board-aware mapping now lives in curriculum/boards.ts — see
+// docs/11-curriculum-research.md. Kept so callers without a board still work.
+//
+// Indian primary sequencing (CBSE / NCERT):
 //   1st: Counting, number sense, addition, subtraction + basic shapes/time/money
 //   2nd: Carry/borrow arithmetic, tables 2/5/10, place value, measurement
 //   3rd: All 4 operations, tables 1–10, fractions intro, word problems, geometry basics
@@ -65,8 +71,10 @@ export const CATEGORY_META: Record<Category, { label: string; icon: string; colo
 
 export const CLASS_TOPICS: Record<SchoolClass, { cats: Category[]; theme: string }> = {
   '1st': {
-    theme: 'Counting & Basics',
-    cats: ['counting', 'number_sense', 'addition', 'subtraction', 'shapes', 'time', 'money'],
+    // New NCERT "Joyful Mathematics" introduces multiplication in Class 1
+    // ("How Many Times?") as equal groups / repeated addition.
+    theme: 'Numbers & Shapes',
+    cats: ['counting', 'number_sense', 'addition', 'subtraction', 'multiplication', 'shapes', 'time', 'money'],
   },
   '2nd': {
     theme: 'Tables & Place Value',
@@ -90,13 +98,22 @@ export const CLASS_TOPICS: Record<SchoolClass, { cats: Category[]; theme: string
   },
 };
 
-export function getAvailableCategories(cls: SchoolClass): Category[] {
-  return CLASS_TOPICS[cls].cats;
+/**
+ * Categories a learner may practise.
+ *
+ * Board-aware: CBSE, ICSE and state boards teach several topics in different
+ * years (ICSE introduces percentage and ratio in Class 5, CBSE in Class 6).
+ * See curriculum/boards.ts and docs/11-curriculum-research.md.
+ *
+ * `board` is optional so existing callers keep working; it defaults to CBSE.
+ */
+export function getAvailableCategories(cls: SchoolClass, board: Board = DEFAULT_BOARD): Category[] {
+  return categoriesFor(board, cls);
 }
 
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
 
-export function generateQuestion(cls: SchoolClass, diff: Difficulty, cat: Category): Question {
+export function generateQuestion(cls: SchoolClass, diff: Difficulty, cat: Category, board: Board = DEFAULT_BOARD): Question {
   switch (cat) {
     case 'addition':       return genAddition(cls, diff);
     case 'subtraction':    return genSubtraction(cls, diff);
@@ -121,11 +138,11 @@ export function generateQuestion(cls: SchoolClass, diff: Difficulty, cat: Catego
     case 'algebra':        return genAlgebra(cls, diff);
     case 'tables':         throw new Error('tables category should use startTablesGame, not generateQuestion');
     case 'mixed': {
-      const available = getAvailableCategories(cls).filter(
+      const available = getAvailableCategories(cls, board).filter(
         c => c !== 'mixed' && c !== 'tables' && c !== 'counting' && c !== 'number_sense',
       );
       const resolved = pick(available);
-      const q = generateQuestion(cls, diff, resolved);
+      const q = generateQuestion(cls, diff, resolved, board);
       return { ...q, resolvedCategory: resolved };
     }
   }

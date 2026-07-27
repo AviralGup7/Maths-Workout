@@ -9,17 +9,19 @@ import {
   Category, getAvailableCategories,
 } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { CLASS_LABELS, CLASS_THEME } from '@/curriculum/boards';
+import { t, categoryLabel, categoryDesc } from '@/i18n/strings';
 
 const C = colors.light;
 
 export default function CategorySelectScreen() {
   const insets = useSafeAreaInsets();
   const router  = useRouter();
-  const { selectedClass, setSelectedCategory, progressStats, getHighScore } = useGame();
+  const { selectedClass, setSelectedCategory, progressStats, getHighScore, board, lang } = useGame();
 
   const classConfig = CLASS_CONFIGS.find(c => c.key === selectedClass)!;
-  const available   = getAvailableCategories(selectedClass);
-  const { theme }   = CLASS_TOPICS[selectedClass];
+  const available   = getAvailableCategories(selectedClass, board);
+  const theme       = CLASS_THEME[board][selectedClass][lang === 'hi' ? 'hi' : 'en'];
 
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -72,7 +74,7 @@ export default function CategorySelectScreen() {
         </View>
         <View style={styles.cardBody}>
           <View style={styles.cardTop}>
-            <Text style={[styles.cardTitle, { color: meta.color }]}>{meta.label}</Text>
+            <Text style={[styles.cardTitle, { color: meta.color }]}>{categoryLabel(cat, lang)}</Text>
             {isSpecial && (
               <View style={[styles.tagPill, { backgroundColor: C.catTables + '22' }]}>
                 <Text style={[styles.tagText, { color: C.catTables }]}>Drill</Text>
@@ -88,7 +90,7 @@ export default function CategorySelectScreen() {
               </View>
             )}
           </View>
-          <Text style={styles.cardDesc} numberOfLines={1}>{meta.desc}</Text>
+          <Text style={styles.cardDesc} numberOfLines={2}>{categoryDesc(cat, lang)}</Text>
           {best > 0 && !isSpecial && (
             <View style={styles.bestRow}>
               <Feather name="star" size={10} color={C.gold} />
@@ -111,7 +113,7 @@ export default function CategorySelectScreen() {
           <Text style={styles.headerTitle}>Choose Topic</Text>
           <View style={styles.headerBadgeRow}>
             <View style={[styles.clsBadge, { backgroundColor: classConfig.color + '22' }]}>
-              <Text style={[styles.clsBadgeText, { color: classConfig.color }]}>{classConfig.label}</Text>
+              <Text style={[styles.clsBadgeText, { color: classConfig.color }]}>{CLASS_LABELS[selectedClass][lang === 'hi' ? 'hi' : 'en']}</Text>
             </View>
             <Text style={styles.themeTxt}>{theme}</Text>
           </View>
@@ -125,14 +127,14 @@ export default function CategorySelectScreen() {
       >
         {coreCats.length > 0 && (
           <>
-            <SectionHeader label="ARITHMETIC" />
+            <SectionHeader label={t('arithmetic', lang)} />
             {coreCats.map(cat => <CatCard key={cat} cat={cat} />)}
           </>
         )}
 
         {topicCats.length > 0 && (
           <>
-            <SectionHeader label="CURRICULUM TOPICS" />
+            <SectionHeader label={t('curriculumTopics', lang)} />
             {topicCats.map(cat => <CatCard key={cat} cat={cat} />)}
           </>
         )}

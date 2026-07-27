@@ -26,7 +26,7 @@ export function genWordProblems(cls: SchoolClass, diff: Difficulty): Question {
       () => { const a = ri(5, 15); const b = ri(5, 15); return { questionText: `There are ${a} boys and ${b} girls.\nHow many children altogether?`, answer: a + b, choices: makeIntChoices(a + b) }; },
       () => { const a = ri(2, 6); const b = ri(2, 6); return { questionText: `A box has ${a} rows of ${b} eggs.\nHow many eggs in total?`, answer: a * b, choices: makeIntChoices(a * b) }; },
       () => { const n = ri(2, 6); const total = n * ri(4, Math.floor(60 / n)); return { questionText: `${total} sweets shared equally among ${n} children.\nHow many each?`, answer: total / n, choices: makeIntChoices(total / n) }; },
-      () => { const a = ri(5, 15); const rate = ri(2, 5); return { questionText: `Jane saves €${a} per week.\nHow much after ${rate} weeks?`, answer: a * rate, choices: makeIntChoices(a * rate) }; },
+      () => { const a = ri(5, 15); const rate = ri(2, 5); return { questionText: `Jane saves ₹${a} per week.\nHow much after ${rate} weeks?`, answer: a * rate, choices: makeIntChoices(a * rate) }; },
     ];
     return pick(pool)();
   }
@@ -41,7 +41,7 @@ export function genWordProblems(cls: SchoolClass, diff: Difficulty): Question {
     const medium: TQ[] = [
       () => { const a = ri(3, 8); const each = ri(5, 15); return { questionText: `${a} children each collect ${each} cans.\nHow many cans in total?`, answer: a * each, choices: makeIntChoices(a * each) }; },
       () => { const n = ri(2, 6); const total = n * ri(4, Math.floor(60 / n)); return { questionText: `${total} sweets shared equally among ${n} children.\nHow many each?`, answer: total / n, choices: makeIntChoices(total / n) }; },
-      () => { const a = ri(5, 15); const rate = ri(2, 6); return { questionText: `Jane saves €${a} per week.\nHow much after ${rate} weeks?`, answer: a * rate, choices: makeIntChoices(a * rate) }; },
+      () => { const a = ri(5, 15); const rate = ri(2, 6); return { questionText: `Jane saves ₹${a} per week.\nHow much after ${rate} weeks?`, answer: a * rate, choices: makeIntChoices(a * rate) }; },
     ];
     const hard: TQ[] = [
       () => { const speed = ri(20, 60); const time = ri(2, 5); return { questionText: `A cyclist travels at ${speed} km/h.\nDistance in ${time} hours?`, answer: speed * time, choices: makeIntChoices(speed * time) }; },
@@ -57,7 +57,7 @@ export function genWordProblems(cls: SchoolClass, diff: Difficulty): Question {
   ];
   const medium: TQ[] = [
     () => { const a = ri(3, 8); const each = ri(5, 15); return { questionText: `${a} children each collect ${each} cans.\nHow many cans in total?`, answer: a * each, choices: makeIntChoices(a * each) }; },
-    () => { const a = ri(5, 15); const rate = ri(2, 6); return { questionText: `Jane saves €${a} per week.\nHow much after ${rate} weeks?`, answer: a * rate, choices: makeIntChoices(a * rate) }; },
+    () => { const a = ri(5, 15); const rate = ri(2, 6); return { questionText: `Jane saves ₹${a} per week.\nHow much after ${rate} weeks?`, answer: a * rate, choices: makeIntChoices(a * rate) }; },
   ];
   const hard: TQ[] = [
     () => { const speed = ri(40, 120); const time = ri(2, 5); return { questionText: `A car travels at ${speed} km/h.\nDistance in ${time} hours?`, answer: speed * time, choices: makeIntChoices(speed * time) }; },
@@ -186,11 +186,11 @@ export function genRatio(cls: SchoolClass, diff: Difficulty): Question {
     () => { const a = ri(2, 5); const b = ri(2, 5); const total = (a + b) * ri(2, 5); return { questionText: `Ratio ${a}:${b}, total = ${total}.\nSmaller part = ?`, answer: Math.round((Math.min(a, b) * total) / (a + b)), choices: makeIntChoices(Math.round((Math.min(a, b) * total) / (a + b))) }; },
   ];
   const medium: TQ[] = [
-    () => { const cost = ri(2, 8); const n = ri(2, 6); let ask = ri(2, 8); if (ask === n) ask = ask < 8 ? ask + 1 : ask - 1; return { questionText: `${n} pens cost €${n * cost}.\nHow much do ${ask} pens cost?`, answer: ask * cost, choices: makeIntChoices(ask * cost) }; },
+    () => { const cost = ri(2, 8); const n = ri(2, 6); let ask = ri(2, 8); if (ask === n) ask = ask < 8 ? ask + 1 : ask - 1; return { questionText: `${n} pens cost ₹${n * cost}.\nHow much do ${ask} pens cost?`, answer: ask * cost, choices: makeIntChoices(ask * cost) }; },
     () => { const a = ri(2, 5); let b = ri(2, 5); if (a === b) b = b < 5 ? b + 1 : b - 1; const total = (a + b) * ri(3, 6); return { questionText: `Divide ${total} in ratio ${a}:${b}.\nLarger share = ?`, answer: Math.round((Math.max(a, b) * total) / (a + b)), choices: makeIntChoices(Math.round((Math.max(a, b) * total) / (a + b))) }; },
   ];
   const hard: TQ[] = [
-    () => { const a = ri(3, 7); let b = ri(2, 6); if (a === b) b = b < 6 ? b + 1 : b - 1; const total = (a + b) * ri(4, 8); const larger = Math.round((Math.max(a, b) * total) / (a + b)); return { questionText: `Share €${total} in ratio ${a}:${b}.\nLarger share = €?`, answer: larger, choices: makeIntChoices(larger) }; },
+    () => { const a = ri(3, 7); let b = ri(2, 6); if (a === b) b = b < 6 ? b + 1 : b - 1; const total = (a + b) * ri(4, 8); const larger = Math.round((Math.max(a, b) * total) / (a + b)); return { questionText: `Share ₹${total} in ratio ${a}:${b}.\nLarger share = ₹?`, answer: larger, choices: makeIntChoices(larger) }; },
     () => { const scale = pick([100, 50, 200]); const map = ri(2, 10); return { questionText: `Scale 1:${scale}. Map length = ${map} cm.\nReal length = ___ cm?`, answer: map * scale, choices: makeIntChoices(map * scale) }; },
   ];
   return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();

@@ -39,6 +39,7 @@ cause and the verified three-line fix are in
 | 08 | [Reference](./08-reference.md) | API surface, storage keys, types, env vars, glossary |
 | 09 | [Improvement Directions](./09-improvement-directions.md) | Where the product could go: 7 directions with effort/impact |
 | 10 | [Question Engine Evolution](./10-question-engine-evolution.md) | Interaction taxonomy, UI plan, and what was built |
+| 11 | [Curriculum Research](./11-curriculum-research.md) | CBSE / ICSE / state syllabus sources behind the board model |
 
 ---
 

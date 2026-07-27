@@ -144,6 +144,9 @@ describe('F6 — no negative options before negative numbers are taught', () => 
       if (cat === 'integers') return;
       for (let i = 0; i < N; i++) {
         const q = generateQuestion(cls, diff, cat);
+        // `mixed` can legitimately resolve to integers at Class 6, where
+        // negative numbers are on the syllabus.
+        if (q.resolvedCategory === 'integers') continue;
         for (const c of q.choices) {
           if (typeof c === 'number') {
             expect(c, `${cls}/${cat}/${diff}: ${q.questionText} → ${q.choices}`)

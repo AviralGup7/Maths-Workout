@@ -6,13 +6,15 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, SchoolClass, getAvailableCategories } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { CLASS_LABELS } from '@/curriculum/boards';
+import { t } from '@/i18n/strings';
 
 const C = colors.light;
 
 export default function ClassSelectScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { setSelectedClass, getHighScore, progressStats } = useGame();
+  const { setSelectedClass, getHighScore, progressStats, board, lang } = useGame();
 
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -30,15 +32,15 @@ export default function ClassSelectScreen() {
           <Feather name="arrow-left" size={22} color={C.foreground} />
         </TouchableOpacity>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Select Class</Text>
-          <Text style={styles.headerSub}>Choose your school year</Text>
+          <Text style={styles.headerTitle}>{t('selectClass', lang)}</Text>
+          <Text style={styles.headerSub}>{t('selectClassSub', lang)}</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: bot + 24 }]} showsVerticalScrollIndicator={false}>
         {CLASS_CONFIGS.map((cls, idx) => {
-          const cats = getAvailableCategories(cls.key);
+          const cats = getAvailableCategories(cls.key, board);
           const hsVals = cats.flatMap(cat =>
             ['easy', 'medium', 'hard'].map(d => getHighScore(cls.key, d as any, cat))
           );
@@ -61,8 +63,8 @@ export default function ClassSelectScreen() {
                     <Text style={[styles.numText, { color: cls.color }]}>{idx + 1}</Text>
                   </View>
                   <View style={styles.titleBlock}>
-                    <Text style={styles.cardLabel}>{cls.label}</Text>
-                    <Text style={styles.cardAge}>{cls.ageRange}</Text>
+                    <Text style={styles.cardLabel}>{CLASS_LABELS[cls.key][lang === 'hi' ? 'hi' : 'en']}</Text>
+                    <Text style={styles.cardAge}>{t('age', lang)} {CLASS_LABELS[cls.key].age}</Text>
                   </View>
                   <View style={styles.rightCol}>
                     {acc >= 0 && (
@@ -73,7 +75,7 @@ export default function ClassSelectScreen() {
                     <Feather name="chevron-right" size={18} color={C.mutedForeground} />
                   </View>
                 </View>
-                <Text style={styles.catCount}>{cats.length} topic{cats.length !== 1 ? 's' : ''} available</Text>
+                <Text style={styles.catCount}>{cats.length} {t('topicsAvailable', lang)}</Text>
                 {totalBest > 0 && (
                   <View style={styles.progressTrack}>
                     <View style={[styles.progressFill, { width: `${(totalBest / maxBest) * 100}%` as unknown as number, backgroundColor: cls.color }]} />

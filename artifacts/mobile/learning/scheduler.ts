@@ -16,6 +16,8 @@ import type { MasteryEstimate } from './mastery';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD, DAY_MS, isReady } from './mastery';
 import type { Category, Difficulty, SchoolClass } from '../generators/types';
 import { getAvailableCategories } from '../generators';
+import type { Board } from '../curriculum/boards';
+import { DEFAULT_BOARD } from '../curriculum/boards';
 
 /**
  * Target success rate.
@@ -78,8 +80,9 @@ export function scheduleSkills(
   cls: SchoolClass,
   estimates: Record<SkillId, MasteryEstimate>,
   now: number = Date.now(),
+  board: Board = DEFAULT_BOARD,
 ): ScheduledSkill[] {
-  const categories = getAvailableCategories(cls);
+  const categories = getAvailableCategories(cls, board);
   const candidates = new Set<SkillId>();
 
   // Skills reachable from this class's categories, at each difficulty.
@@ -145,8 +148,9 @@ export function buildSession(
   estimates: Record<SkillId, MasteryEstimate>,
   count: number,
   now: number = Date.now(),
+  board: Board = DEFAULT_BOARD,
 ): ScheduledSkill[] {
-  const ranked = scheduleSkills(cls, estimates, now);
+  const ranked = scheduleSkills(cls, estimates, now, board);
   if (ranked.length === 0) return [];
 
   const focus = ranked.filter(s => s.reason === 'gap' || s.reason === 'due' || s.reason === 'learning');
