@@ -206,3 +206,31 @@ describe('I5 · difficulty selection cannot be farmed', () => {
     expect(climb('hard')).toBeGreaterThan(climb('easy'));
   });
 });
+
+describe('I6 · support is never more profitable than independence', () => {
+  it('answering with a hint on screen earns less than answering unaided', () => {
+    // docs/21 · X8. BONUS.transferAfterTeaching fired on EVERY scaffolded
+    // correct answer at 35 XP with no cooldown, so 600 hinted questions paid
+    // 17,741 XP against 758 unaided — never working without help was worth 23x
+    // more than working independently. For a learning product that is the most
+    // damaging incentive available: the entire purpose of a scaffold is to be
+    // faded, and the economy was paying children not to fade it.
+    const run = (scaffolded: boolean) => {
+      let st = blank();
+      let now = START;
+      for (let d = 0; d < 20; d++) {
+        for (let i = 0; i < 20; i++) {
+          st = recordAnswer(st, {
+            question: q(`q${d}-${i}`),
+            chosen: '7', correct: true, latencyMs: 5200, timedOut: false, scaffolded,
+            plannedSkill: SKILL, cls: '4th', sessionCategory: 'addition',
+            difficulty: 'medium', isTablesMode: false,
+            now: now + d * 86_400_000 + i * 90_000,
+          }).state;
+        }
+      }
+      return st.totalXp;
+    };
+    expect(run(true)).toBeLessThan(run(false));
+  });
+});

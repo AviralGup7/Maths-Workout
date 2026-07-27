@@ -141,7 +141,13 @@ export function detectBonuses(args: {
   const paid = ledger[skill] ?? 0;
 
   // First correct answer on a skill never attempted before.
-  if (priorOnSkill <= 1) out.push({ id: 'firstContact', xp: BONUS.firstContact });
+  //
+  // docs/21 · X12. `<= 1` paid on both the first AND second attempt, so ten
+  // skills yielded twenty "first contact" awards. Small in isolation (10 XP)
+  // but it is a double-count in the one bonus a learner meets most often, and
+  // it made breadth marginally profitable for its own sake. `priorOnSkill` is
+  // the count BEFORE this answer, so a genuine first contact is exactly 0.
+  if (priorOnSkill === 0) out.push({ id: 'firstContact', xp: BONUS.firstContact });
 
   // Threshold crossings — the two biggest moments in the model.
   //
@@ -179,7 +185,32 @@ export function detectBonuses(args: {
 
   // Applied a method immediately after being taught it — the completion-problem
   // effect, and the thing that turns "I watched" into "I can".
-  if (scaffolded) out.push({ id: 'transferAfterTeaching', xp: BONUS.transferAfterTeaching });
+  //
+  // docs/21 · X8. This fired on EVERY scaffolded correct answer, at 35 XP, with
+  // no cooldown — the same shape of bug as `recovered`, in a different place.
+  // Measured: 600 questions answered with a hint on screen paid 17,741 XP
+  // against 758 unaided, so never working without help was worth 23x more than
+  // working independently. That is the most damaging incentive the app could
+  // possibly express, because the whole point of a scaffold is to be faded.
+  //
+  // "Transfer after teaching" means the FIRST unaided-quality success following
+  // support, not an allowance for permanent support. It now pays once per skill
+  // per day, and only while the skill is still being learned — once secure,
+  // taking a hint is not transfer, it is habit.
+  // Once per skill per day is still not enough on its own: over 30 days that
+  // is 30 payouts, which outran the halved base payout a scaffolded answer
+  // earns. The bonus is for TRANSFER — carrying a taught method forward — so it
+  // additionally requires that the support actually moved the learner, i.e.
+  // this answer contributed new mastery above what has already been paid for.
+  // A learner leaning on hints at a plateau earns nothing extra; a learner
+  // genuinely climbing with support earns it once per skill per day.
+  if (scaffolded && masteryBefore < MASTERED_THRESHOLD && masteryAfter > paid) {
+    const today = new Date(now).toDateString();
+    const alreadyToday = onSkill.some(
+      a => a.scaffolded && a.correct && new Date(a.answeredAt).toDateString() === today,
+    );
+    if (!alreadyToday) out.push({ id: 'transferAfterTeaching', xp: BONUS.transferAfterTeaching });
+  }
 
   // A due spaced review completed on a secure skill.
   if (wasDue && masteryBefore >= MASTERED_THRESHOLD) {
