@@ -23,29 +23,6 @@ import { CHAPTERS } from '../curriculum/chapters';
 /** Class ordering, for comparing a chapter's introduction year to the learner's. */
 const CLASS_ORDER: SchoolClass[] = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 
-/**
- * Skills that `resolveSkill` can never return, computed once at module load.
- *
- * docs/21 · F3. Each (class, category, difficulty) cell maps to exactly ONE
- * skill, so a category holding more skills than it has difficulty slots leaves
- * an orphan. These skills exist, are named by chapters, and are practised by
- * nobody — which silently froze chapter progression for every learner.
- *
- * Derived rather than hand-listed so it cannot drift as the curriculum grows:
- * add a skill the menu cannot reach and it is rescued automatically.
- */
-const ORPHAN_SKILLS: Set<SkillId> = (() => {
-  const reachable = new Set<SkillId>();
-  for (const c of CLASS_ORDER) {
-    for (const cat of getAvailableCategories(c)) {
-      if (cat === 'mixed') continue;
-      for (const d of ['easy', 'medium', 'hard'] as Difficulty[]) {
-        reachable.add(resolveSkill(c, cat, d));
-      }
-    }
-  }
-  return new Set(Object.keys(SKILLS).filter(s => !reachable.has(s)));
-})();
 
 /**
  * Target success rate.
@@ -190,9 +167,24 @@ export function scheduleSkills(
   // past a week of practice — a real regression caught by scheduler-scale.
   // Rescuing exactly the unreachable skills fixes the frozen curriculum without
   // disturbing the introduction pace that the depth ordering establishes.
+  // Reachability is PER CLASS, not global.
+  //
+  // The first version of this fix rescued only globally-unreachable skills
+  // (`patterns.basic`), which missed the general form of the bug: each class
+  // menu resolves its own small set, so a Class 6 learner could not be
+  // scheduled 26 of the skills their own chapters name — including
+  // `symmetry.basic`, which left the `geometry` chapter locked at mean 0.46 for
+  // a perfect learner after two years. `resolveSkill` maps (class, category,
+  // difficulty) to one skill, and Class 6 drops `shapes` from its menu
+  // entirely, so the skill simply has no route in.
+  //
+  // Any skill named by a chapter at or below the learner's class is legitimate
+  // material for that learner — that is what putting it in the chapter meant.
+  // Prerequisite readiness (`isReady`) still gates whether it is actually
+  // introduced, and the depth/class priority still decides the order.
   for (const ch of CHAPTERS) {
     if (CLASS_ORDER.indexOf(ch.introducedIn) > CLASS_ORDER.indexOf(cls)) continue;
-    for (const s of ch.skills) if (SKILLS[s] && ORPHAN_SKILLS.has(s)) candidates.add(s);
+    for (const s of ch.skills) if (SKILLS[s]) candidates.add(s);
   }
 
   // Any skill the learner has ACTUALLY PRACTISED is a candidate, whatever the
@@ -312,7 +304,20 @@ export function buildSession(
   // erosion. Practically, it is also the only path by which a secure skill
   // reaches the harder interaction types (typed recall rather than
   // recognition), since those are gated on high mastery.
-  const focusTarget    = focus.length  > 0 ? Math.max(1, Math.round(count * 0.70)) : 0;
+  //
+  // The focus share is bounded by how many DISTINCT focus skills exist.
+  //
+  // docs/21. With a single focus skill the 70% target put 17 of 20 questions on
+  // it — measured on a Class 1 learner whose only unconsolidated skill sat at
+  // the recognition ceiling, so a quarter of their entire year went to one
+  // topic. That is drilling, not interleaving, and interleaving is the whole
+  // reason this function is not simply greedy.
+  //
+  // Allowing ~5 questions per distinct focus skill keeps genuine remediation
+  // concentrated (a real gap still dominates a session) while preventing one
+  // skill from consuming a session because it happens to be the only candidate.
+  const focusCeiling = Math.min(count, focus.length * 5);
+  const focusTarget    = focus.length  > 0 ? Math.max(1, Math.min(focusCeiling, Math.round(count * 0.70))) : 0;
   /**
    * Cap on how many BRAND NEW skills one session may introduce.
    *

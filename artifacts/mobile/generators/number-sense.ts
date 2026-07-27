@@ -143,7 +143,7 @@ export function genReasonableness(cls: SchoolClass, diff: Difficulty, lang: Lang
     : ['Aarav', 'Priya', 'Rohan', 'Ananya'];
   const who = pick(names);
 
-  type Claim = { text: string; sensible: boolean };
+  type Claim = { text: string; sensible: boolean; correctValue?: number };
   const claims: (() => Claim)[] = [];
 
   claims.push(() => {
@@ -155,6 +155,7 @@ export function genReasonableness(cls: SchoolClass, diff: Difficulty, lang: Lang
         ? `${who} कहते हैं ${a} + ${b} = ${shown}. क्या यह ठीक लगता है?`
         : `${who} says ${a} + ${b} = ${shown}. Does that seem sensible?`,
       sensible: !wrong,
+      correctValue: a + b,
     };
   });
 
@@ -168,6 +169,7 @@ export function genReasonableness(cls: SchoolClass, diff: Difficulty, lang: Lang
           ? `${who} कहते हैं ${a} × ${b} = ${shown}. क्या यह ठीक लगता है?`
           : `${who} says ${a} × ${b} = ${shown}. Does that seem sensible?`,
         sensible: !wrong,
+        correctValue: a * b,
       };
     });
   }
@@ -190,6 +192,32 @@ export function genReasonableness(cls: SchoolClass, diff: Difficulty, lang: Lang
   const claim = pick(claims)();
   const yes = lang === 'hi' ? 'हाँ, ठीक है' : 'Yes, that looks right';
   const no = lang === 'hi' ? 'नहीं, कुछ गड़बड़ है' : 'No, something is wrong';
+
+  // ── Recall-bearing variant ─────────────────────────────────────────────────
+  //
+  // docs/21. Every question this generator produced answered Yes/No, so the
+  // answer was never numeric, `toEntry` always refused, and the skill could
+  // never present recall evidence. The anti-inflation guard therefore pinned
+  // `numsense.reasonable` at exactly RECOGNITION_CEILING (0.80) FOREVER — which
+  // also made it the learner's only permanently-unconsolidated skill, so the
+  // scheduler kept selecting it. Measured on a Class 1 learner: 25.6% of an
+  // entire year's practice went to this one skill, at a fixed mastery of 0.80.
+  //
+  // Asking the child to CORRECT the wrong claim tests the same construct — is
+  // this answer reasonable? — but requires producing a number rather than
+  // judging a statement, and a Yes/No item also carries a 50% guess rate that
+  // this variant removes entirely.
+  if (!claim.sensible && claim.correctValue !== undefined && Math.random() < 0.5) {
+    return {
+      questionText: claim.text.replace(
+        lang === 'hi' ? 'क्या यह ठीक लगता है?' : 'Does that seem sensible?',
+        lang === 'hi' ? 'सही उत्तर क्या है?' : 'That is wrong — what is the correct answer?',
+      ),
+      answer: claim.correctValue,
+      choices: makeIntChoices(claim.correctValue),
+      resolvedCategory: 'number_sense',
+    };
+  }
 
   return {
     questionText: claim.text,

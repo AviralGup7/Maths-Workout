@@ -118,14 +118,30 @@ describe('estimation questions', () => {
 });
 
 describe('the other strands', () => {
-  it('reasonableness questions are a genuine binary judgement', () => {
+  it('reasonableness is either a binary judgement or a correction', () => {
+    // docs/21. The generator used to answer Yes/No ONLY, so the answer was
+    // never numeric, `toEntry` always refused, and the skill was pinned at the
+    // recognition ceiling (0.80) permanently — which made it the learner's only
+    // never-consolidated skill and consumed 25.6% of a Class 1 learner's year.
+    //
+    // A wrong claim may now instead ask the child to CORRECT it, which tests
+    // the same construct while producing recall evidence. Both forms must
+    // remain well-formed: the answer is always among the choices, and the
+    // binary form stays exactly two options (padding a judgement to four with
+    // nonsense would make it easier, not harder).
+    let binary = 0;
+    let correction = 0;
     for (const cls of ['3rd', '5th'] as SchoolClass[]) {
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 200; i++) {
         const q = genReasonableness(cls, 'medium');
-        expect(q.choices.length).toBe(2);
         expect(q.choices.map(String)).toContain(String(q.answer));
+        if (q.choices.length === 2) binary++;
+        else { correction++; expect(typeof q.answer).toBe('number'); }
       }
     }
+    // Both forms must actually occur, or one of them has silently died.
+    expect(binary).toBeGreaterThan(0);
+    expect(correction).toBeGreaterThan(0);
   });
 
   it('comparison questions have a single unambiguous largest value', () => {
