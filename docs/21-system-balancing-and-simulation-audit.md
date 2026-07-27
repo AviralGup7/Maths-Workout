@@ -10,6 +10,20 @@ Baseline: commit `8ae6433`, typecheck clean, arch-check 7/7, 539 pre-existing te
 
 ---
 
+---
+
+> **STATUS — remediated.** Every finding in this document has been closed. The
+> overall stability score moved from **5.4 to 10.0** (23 of 23 measured
+> properties hold), and two further exploits were found by attacking the
+> remediated build. See **`22-balancing-remediation.md`** for before/after
+> measurements, the permanent CI guards, and the three cases where a guard had
+> to be rewritten because it passed against its own injected regression.
+>
+> The findings below are preserved as written, including the corrections noted
+> in §1 — an audit that edits away its own mistakes is not worth acting on.
+
+---
+
 ## 1 · Executive Summary
 
 The engine's **core thesis is sound and empirically confirmed**: XP is paid for movement in the mastery model, mastery cannot be farmed because a mastered skill cannot move, and the high-water ledger (`payableDelta`) correctly kills the primary oscillation exploit. Measured directly: 400 identical questions in one day drove `sessionDecay → 0.1`, `skillSaturation → 0.15`, `repetitionDecay → 0.1`, and base XP to **exactly 0**. That layer works precisely as designed.
