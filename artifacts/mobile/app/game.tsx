@@ -19,6 +19,8 @@ import { grade, expectedAnswer } from '@/generators/interactions';
 import { praiseFor, praiseText } from '@/learning/feedback';
 import { BONUS_LABEL } from '@/progression/labels';
 import { QuestionVisual } from '@/components/visuals/QuestionVisual';
+import { hintLevelFor, hintText, hintsFor, needsDescentNotHints } from '@/learning/hints';
+import type { HintLevel } from '@/learning/hints';
 import { decideAdaptation } from '@/learning/adaptation';
 import { shouldTeach, hasFaded, buildWorkedExample, canTeach } from '@/learning/workedExamples';
 import type { WorkedExample as WEType } from '@/learning/workedExamples';
@@ -99,6 +101,20 @@ export default function GameScreen() {
    * so a scaffolded success is recorded honestly rather than inflating mastery.
    */
   const scaffoldedRef = useRef(false);
+  /** Seconds the current question has been on screen, for time-triggered hints. */
+  const [elapsed, setElapsed] = useState(0);
+  /** Wrong attempts on the current question (constructed answers allow retries). */
+  const wrongHereRef = useRef(0);
+  /**
+   * Hint level currently on screen.
+   *
+   * Held in a ref as well as computed at render because `handleSubmit` needs it
+   * and is defined before the render-time calculation. Closing over the const
+   * directly would be a temporal-dead-zone hazard that happens to work only
+   * because the handler runs after render — fragile, and invisible to the
+   * typechecker.
+   */
+  const hintLevelRef = useRef<HintLevel>(0);
   const shakeAnimRef  = useRef<Animated.Value | null>(null);
   const fadeAnimRef   = useRef<Animated.Value | null>(null);
   const scaleAnimRef  = useRef<Animated.Value | null>(null);
@@ -167,6 +183,16 @@ export default function GameScreen() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [currentIndex, perQLocked, isBlitz, timerOn]); // eslint-disable-line
 
+  // §4 — hints are earned by TIME, not requested on demand. A visible hint
+  // button produces help-avoidance in anxious children and help-abuse in
+  // others; a clock removes the asymmetry. This ticker runs regardless of
+  // whether the countdown timer is on, because hints are not a time limit.
+  useEffect(() => {
+    if (perQLocked || worked) return;
+    const id = setInterval(() => setElapsed(e => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [currentIndex, perQLocked, worked]);
+
   // Restart the latency clock and the time budget whenever a question is shown.
   useEffect(() => {
     shownAtRef.current = Date.now();
@@ -198,6 +224,9 @@ export default function GameScreen() {
       setPerQBudget(secondsFor(questions[currentIndex + 1]));
       setDiagnosis(null);
       setPraise(null);
+      setElapsed(0);
+      wrongHereRef.current = 0;
+      hintLevelRef.current = 0;
       scaffoldedRef.current = false;
       shownAtRef.current = Date.now();
       Animated.parallel([
@@ -224,6 +253,13 @@ export default function GameScreen() {
 
     const latencyMs = Date.now() - shownAtRef.current;
     const correct = grade(currentQuestion, normalised);
+
+    // A correct answer given with a hint on screen is real, but it is not
+    // unaided performance. Recording it as scaffolded halves its weight in the
+    // mastery estimate, so support can never inflate the picture of what the
+    // child can do alone.
+    if (hintLevelRef.current > 0) scaffoldedRef.current = true;
+    if (!correct) wrongHereRef.current += 1;
 
     // Pass the grade explicitly: composite answers ("2,3,6") cannot be
     // compared against q.answer by the store's simple string equality.
@@ -388,6 +424,20 @@ export default function GameScreen() {
 
   if (!currentQuestion) return null;
 
+  // §4 · contingent scaffolding. The level rises with time on task and with
+  // wrong attempts, and the delays lengthen as mastery grows until hints stop
+  // appearing at all above 0.80.
+  const hintSkill = sessionSkillFor(currentIndex);
+  const hintMastery = (hintSkill ? mastery[hintSkill]?.value : undefined) ?? 0.5;
+  const hintLevel: HintLevel = (perQLocked || worked || !hintSkill) ? 0 : hintLevelFor({
+    elapsedSeconds: elapsed,
+    wrongAttempts: wrongHereRef.current,
+    mastery: hintMastery,
+    hasCopy: !!hintsFor(hintSkill),
+  });
+  const hintLine = hintSkill ? hintText(hintSkill, hintLevel, lang) : null;
+  hintLevelRef.current = hintLevel;
+
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
 
@@ -508,6 +558,17 @@ export default function GameScreen() {
       </Animated.View>
 
       {/* Answer grid */}
+      {/* §4 — a single calm line. No modal, no button, no interruption; the
+          child may ignore it entirely. It never contains the answer: level 3
+          stops exactly one step short, because a hint that finishes the problem
+          removes the productive struggle where the learning happens. */}
+      {!!hintLine && (
+        <View style={styles.hintBox} accessibilityLiveRegion="polite">
+          <Feather name="help-circle" size={14} color={C.medium} />
+          <Text style={styles.hintText}>{hintLine}</Text>
+        </View>
+      )}
+
       {/* docs/14 §2 — the Concrete→Pictorial stage the audit found entirely
           absent. Fades automatically with mastery: interactive below 0.55,
           illustrative to 0.80, gone above. Hidden while a worked example is on
@@ -599,6 +660,12 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 18 },
+  hintBox: {
+    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    marginBottom: 12, paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: C.medium + '12', borderRadius: 12,
+  },
+  hintText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 18 },
   praiseBox: {
     flexDirection: 'row', gap: 8, alignItems: 'center',
     marginTop: 12, paddingVertical: 10, paddingHorizontal: 12,

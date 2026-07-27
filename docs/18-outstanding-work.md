@@ -15,7 +15,7 @@ through as they land.
 | 1 | Number sense strand | docs/14 §6 | ✅ done |
 | 2 | Misconception coverage (43/43 skills) | docs/14 §13 | ✅ done |
 | 3 | `hasFaded` wired into the game loop | docs/15 §4 | ✅ done |
-| 4 | Scaffolding hint hierarchy | docs/14 §4 | ☐ |
+| 4 | Scaffolding hint hierarchy | docs/14 §4 | ✅ done |
 | 5 | `NumberLine` visual | docs/14 §2 | ✅ done |
 | 6 | `PartModel` visual | docs/14 §2 | ✅ done |
 | 7 | `ArrayGrid` visual | docs/14 §2 | ✅ done |
@@ -23,12 +23,12 @@ through as they land.
 | 9 | Error-hunting questions (R2) | docs/14 §7 | ✅ done |
 | 10 | Patterns strand | docs/14 §8 | ✅ done |
 | 11 | Symmetry strand | docs/14 §8 | ✅ done |
-| 12 | Confidence rating | docs/14 §5C | ☐ |
-| 13 | Parent weekly card | docs/14 §10 | ☐ |
+| 12 | Confidence rating | docs/14 §5C | ✅ done |
+| 13 | Parent weekly card | docs/14 §10 | ✅ done |
 | 14 | XP ledger (`paidHighWater` persisted) | docs/16 A | ✅ done |
 | 15 | `computeXp` in the answer path | docs/16 B | ✅ done |
-| 16 | Chapter graph | docs/16 D | ☐ |
-| 17 | Achievements | docs/16 E | ☐ |
+| 16 | Chapter graph | docs/16 D | ✅ done |
+| 17 | Achievements | docs/16 E | ✅ done |
 | 18 | UI M2 · component library | docs/17 M2 | ☐ |
 | 19 | UI M3 · practice screen | docs/17 M3 | ☐ |
 | 20 | UI M4 · tab navigation + home | docs/17 M4 | ☐ |
@@ -233,3 +233,50 @@ Measured after, all three simultaneously:
 A test fixture was also wrong: it seeded foundations but *excluded* the weak
 skill, modelling a learner who had never encountered the thing they were defined
 as bad at. A skill never met cannot be "weak" — it is unintroduced.
+
+
+### Batch 3 — Group D (scaffolding, parents) and Group E (progression surfaces)
+
+**Tests 436 → 489.** Typecheck clean.
+
+**Scaffolding hints (§4).** Three levels, earned by TIME rather than requested.
+A visible hint button produces two failure modes at once — help-avoidance in
+anxious children, help-abuse in others — and time-triggering removes the
+asymmetry, because the children who most need help are least likely to ask.
+
+Delays lengthen with mastery (20/40/60s → 35/70s → none above 0.80), level 3 is
+unreachable for mid-band learners, and heavy hint use routes to prerequisite
+descent rather than more hints: a child who needs a directed hint on most
+attempts is not being scaffolded, they are being carried. Hinted answers are
+recorded as `scaffolded`, which halves their weight in the mastery estimate.
+
+Copy is authored per *family* rather than per skill — the method for
+`add.2digit.carry` and `add.3digit` is identical, and duplicating it would
+guarantee drift. Tests assert that no hint at any level contains an equality,
+and that level 1 always poses a question rather than instructing.
+
+**Parent report (§10).** Three sentences and one activity. The constraint worth
+restating: *parents do not lack data, they lack a next action.* No charts, no
+peer comparison, no grade-level judgement. Reports **days**, never minutes, as
+the practice measure, and caps per-question latency so an idle app cannot
+inflate the total. Refuses to characterise a learner below 20 attempts.
+
+**Confidence rating (§5C).** Once per session, on one mid-session item. The
+valuable cell is confident-and-wrong: a child who is unsure and wrong will
+accept correction, while one who is certain and wrong has no reason to revise.
+Deliberately **not** fed into mastery — mixing self-report into a performance
+estimate would make it uninterpretable.
+
+**Chapter graph (docs/16 D).** 18 chapters over the existing skill DAG. Unlocks
+on **mastery, never XP** — gating on effort would let a child grind into
+material they cannot do. Tests assert no cycles, no duplicated skills, no
+orphans, and that a prerequisite is never introduced in a later class than the
+chapter needing it. Review chapters are *generated from decay*, so revision is a
+living part of the map rather than a section nobody opens.
+
+**Achievements (docs/16 E).** 14 across six categories. Tests assert the
+anti-farming property directly: a 500-question single-day grind unlocks none of
+the consistency, diversity, depth or habit achievements. Consistency counts
+distinct *days*; "Right Sized" explicitly rewards **not** bingeing and excludes
+200-question days; "From Memory" requires produced rather than recognised
+evidence.
