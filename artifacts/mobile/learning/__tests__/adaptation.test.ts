@@ -132,7 +132,12 @@ describe('M1 · success floor', () => {
     // The audit measured ~0.05 expected success for this learner. The fix is
     // real but bounded by the dilution cap, so this asserts a large improvement
     // rather than attainment of the floor — see SESSION_SUCCESS_FLOOR's note.
-    expect(projectedSuccess(session, est)).toBeGreaterThan(0.25);
+    // Bound lowered from 0.25 to 0.20 in docs/21: the mastery model no longer
+    // lets an unpractised weak skill drift upward toward the 0.5 prior, so a
+    // genuinely struggling learner now reports genuinely low estimates. The
+    // session is still substantially improved by the floor — what changed is
+    // the honesty of the numbers being averaged, not the floor's behaviour.
+    expect(projectedSuccess(session, est)).toBeGreaterThan(0.20);
   });
 });
 

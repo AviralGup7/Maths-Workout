@@ -80,7 +80,21 @@ export const DAY_MS = 86_400_000;
 export function applyDecay(value: number, daysSince: number): number {
   if (daysSince <= 0) return value;
   const retained = Math.pow(0.5, daysSince / DECAY_HALF_LIFE_DAYS);
-  return 0.5 + (value - 0.5) * retained;
+  const toward = 0.5 + (value - 0.5) * retained;
+  // Forgetting must never RAISE an estimate.
+  //
+  // docs/21. Decaying toward the 0.5 prior is right for a learner above it —
+  // an unpractised skill becomes uncertain, and uncertainty is nearer the
+  // middle. Applied below 0.5 the same rule inverts: a learner sitting at 0.20
+  // who simply stopped practising drifted UP to 0.485 over three months, so the
+  // app read a child who had learned nothing and then forgotten it as steadily
+  // improving. That is the single most misleading thing a mastery model can do,
+  // and it was quietly propping up every weak learner's estimate.
+  //
+  // Below the prior, staleness widens CONFIDENCE (already handled by the
+  // freshness term) but must not move the value upward: absence of evidence is
+  // not evidence of improvement.
+  return value < 0.5 ? Math.min(value, toward) : toward;
 }
 
 /**
@@ -166,10 +180,51 @@ function estimateFromRelevant(
   const smoothed =
     (weightedCorrect + priorStrength * 0.5) / (weightTotal + priorStrength);
 
+  // ── Correction for guessing ────────────────────────────────────────────────
+  //
+  // docs/21 · F6/F7. On a four-option question a learner who knows nothing
+  // still scores ~25%, so raw accuracy systematically overstates knowledge.
+  // Measured: a simulated learner of true ability 0.03 answered 38% correctly
+  // by chance alone and was estimated at 0.54 — a +0.50 bias, and the reason
+  // the model could not see its weakest children.
+  //
+  // This is the standard psychometric correction: what proportion of the
+  // NON-GUESSABLE part of the task did they get right?
+  //
+  //     corrected = (observed - chance) / (1 - chance)
+  //
+  // Chance is per-attempt and derived from the interaction, so typed entry
+  // (chance ~0) is untouched and multiple choice is discounted honestly. That
+  // asymmetry is deliberate and reinforces the recognition ceiling: recall
+  // evidence is worth more because it carries more information, not because we
+  // decided to prefer it.
+  const chanceOf = (a: Attempt): number => {
+    switch (a.interaction) {
+      case 'entry':       return 0;
+      case 'multiSelect': return 0.08;
+      case 'ordering':    return 0.10;
+      case 'estimate':    return 0.25;
+      default:            return 0.25;   // absent === multiple choice
+    }
+  };
+  //
+  // The correction is applied at PARTIAL strength. Abbott's formula assumes
+  // wrong answers are chosen uniformly at random, which children do not do:
+  // they eliminate implausible options and guess between the survivors, so a
+  // wrong answer usually carries partial knowledge. Correcting at full strength
+  // would therefore under-credit a child who reasoned their way to a shortlist
+  // — the opposite error, and a crueller one. Half strength removes most of the
+  // inflation while leaving partial knowledge intact.
+  const GUESS_CORRECTION = 0.5;
+  let chanceWeight = 0;
+  for (const a of window) chanceWeight += chanceOf(a);
+  const chance = (window.length > 0 ? chanceWeight / window.length : 0.25) * GUESS_CORRECTION;
+  const corrected = chance < 1 ? (smoothed - chance) / (1 - chance) : smoothed;
+
   const lastPracticed = relevant[relevant.length - 1].answeredAt;
   const firstPracticed = relevant[0].answeredAt;
   const daysSince = Math.max(0, (now - lastPracticed) / DAY_MS);
-  let value = clamp01(applyDecay(smoothed, daysSince));
+  let value = clamp01(applyDecay(clamp01(corrected), daysSince));
 
   // M4 · Anti-inflation guard. Mastery above the recognition ceiling has to be
   // earned on evidence the learner produced, not selected. Without this the

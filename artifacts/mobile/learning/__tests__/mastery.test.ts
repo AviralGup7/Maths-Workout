@@ -73,11 +73,19 @@ describe('mastery estimation', () => {
     expect(stale.confidence).toBeLessThan(fresh.confidence);
   });
 
-  it('decays symmetrically toward 0.5, never past it', () => {
+  it('decays toward 0.5 from above, and never upward from below', () => {
+    // docs/21. Decay toward the prior is correct ABOVE 0.5: an unpractised
+    // skill becomes uncertain. Below 0.5 the same rule inverted the meaning of
+    // the model — a learner at 0.20 who simply stopped practising drifted up to
+    // 0.485 over three months, so forgetting read as improvement.
     expect(applyDecay(1.0, 21)).toBeCloseTo(0.75, 2);
-    expect(applyDecay(0.0, 21)).toBeCloseTo(0.25, 2);
     expect(applyDecay(0.9, 100_000)).toBeCloseTo(0.5, 3);
     expect(applyDecay(0.9, 0)).toBe(0.9);
+
+    // Below the prior, staleness must never raise the estimate.
+    expect(applyDecay(0.0, 21)).toBe(0);
+    expect(applyDecay(0.2, 90)).toBeLessThanOrEqual(0.2);
+    expect(applyDecay(0.35, 365)).toBeLessThanOrEqual(0.35);
   });
 
   it('keeps values inside [0,1] under any history', () => {
