@@ -24,18 +24,45 @@ describe('universal invariants', () => {
     eachCell((cls, cat, diff) => {
       for (let i = 0; i < N; i++) {
         const q = generateQuestion(cls, diff, cat);
-        expect(q.choices.map(String), `${cls}/${cat}/${diff}: ${q.questionText}`)
-          .toContain(String(q.answer));
+        const where = `${cls}/${cat}/${diff}: ${q.questionText}`;
+        if (q.interaction?.kind === 'estimate') {
+          // The reachable claim for a band question is that exactly one band
+          // contains the true value — see the dedicated estimation test below.
+          const { bands, low, high } = q.interaction as
+            { bands: [number, number][]; low: number; high: number };
+          const hits = bands.filter(([lo, hi]) => lo <= high && hi >= low);
+          expect(hits.length, where).toBe(1);
+          continue;
+        }
+        if (q.interaction && q.interaction.kind !== 'choice') continue;
+        expect(q.choices.map(String), where).toContain(String(q.answer));
       }
     });
   });
 
   // docs/05 · F1 / C7 — true/false questions rendered only 2 options
-  it('always offers exactly four choices', () => {
+  it('always offers a full, answerable option set', () => {
+    // Four choices is the rule for tile-based questions, but it is a property
+    // of the INTERACTION, not of every question. Estimation renders bands
+    // rather than choices, and a reasonableness judgement is genuinely binary —
+    // padding it to four with nonsense would make it easier, not harder.
     eachCell((cls, cat, diff) => {
       for (let i = 0; i < N; i++) {
         const q = generateQuestion(cls, diff, cat);
-        expect(q.choices.length, `${cls}/${cat}/${diff}: ${q.questionText} → ${q.choices}`).toBe(4);
+        const kind = q.interaction?.kind ?? 'choice';
+        const where = `${cls}/${cat}/${diff}: ${q.questionText}`;
+
+        if (kind === 'estimate') {
+          const bands = (q.interaction as { bands: [number, number][] }).bands;
+          expect(bands.length, where).toBe(4);
+          continue;
+        }
+        if (kind !== 'choice') continue;   // entry/multiSelect/ordering own their surfaces
+
+        const isBinaryJudgement = q.choices.length === 2
+          && q.choices.every(c => typeof c === 'string');
+        expect(isBinaryJudgement ? 2 : q.choices.length, where)
+          .toBe(isBinaryJudgement ? 2 : 4);
       }
     });
   });

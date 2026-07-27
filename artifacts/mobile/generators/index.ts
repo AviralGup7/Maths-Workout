@@ -4,11 +4,13 @@ export * from './types';
 export * from './helpers';
 export * from './interactions';
 export * from './topics-interactive';
+export * from './number-sense';
 
 import { SchoolClass, Difficulty, Category, Question, ClassConfig } from './types';
 import { pick } from './helpers';
 import { genAddition, genSubtraction, genMultiplication, genDivision, generateTablesQuestions } from './arithmetic';
 import { genCounting, genNumberSense } from './early-years';
+import { genNumberSenseStrand } from './number-sense';
 import { genShapes, genTime, genMoney, genPlaceValue, genMeasurement } from './topics-core';
 import { genFractions, genDecimals } from './fractions-decimals';
 import { genWordProblems, genFactors, genGeometry, genPercentages, genData, genRatio, genIntegers, genAlgebra } from './advanced';
@@ -120,7 +122,15 @@ export function generateQuestion(cls: SchoolClass, diff: Difficulty, cat: Catego
     case 'multiplication': return genMultiplication(cls, diff);
     case 'division':       return genDivision(cls, diff);
     case 'counting':       return genCounting(cls, diff);
-    case 'number_sense':   return genNumberSense(cls, diff);
+    case 'number_sense':
+      // Mix the legacy compare/order questions with the number-sense strand
+      // (estimation, reasonableness, mental strategy, cross-representation).
+      // The audit measured 0 estimation questions in 27,000 sampled; this is
+      // the fix. Weighted toward the new strand because comparison was already
+      // well covered and estimation was entirely absent.
+      return Math.random() < 0.7
+        ? genNumberSenseStrand(cls, diff)
+        : genNumberSense(cls, diff);
     case 'shapes':         return genShapes(cls, diff);
     case 'time':           return genTime(cls, diff);
     case 'money':          return genMoney(cls, diff);

@@ -40,8 +40,10 @@ export const STRUGGLING_THRESHOLD = 0.55;
  * to typed entry, so the app would be certifying a skill it had never tested.
  *
  * Attempts are treated as recall-bearing when the learner produced the answer
- * rather than picked it: typed entry, multi-select and ordering all qualify,
- * because none of them can be solved by elimination from four tiles.
+ * rather than picked it: typed entry, multi-select, ordering and estimation all
+ * qualify, because none of them can be solved by elimination from four tiles.
+ * Estimation counts because its bands cannot be narrowed by computing the exact
+ * answer faster than by estimating.
  */
 export const RECOGNITION_CEILING = 0.80;
 

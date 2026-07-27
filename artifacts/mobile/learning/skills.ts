@@ -41,7 +41,7 @@ export const SKILLS: Record<SkillId, Skill> = {
   'add.within20':        { id: 'add.within20',        label: 'Add within 20',                 prerequisites: ['add.within10'],       introducedIn: '1st', category: 'addition' },
   'add.2digit.nocarry':  { id: 'add.2digit.nocarry',  label: 'Add 2-digit (no carrying)',     prerequisites: ['add.within20'],       introducedIn: '2nd', category: 'addition' },
   'add.2digit.carry':    { id: 'add.2digit.carry',    label: 'Add 2-digit with carrying',     prerequisites: ['add.2digit.nocarry'], introducedIn: '2nd', category: 'addition' },
-  'add.3digit':          { id: 'add.3digit',          label: 'Add 3-digit numbers',           prerequisites: ['add.2digit.carry'],   introducedIn: '3rd', category: 'addition' },
+  'add.3digit':          { id: 'add.3digit',          label: 'Add 3-digit numbers',           prerequisites: ['add.2digit.carry', 'numsense.estimate'], introducedIn: '3rd', category: 'addition' },
   'add.large':           { id: 'add.large',           label: 'Add large numbers',             prerequisites: ['add.3digit'],         introducedIn: '5th', category: 'addition' },
 
   // ── Subtraction ────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@ export const SKILLS: Record<SkillId, Skill> = {
   'mul.tables.easy':     { id: 'mul.tables.easy',     label: 'Times tables 2, 5, 10',         prerequisites: ['add.within20'],       introducedIn: '2nd', category: 'multiplication' },
   'mul.tables.mid':      { id: 'mul.tables.mid',      label: 'Times tables up to 10',         prerequisites: ['mul.tables.easy'],    introducedIn: '3rd', category: 'multiplication' },
   'mul.tables.full':     { id: 'mul.tables.full',     label: 'Times tables up to 12',         prerequisites: ['mul.tables.mid'],     introducedIn: '4th', category: 'multiplication' },
-  'mul.2digit':          { id: 'mul.2digit',          label: 'Multiply 2-digit numbers',      prerequisites: ['mul.tables.full'],    introducedIn: '4th', category: 'multiplication' },
+  'mul.2digit':          { id: 'mul.2digit',          label: 'Multiply 2-digit numbers',      prerequisites: ['mul.tables.full', 'numsense.estimate'], introducedIn: '4th', category: 'multiplication' },
   'mul.large':           { id: 'mul.large',           label: 'Multiply large numbers',        prerequisites: ['mul.2digit'],         introducedIn: '6th', category: 'multiplication' },
 
   // ── Division ───────────────────────────────────────────────────────────────
@@ -68,6 +68,15 @@ export const SKILLS: Record<SkillId, Skill> = {
   'count.objects':       { id: 'count.objects',       label: 'Count objects',                 prerequisites: [],                     introducedIn: '1st', category: 'counting' },
   'count.skip':          { id: 'count.skip',          label: 'Skip counting',                 prerequisites: ['count.objects'],      introducedIn: '1st', category: 'counting' },
   'numsense.compare':    { id: 'numsense.compare',    label: 'Compare and order numbers',     prerequisites: ['count.objects'],      introducedIn: '1st', category: 'number_sense' },
+
+  // ── Number sense (docs/14 §6) ──────────────────────────────────────────────
+  // Positioned as PREREQUISITES rather than extras. That is what makes them
+  // real: the scheduler already routes to a weak prerequisite when a downstream
+  // skill fails, so a child who cannot estimate will be sent to estimation
+  // automatically when their 3-digit addition falls apart — using machinery
+  // that already exists, with no new routing code.
+  'numsense.estimate':   { id: 'numsense.estimate',   label: 'Estimate before calculating',   prerequisites: ['numsense.compare'],   introducedIn: '2nd', category: 'number_sense' },
+  'numsense.reasonable': { id: 'numsense.reasonable', label: 'Is the answer sensible?',       prerequisites: ['numsense.estimate'],  introducedIn: '3rd', category: 'number_sense' },
   'placevalue':          { id: 'placevalue',          label: 'Place value',                   prerequisites: ['numsense.compare'],   introducedIn: '2nd', category: 'place_value' },
 
   // ── Fractions / decimals ───────────────────────────────────────────────────
@@ -86,7 +95,7 @@ export const SKILLS: Record<SkillId, Skill> = {
   'data.basic':          { id: 'data.basic',          label: 'Mean, median, mode and range',  prerequisites: ['div.tables'],         introducedIn: '5th', category: 'data' },
   'integers.basic':      { id: 'integers.basic',      label: 'Positive and negative numbers', prerequisites: ['sub.3digit'],         introducedIn: '6th', category: 'integers' },
   'algebra.basic':       { id: 'algebra.basic',       label: 'Find the unknown value',        prerequisites: ['mul.tables.full'],    introducedIn: '6th', category: 'algebra' },
-  'wordproblems':        { id: 'wordproblems',        label: 'Word problems',                 prerequisites: ['add.2digit.carry', 'mul.tables.mid'], introducedIn: '3rd', category: 'word_problems' },
+  'wordproblems':        { id: 'wordproblems',        label: 'Word problems',                 prerequisites: ['add.2digit.carry', 'mul.tables.mid', 'numsense.reasonable'], introducedIn: '3rd', category: 'word_problems' },
   'shapes.basic':        { id: 'shapes.basic',        label: 'Shapes',                        prerequisites: [],                     introducedIn: '1st', category: 'shapes' },
   'time.basic':          { id: 'time.basic',          label: 'Telling the time',              prerequisites: ['count.objects'],      introducedIn: '1st', category: 'time' },
   'money.basic':         { id: 'money.basic',         label: 'Money and change',              prerequisites: ['add.within20'],       introducedIn: '1st', category: 'money' },
@@ -131,7 +140,11 @@ export function resolveSkill(cls: SchoolClass, cat: Category, diff: Difficulty):
 
     case 'tables':        return 'mul.tables.mid';
     case 'counting':      return diff === 'hard' ? 'count.skip' : 'count.objects';
-    case 'number_sense':  return 'numsense.compare';
+    case 'number_sense':
+      // Difficulty selects the strand: comparing is the entry point, estimation
+      // the core skill, reasonableness the metacognitive step above it.
+      if (diff === 'easy') return 'numsense.compare';
+      return diff === 'hard' ? 'numsense.reasonable' : 'numsense.estimate';
     case 'place_value':   return 'placevalue';
     case 'fractions':
       if (cls === '3rd') return 'frac.ofAmount';

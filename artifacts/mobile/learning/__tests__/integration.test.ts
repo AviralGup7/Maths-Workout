@@ -12,6 +12,7 @@ import { buildSession, scheduleSkills } from '../scheduler';
 import { resolveSkill, SKILLS } from '../skills';
 import { diagnose } from '../misconceptions';
 import { generateQuestion } from '../../generators';
+import { grade, expectedAnswer } from '../../generators/interactions';
 import type { SchoolClass, Difficulty, Category } from '../../generators/types';
 
 const START = 1_700_000_000_000;
@@ -222,8 +223,14 @@ describe('adaptive sessions produce real, answerable questions', () => {
       for (const step of plan) {
         const cat = SKILLS[step.skill].category as Category;
         const q = generateQuestion(cls, step.difficulty as Difficulty, cat);
-        expect(q.choices.map(String)).toContain(String(q.answer));
-        expect(q.choices.length).toBe(4);
+        // Estimation and binary judgements are answerable without four tiles;
+        // the invariant that matters is that the question can be graded.
+        expect(grade(q, expectedAnswer(q)), q.questionText).toBe(true);
+        if (!q.interaction || q.interaction.kind === 'choice') {
+          expect(q.choices.map(String)).toContain(String(q.answer));
+          const binary = q.choices.length === 2 && q.choices.every(c => typeof c === 'string');
+          if (!binary) expect(q.choices.length).toBe(4);
+        }
       }
     }
   });

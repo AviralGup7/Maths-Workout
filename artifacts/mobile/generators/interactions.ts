@@ -36,7 +36,20 @@ export type Interaction =
    * The natural shape for comparing and ordering; the inversion count is a
    * richer error signal than right/wrong.
    */
-  | { kind: 'ordering'; items: ChoiceValue[]; correctOrder: ChoiceValue[]; direction: 'asc' | 'desc' };
+  | { kind: 'ordering'; items: ChoiceValue[]; correctOrder: ChoiceValue[]; direction: 'asc' | 'desc' }
+  /**
+   * Choose the band the answer falls into, without computing it exactly.
+   *
+   * Estimation needs a genuinely different grading rule — the answer is a
+   * RANGE, not a value — which is why it is an interaction kind rather than a
+   * generator flag. Grading against a band is what makes approximate reasoning
+   * the skill under test.
+   *
+   * The bands are offered as coarse buckets on purpose: a child who computes
+   * exactly and then rounds gets the right answer but learns nothing, so the
+   * buckets are spaced widely enough that estimating is the faster path.
+   */
+  | { kind: 'estimate'; low: number; high: number; unit?: string; bands: [number, number][] };
 
 export type InteractionKind = Interaction['kind'];
 
@@ -69,12 +82,82 @@ export function expectedAnswer(q: Question): string {
   if (!it || it.kind === 'choice') return String(q.answer);
   if (it.kind === 'entry') return normaliseEntry(String(q.answer));
   if (it.kind === 'multiSelect') return normaliseSet(it.correct);
+  if (it.kind === 'estimate') return normaliseBand(it.low, it.high);
   return normaliseSequence(it.correctOrder);
 }
 
-/** Grade a normalised submission against the question. */
+/** Canonical string for a band-valued answer. */
+export function normaliseBand(low: number, high: number): string {
+  return `${low}-${high}`;
+}
+
+/**
+ * Grade a normalised submission against the question.
+ *
+ * Estimation is the one kind that is NOT string equality: any band that
+ * overlaps the acceptable range is correct, because the construct being
+ * measured is "is your sense of magnitude right", not "did you pick the
+ * identical label".
+ */
 export function grade(q: Question, submitted: string): boolean {
+  const it = q.interaction;
+  if (it?.kind === 'estimate') {
+    const m = submitted.match(/^(-?[\d.]+)-(-?[\d.]+)$/);
+    if (!m) return false;
+    const lo = Number(m[1]);
+    const hi = Number(m[2]);
+    if (!Number.isFinite(lo) || !Number.isFinite(hi)) return false;
+    // Correct when the chosen band contains the true value.
+    return lo <= it.high && hi >= it.low;
+  }
   return submitted === expectedAnswer(q);
+}
+
+/**
+ * Build an estimation question.
+ *
+ * `answer` is the true value; the acceptable band is derived from it with a
+ * tolerance, and distractor bands sit clearly outside. Bands never overlap, so
+ * exactly one option can be right.
+ */
+export function estimateQuestion(
+  questionText: string,
+  answer: number,
+  opts: { tolerance?: number; unit?: string; resolvedCategory?: Question['resolvedCategory'] } = {},
+): Question {
+  const tol = opts.tolerance ?? 0.2;
+  const round = (n: number) => {
+    // Round to a readable magnitude so bands look like estimates, not answers.
+    const mag = Math.pow(10, Math.max(0, Math.floor(Math.log10(Math.abs(n) || 1)) - 1));
+    return Math.round(n / mag) * mag;
+  };
+  const low = round(answer * (1 - tol));
+  const high = round(answer * (1 + tol));
+  const width = Math.max(1, high - low);
+
+  // Distractor bands sit clearly outside the true range, and NEVER below zero:
+  // browser testing surfaced a band of "-10-100" on a money question, which is
+  // nonsense to a child and quietly teaches that negative quantities of
+  // notebooks are plausible. When the low side has no room, the extra bands go
+  // above instead.
+  const above = (k: number): [number, number] =>
+    [round(high + width * (2 * k - 1)), round(high + width * 2 * k)];
+
+  const belowLo = round(low - width * 2);
+  const belowHi = round(low - width);
+  const hasRoomBelow = belowLo > 0 && belowHi > belowLo;
+
+  const bands: [number, number][] = hasRoomBelow
+    ? [[belowLo, belowHi], [low, high], above(1), above(2)]
+    : [[low, high], above(1), above(2), above(3)];
+
+  return {
+    questionText,
+    answer: normaliseBand(low, high),
+    choices: [],
+    resolvedCategory: opts.resolvedCategory,
+    interaction: { kind: 'estimate', low, high, unit: opts.unit, bands: shuffleArr(bands) },
+  };
 }
 
 // ─── Builders ────────────────────────────────────────────────────────────────

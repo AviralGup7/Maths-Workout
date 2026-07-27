@@ -44,7 +44,7 @@ export interface Attempt {
    * one of four tiles is recognition and carries a ~25% guess probability,
    * whereas typing, selecting a set or building a sequence is recall.
    */
-  interaction?: 'choice' | 'entry' | 'multiSelect' | 'ordering';
+  interaction?: 'choice' | 'entry' | 'multiSelect' | 'ordering' | 'estimate';
   /**
    * True when the learner reached this answer with a scaffold on screen
    * (hint or worked example). Such attempts contribute reduced weight to

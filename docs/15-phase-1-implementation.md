@@ -245,3 +245,88 @@ class H(http.server.SimpleHTTPRequestHandler):
         if p and not os.path.exists(p): self.path = '/index.html'
         return super().do_GET()
 ```
+
+---
+
+## 6 · Follow-on work: Phase 3 #13 and Phase 2 #7
+
+Two further backlog items closed after Phase 1. Both were chosen because they
+were **measured** gaps, not because they were next in the list.
+
+### Diagnostic coverage — all 41 skills (Phase 3 #13)
+
+**Measured before:** 24 of 41 skills had a misconception; **17 had none**. Half
+the curriculum could detect *that* a child was wrong but never *why* — the
+engine's differentiating capability was simply absent there.
+
+**Now:** 43 of 43 (the two new number-sense skills included). 17 new
+misconceptions with detection logic and Hindi copy:
+
+```
+count.miscount-by-one          mul.partial-product-dropped
+count.skip-wrong-step          mul.place-shift-missing
+add.nocarry-misaligned         frac.numerator-as-whole
+ratio.treated-as-fraction      factors.multiple-not-factor
+geometry.area-perimeter-swap   measurement.unit-conversion
+data.mean-vs-median            data.forgot-divide
+algebra.inverse-not-applied    wordproblems.wrong-operation
+shapes.side-corner-confusion   time.sixty-not-hundred
+money.change-not-subtracted
+```
+
+**The standard applied:** a misconception must have a *distinguishable numeric
+signature*, not a plausible story. A misconception we cannot detect reliably is
+worse than none, because it tells a child something false about their own
+thinking. Two consequences of holding that line:
+
+- `shapes.side-corner-confusion` only fires where sides and corners actually
+  differ — a square has 4 of each, so "you counted the wrong one" is
+  undetectable there and is not claimed. There is a test asserting it stays
+  silent for squares.
+- Guess detection still outranks pattern-matching. An answer in 300 ms was not
+  reasoned, so attributing a specific faulty rule to it would be fiction.
+
+### Number sense strand (Phase 2 #7)
+
+**Measured before:** **0 estimation questions in 27,000 sampled** (0.00%) — the
+largest single content gap in the product, and number sense is the strongest
+early predictor of later mathematics achievement.
+
+**Now:** four strands live — estimation, reasonableness, mental strategy and
+cross-representation comparison — reaching ~1.2% of the whole question stream
+and >15% of number-sense sessions.
+
+**Estimation needed a new interaction kind, not a new generator.** Its grading
+rule is genuinely different: the answer is a *range*, and any band overlapping
+the true value is correct. Expressing that as a normal multiple-choice question
+would have measured arithmetic-then-rounding, which is the opposite of the
+construct.
+
+Design details that carry pedagogical weight:
+
+- **Operands are deliberately awkward** (47 × 8, not 50 × 8) so estimating is
+  genuinely faster than computing. If the exact answer were easy the question
+  would measure arithmetic.
+- **Bands must be ≥15% wide** relative to their midpoint, asserted in tests, for
+  the same reason.
+- **The new skills are prerequisites, not extras.** `numsense.estimate` gates
+  `add.3digit` and `mul.2digit`; `numsense.reasonable` gates `wordproblems`. The
+  scheduler's existing prerequisite descent therefore routes a child to
+  estimation automatically when their 3-digit addition falls apart — no new
+  routing code.
+- **Reasonableness questions have two options, not four.** Padding a genuine
+  binary judgement to four with nonsense makes it easier, not harder.
+
+### Bug found by browser testing
+
+Estimation shipped a band of **`-10–100`** on a money question. Negative
+quantities are nonsense to a child and quietly teach that a negative number of
+notebooks is a plausible estimate. Distractor bands now never fall below zero;
+when there is no room below, the extra bands go above. Regression test added.
+
+The three unit-test suites that assumed *every* question has exactly four
+`choices` were updated rather than weakened: four tiles is a property of the
+**interaction**, not of every question.
+
+**Tests:** 360 → **396**. Typecheck clean. Estimation verified answerable and
+correctly graded in Chromium.

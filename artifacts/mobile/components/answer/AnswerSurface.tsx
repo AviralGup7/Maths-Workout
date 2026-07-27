@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import colors from '@/constants/colors';
 import type { Question, ChoiceValue } from '@/generators/types';
-import { normaliseSet, normaliseSequence, normaliseEntry, expectedAnswer } from '@/generators/interactions';
+import { normaliseSet, normaliseSequence, normaliseEntry, normaliseBand, expectedAnswer } from '@/generators/interactions';
 import { AnswerTile } from '@/components/ui/AnswerTile';
 import type { TileState } from '@/components/ui/AnswerTile';
 import { useTheme } from '@/theme/useTheme';
@@ -54,6 +54,20 @@ export function AnswerSurface({
     );
   }
 
+  if (it?.kind === 'estimate') {
+    return (
+      <EstimateBands
+        bands={it.bands}
+        unit={it.unit}
+        low={it.low}
+        high={it.high}
+        locked={locked}
+        selectedChoice={selectedChoice}
+        onSubmit={(lo, hi) => onSubmit(normaliseBand(lo, hi), `${lo}-${hi}`)}
+      />
+    );
+  }
+
   if (it?.kind === 'multiSelect') {
     return (
       <MultiSelect
@@ -84,6 +98,62 @@ export function AnswerSurface({
       selectedChoice={selectedChoice}
       onSubmit={c => onSubmit(String(c), c)}
     />
+  );
+}
+
+/**
+ * Estimation bands.
+ *
+ * A separate surface because estimation grades against a RANGE, not a value.
+ * Rendered as ranges ("about 300 to 400") rather than single numbers so the
+ * child is never tempted to read them as exact answers to compute towards —
+ * the framing is doing pedagogical work, not just formatting.
+ */
+function EstimateBands({
+  bands, unit, low, high, locked, selectedChoice, onSubmit,
+}: {
+  bands: [number, number][];
+  unit?: string;
+  low: number;
+  high: number;
+  locked: boolean;
+  selectedChoice: string | null;
+  onSubmit: (lo: number, hi: number) => void;
+}) {
+  const { space } = useTheme();
+  const { lang } = useGame();
+
+  const stateFor = (lo: number, hi: number): TileState => {
+    if (!locked) return 'idle';
+    const isAnswer = lo <= high && hi >= low;
+    const isChosen = selectedChoice === `${lo}-${hi}`;
+    if (isAnswer && isChosen) return 'correct';
+    if (isAnswer) return 'revealed';
+    if (isChosen) return 'wrong';
+    return 'dimmed';
+  };
+
+  const rows: [number, number][][] = [];
+  for (let i = 0; i < bands.length; i += 2) rows.push(bands.slice(i, i + 2));
+
+  return (
+    <View style={{ gap: space.md }}>
+      {rows.map((row, r) => (
+        <View key={r} style={{ flexDirection: 'row', gap: space.md }}>
+          {row.map(([lo, hi], i) => (
+            <AnswerTile
+              key={`${r}-${i}`}
+              label={`${lo}–${hi}${unit ? ' ' + unit : ''}`}
+              state={stateFor(lo, hi)}
+              onPress={() => onSubmit(lo, hi)}
+              lang={lang}
+              index={r * 2 + i + 1}
+              total={bands.length}
+            />
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 

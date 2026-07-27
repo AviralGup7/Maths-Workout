@@ -140,6 +140,194 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
       'Practise with a place-value chart and physical base-ten blocks.',
     skills: ['placevalue', 'numsense.compare'],
   },
+  // ── Coverage for the 17 previously undiagnosed skills ──────────────────────
+  // docs/14 Phase 3 #13. Before this, 17 of 41 skills could detect *that* a
+  // child was wrong but never *why* — the engine's best capability was simply
+  // absent across half the curriculum. Each entry below is a documented error
+  // pattern with a distinguishable numeric signature, not a guess: a
+  // misconception we cannot detect reliably is worse than none, because it
+  // tells a child something false about their own thinking.
+
+  'count.miscount-by-one': {
+    id: 'count.miscount-by-one',
+    label: 'Miscounting by one',
+    explanation:
+      'The count is one out — usually the last object is counted twice, or the first is missed.',
+    remediation:
+      'Touch each object once while counting aloud, and move it aside as you go.',
+    skills: ['count.objects', 'count.skip'],
+  },
+  'count.skip-wrong-step': {
+    id: 'count.skip-wrong-step',
+    label: 'Skip counting with the wrong step',
+    explanation:
+      'The jumps are the wrong size — counting in 2s where the pattern goes up in 5s, for example.',
+    remediation:
+      'Say the step size aloud before starting, then check the first three jumps together.',
+    skills: ['count.skip'],
+  },
+  'add.nocarry-misaligned': {
+    id: 'add.nocarry-misaligned',
+    label: 'Columns not lined up',
+    explanation:
+      'Tens and ones have been added to the wrong columns, so the digits do not line up.',
+    remediation:
+      'Write the numbers one above the other with the ones digits in a straight line.',
+    skills: ['add.2digit.nocarry', 'sub.2digit.noborrow'],
+  },
+  'mul.partial-product-dropped': {
+    id: 'mul.partial-product-dropped',
+    label: 'Missing one of the partial products',
+    explanation:
+      'In long multiplication only part of the number has been multiplied — the tens digit was left out.',
+    remediation:
+      'Multiply by the ones, then by the tens, then add the two results. Write both lines down.',
+    skills: ['mul.2digit', 'mul.large'],
+  },
+  'mul.place-shift-missing': {
+    id: 'mul.place-shift-missing',
+    label: 'Forgetting the zero when multiplying by tens',
+    explanation:
+      'When multiplying by the tens digit the answer must shift one place left — the zero is missing.',
+    remediation:
+      'Write the 0 in the ones column first, before multiplying by the tens digit.',
+    skills: ['mul.2digit', 'mul.large'],
+  },
+  'frac.numerator-as-whole': {
+    id: 'frac.numerator-as-whole',
+    label: 'Using the numerator instead of dividing',
+    explanation:
+      'For a fraction of an amount, the top number has been used directly instead of sharing the amount out.',
+    remediation:
+      'Divide by the bottom number first to find one part, then multiply by the top number.',
+    skills: ['frac.ofAmount'],
+  },
+  'ratio.treated-as-fraction': {
+    id: 'ratio.treated-as-fraction',
+    label: 'Reading a ratio as a fraction',
+    explanation:
+      'A ratio of 2:3 has been read as two thirds. It actually means 2 parts out of 5 in total.',
+    remediation:
+      'Add the parts together first to find the total number of shares.',
+    skills: ['ratio.basic'],
+  },
+  'factors.multiple-not-factor': {
+    id: 'factors.multiple-not-factor',
+    label: 'Confusing factors with multiples',
+    explanation:
+      'A multiple has been given where a factor was asked for. Factors divide into a number; multiples are built from it.',
+    remediation:
+      'Ask "does it divide exactly into the number?" A factor is never larger than the number itself.',
+    skills: ['factors.basic'],
+  },
+  'geometry.area-perimeter-swap': {
+    id: 'geometry.area-perimeter-swap',
+    label: 'Swapping area and perimeter',
+    explanation:
+      'The sides have been added when they should be multiplied, or the other way round.',
+    remediation:
+      'Perimeter is the walk around the edge; area is the number of squares that fill it.',
+    skills: ['geometry.basic'],
+  },
+  'measurement.unit-conversion': {
+    id: 'measurement.unit-conversion',
+    label: 'Converting units the wrong way',
+    explanation:
+      'The answer is out by a factor of ten, a hundred or a thousand — the conversion went the wrong direction.',
+    remediation:
+      'Ask whether the answer should be a bigger or smaller number before converting.',
+    skills: ['measurement.basic'],
+  },
+  'data.mean-vs-median': {
+    id: 'data.mean-vs-median',
+    label: 'Using the wrong average',
+    explanation:
+      'The middle value has been given where the mean was asked for, or the other way round.',
+    remediation:
+      'Mean is add-then-divide. Median is the middle value once the numbers are in order.',
+    skills: ['data.basic'],
+  },
+  'data.forgot-divide': {
+    id: 'data.forgot-divide',
+    label: 'Adding without dividing',
+    explanation:
+      'The values were totalled correctly but never divided by how many there are.',
+    remediation:
+      'After adding, count how many numbers there were and divide by that.',
+    skills: ['data.basic'],
+  },
+  'algebra.inverse-not-applied': {
+    id: 'algebra.inverse-not-applied',
+    label: 'Applying the same operation instead of the inverse',
+    explanation:
+      'To undo an operation you need its opposite — the same operation was used again instead.',
+    remediation:
+      'To undo adding, subtract. To undo multiplying, divide. Do it to both sides.',
+    skills: ['algebra.basic'],
+  },
+  'wordproblems.wrong-operation': {
+    id: 'wordproblems.wrong-operation',
+    label: 'Choosing the wrong operation',
+    explanation:
+      'The arithmetic is correct but the wrong operation was chosen for the story.',
+    remediation:
+      'Retell the problem in your own words first. Is something being combined, taken away, grouped or shared?',
+    skills: ['wordproblems'],
+  },
+  'shapes.side-corner-confusion': {
+    id: 'shapes.side-corner-confusion',
+    label: 'Counting corners instead of sides',
+    explanation:
+      'Corners have been counted where sides were asked for, or the other way round.',
+    remediation:
+      'Trace the shape with a finger: sides are the lines, corners are where they meet.',
+    skills: ['shapes.basic'],
+  },
+  'time.sixty-not-hundred': {
+    id: 'time.sixty-not-hundred',
+    label: 'Treating an hour as 100 minutes',
+    explanation:
+      'Time has been calculated in hundreds. An hour is 60 minutes, not 100.',
+    remediation:
+      'Count on in minutes to the next hour first, then add the remaining minutes.',
+    skills: ['time.basic'],
+  },
+  'money.change-not-subtracted': {
+    id: 'money.change-not-subtracted',
+    label: 'Adding instead of finding the change',
+    explanation:
+      'The amounts were added together when the change should have been worked out by subtracting.',
+    remediation:
+      'Count up from the price to the money handed over — that difference is the change.',
+    skills: ['money.basic'],
+  },
+  'numsense.computed-not-estimated': {
+    id: 'numsense.computed-not-estimated',
+    label: 'Working it out exactly instead of estimating',
+    explanation:
+      'The exact answer was calculated and then a band chosen. Estimating means judging the size before computing — it is a different and faster skill.',
+    remediation:
+      'Round each number to something easy first, then work with the rounded numbers.',
+    skills: ['numsense.estimate'],
+  },
+  'numsense.magnitude-blind': {
+    id: 'numsense.magnitude-blind',
+    label: 'Answer is the wrong size altogether',
+    explanation:
+      'The estimate is out by a factor of ten or more, which suggests the size of the numbers has not been taken in.',
+    remediation:
+      'Before answering, ask whether the result should be in tens, hundreds or thousands.',
+    skills: ['numsense.estimate', 'numsense.reasonable'],
+  },
+  'numsense.accepts-implausible': {
+    id: 'numsense.accepts-implausible',
+    label: 'Accepting an unreasonable answer',
+    explanation:
+      'An answer that could not be right was judged sensible — the check against common sense was skipped.',
+    remediation:
+      'Ask "should this be bigger or smaller than what I started with?" before deciding.',
+    skills: ['numsense.reasonable'],
+  },
   'guessing': {
     id: 'guessing',
     label: 'Answering without working',
@@ -243,6 +431,151 @@ export function diagnose(input: DiagnosisInput): string | null {
   // ── Place value ────────────────────────────────────────────────────────────
   if (skill.startsWith('placevalue') && numeric) {
     if (got * 10 === exp || got === exp * 10) return 'placevalue.digit-confusion';
+  }
+
+  // ── Counting ───────────────────────────────────────────────────────────────
+  if (skill.startsWith('count.') && numeric) {
+    if (Math.abs(exp - got) === 1) return 'count.miscount-by-one';
+    // A skip-count answered with a different, consistent step size.
+    if (skill === 'count.skip' && operands.length >= 2) {
+      const step = operands[1] - operands[0];
+      const wrongStep = got - operands[operands.length - 1];
+      if (step !== 0 && wrongStep !== 0 && wrongStep !== step) return 'count.skip-wrong-step';
+    }
+  }
+
+  // ── Column alignment (no-carry / no-borrow) ────────────────────────────────
+  if ((skill === 'add.2digit.nocarry' || skill === 'sub.2digit.noborrow')
+      && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    // Adding the tens digit into the ones column, or vice versa.
+    const misaligned = skill.startsWith('add.')
+      ? a + Math.floor(b / 10) + (b % 10) * 10
+      : a - (Math.floor(b / 10) + (b % 10) * 10);
+    if (got === misaligned && got !== exp) return 'add.nocarry-misaligned';
+    if (Math.abs(exp - got) === 1) return 'arith.off-by-one';
+  }
+
+  // ── Long multiplication ────────────────────────────────────────────────────
+  if ((skill === 'mul.2digit' || skill === 'mul.large') && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    // Only the ones digit of the multiplier was used.
+    if (got === a * (b % 10)) return 'mul.partial-product-dropped';
+    // The tens partial product was not shifted left.
+    if (got === a * (b % 10) + a * Math.floor(b / 10)) return 'mul.place-shift-missing';
+    if (a + b === got) return 'mul.added-instead';
+  }
+
+  // ── Fractions of an amount ─────────────────────────────────────────────────
+  if (skill === 'frac.ofAmount' && numeric) {
+    const fracs = extractFractions(questionText);
+    const amounts = operands.filter(n => n > 0);
+    if (fracs.length >= 1 && amounts.length >= 1) {
+      const { n, d } = fracs[0];
+      const amount = amounts[amounts.length - 1];
+      if (d !== 0) {
+        if (got === n) return 'frac.numerator-as-whole';
+        if (got === amount / d && n !== 1) return 'frac.numerator-as-whole';
+      }
+    }
+  }
+
+  // ── Ratio ──────────────────────────────────────────────────────────────────
+  if (skill === 'ratio.basic' && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    const total = a + b;
+    // Divided by one part rather than by the total number of shares.
+    if (total !== 0 && b !== 0 && Math.abs(got - exp * total / b) < 1e-9) {
+      return 'ratio.treated-as-fraction';
+    }
+  }
+
+  // ── Factors ────────────────────────────────────────────────────────────────
+  if (skill === 'factors.basic' && operands.length >= 1 && numeric) {
+    const n = operands[0];
+    if (n !== 0 && got !== 0 && got % n === 0 && got > n) {
+      return 'factors.multiple-not-factor';
+    }
+  }
+
+  // ── Geometry ───────────────────────────────────────────────────────────────
+  if (skill === 'geometry.basic' && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    if (got === 2 * (a + b) && exp === a * b) return 'geometry.area-perimeter-swap';
+    if (got === a * b && exp === 2 * (a + b)) return 'geometry.area-perimeter-swap';
+  }
+
+  // ── Measurement ────────────────────────────────────────────────────────────
+  if (skill === 'measurement.basic' && numeric && exp !== 0 && got !== 0) {
+    const ratio = got / exp;
+    for (const f of [10, 100, 1000, 0.1, 0.01, 0.001]) {
+      if (Math.abs(ratio - f) < 1e-9) return 'measurement.unit-conversion';
+    }
+  }
+
+  // ── Data and averages ──────────────────────────────────────────────────────
+  if (skill === 'data.basic' && operands.length >= 2 && numeric) {
+    const sum = operands.reduce((x, y) => x + y, 0);
+    if (got === sum && exp !== sum) return 'data.forgot-divide';
+    const sorted = [...operands].sort((x, y) => x - y);
+    const median = sorted.length % 2
+      ? sorted[(sorted.length - 1) / 2]
+      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+    if (got === median && exp !== median) return 'data.mean-vs-median';
+  }
+
+  // ── Algebra ────────────────────────────────────────────────────────────────
+  if (skill === 'algebra.basic' && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    // Repeating the operation rather than inverting it.
+    if (got === a + b && exp === b - a) return 'algebra.inverse-not-applied';
+    if (got === a * b && exp === b / a) return 'algebra.inverse-not-applied';
+    if (Math.abs(exp - got) === 1) return 'arith.off-by-one';
+  }
+
+  // ── Word problems ──────────────────────────────────────────────────────────
+  if (skill === 'wordproblems' && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    // The arithmetic is sound but the operation chosen does not match the story.
+    for (const alt of [a + b, a - b, b - a, a * b]) {
+      if (got === alt && got !== exp) return 'wordproblems.wrong-operation';
+    }
+  }
+
+  // ── Shapes ─────────────────────────────────────────────────────────────────
+  if (skill === 'shapes.basic' && numeric) {
+    // For polygons sides === corners, so this only fires where they differ
+    // (a circle has 0 corners), which keeps the claim honest.
+    if (/corner/i.test(questionText) && exp === 0 && got > 0) {
+      return 'shapes.side-corner-confusion';
+    }
+  }
+
+  // ── Time ───────────────────────────────────────────────────────────────────
+  if (skill === 'time.basic' && numeric) {
+    // Out by exactly the 100-vs-60 difference for whole hours.
+    const diff = Math.abs(got - exp);
+    if (diff !== 0 && diff % 40 === 0) return 'time.sixty-not-hundred';
+  }
+
+  // ── Number sense ───────────────────────────────────────────────────────────
+  if (skill === 'numsense.estimate' && numeric) {
+    // Bands are strings like "40-60"; a wildly distant pick is magnitude blindness.
+    const band = chosen.match(/^(-?[\d.]+)-(-?[\d.]+)$/);
+    const want = expected.match(/^(-?[\d.]+)-(-?[\d.]+)$/);
+    if (band && want) {
+      const mid = (Number(band[1]) + Number(band[2])) / 2;
+      const target = (Number(want[1]) + Number(want[2])) / 2;
+      if (target !== 0 && (mid / target >= 5 || mid / target <= 0.2)) {
+        return 'numsense.magnitude-blind';
+      }
+    }
+  }
+
+  // ── Money ──────────────────────────────────────────────────────────────────
+  if (skill === 'money.basic' && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    if (got === a + b && exp !== a + b) return 'money.change-not-subtracted';
   }
 
   return null;

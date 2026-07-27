@@ -113,9 +113,12 @@ describe('adaptive sessions deliver varied interaction types', () => {
       for (let s = 0; s < 12; s++) {
         for (const q of buildQuestions(cls, [], 10, NOW)) {
           expect(grade(q, expectedAnswer(q)), `${cls}: ${q.questionText}`).toBe(true);
-          // Multiple choice must still present four tiles.
+          // Multiple choice must still present four tiles — except for genuine
+          // binary judgements ("is that sensible?"), where padding to four
+          // would make the task easier rather than harder.
           if (!q.interaction || q.interaction.kind === 'choice') {
-            expect(q.choices.length, q.questionText).toBe(4);
+            const binary = q.choices.length === 2 && q.choices.every(c => typeof c === 'string');
+            if (!binary) expect(q.choices.length, q.questionText).toBe(4);
           }
         }
       }

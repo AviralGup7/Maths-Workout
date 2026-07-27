@@ -112,6 +112,10 @@ export const INTERACTION_WEIGHT: Record<InteractionKind, number> = {
   multiSelect: 1.30,
   // Relational reasoning: n items ordered against each other.
   ordering: 1.35,
+  // Approximation under a band. Sits between recognition and full recall: the
+  // options are visible, but they cannot be eliminated by computing — the
+  // child has to hold a sense of magnitude, which is a different construct.
+  estimate: 1.20,
 };
 
 /**
