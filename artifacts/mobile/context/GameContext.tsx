@@ -42,11 +42,13 @@ import {
   migrateLegacyStats, currentStreak, todayCount,
 } from '../learning/attempts';
 import type { MasteryEstimate } from '../learning/mastery';
-import { estimateAll, findRootGap } from '../learning/mastery';
+import { estimateAll, estimateMastery, findRootGap } from '../learning/mastery';
 import type { SkillId } from '../learning/skills';
 import { resolveSkill, SKILLS } from '../learning/skills';
 import { buildSession, categoryForSkill, difficultyFor } from '../learning/scheduler';
 import { diagnose, summariseMisconceptions } from '../learning/misconceptions';
+import { awardXp, type XpLedger, type Award } from '../progression/award';
+import { levelForXp, masteryIndex, masteryBand } from '../progression/levels';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────
 const HIGH_SCORES_KEY    = '@maths_workout_v2_high_scores';
@@ -55,6 +57,8 @@ const TABLES_BEST_KEY    = '@maths_workout_v2_tables_best';
 const SAVED_MISTAKES_KEY = '@maths_workout_v2_saved_mistakes';
 const DEVICE_ID_KEY      = '@maths_workout_device_id';
 const ATTEMPTS_KEY       = '@maths_workout_v3_attempts';
+const XP_LEDGER_KEY      = '@maths_workout_xp_ledger';
+const TOTAL_XP_KEY       = '@maths_workout_total_xp';
 const SCHEMA_VERSION_KEY = '@maths_workout_schema_version';
 const BOARD_KEY          = '@maths_workout_board';
 const TIMER_PREF_KEY     = '@maths_workout_timer_pref';
@@ -187,6 +191,21 @@ interface GameContextType {
   /** Most frequent misconceptions across recent practice. */
   topMisconceptions: () => ReturnType<typeof summariseMisconceptions>;
 
+  // ── Progression (docs/16) ───────────────────────────────────────────────
+  /** Cumulative XP. Never falls — it records effort, not ability. */
+  totalXp:          number;
+  /** Derived player level and progress into it. */
+  level:            ReturnType<typeof levelForXp>;
+  /**
+   * Honest ability index, 0–100. CAN fall, unlike XP.
+   * Two numbers because there are two questions: "how much have I done?" and
+   * "how good am I?". Merging them forces a bad trade.
+   */
+  masteryIdx:       number;
+  masteryLabel:     string;
+  /** The award produced by the most recent answer, for the feedback surface. */
+  lastAward:        Award | null;
+
   // ── Board and language ──────────────────────────────────────────────────
   /** Selected education board; drives which topics are available. */
   board:            Board;
@@ -230,6 +249,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [tablesBest,       setTablesBest]       = useState<Record<number, number>>({});
   const [savedMistakes,    setSavedMistakes]    = useState<WrongAnswer[]>([]);
   const [attempts,         setAttempts]         = useState<Attempt[]>([]);
+  const [xpLedger,         setXpLedger]         = useState<XpLedger>({});
+  const [totalXp,          setTotalXp]          = useState(0);
+  const [lastAward,        setLastAward]        = useState<Award | null>(null);
+  /**
+   * Mirrors of `attempts` and `totalXp` for the award path.
+   * recordAttempt must read the log and the running total synchronously — a
+   * stale closure would mis-price the answer or double-count the XP.
+   */
+  const attemptsRef = useRef<Attempt[]>([]);
+  const totalXpRef = useRef(0);
   const [board,            setBoardState]       = useState<Board>(DEFAULT_BOARD);
   const [lang,             setLangState]        = useState<Lang>('en');
   const [prefsLoaded,      setPrefsLoaded]      = useState(false);
@@ -275,14 +304,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // ─── Load & sync ──────────────────────────────────────────────────────
   const loadAll = useCallback(async () => {
     try {
-      const [hs, ps, tb, sm, at, ver] = await Promise.all([
+      const [hs, ps, tb, sm, at, ver, led, txp] = await Promise.all([
         AsyncStorage.getItem(HIGH_SCORES_KEY),
         AsyncStorage.getItem(STATS_KEY),
         AsyncStorage.getItem(TABLES_BEST_KEY),
         AsyncStorage.getItem(SAVED_MISTAKES_KEY),
         AsyncStorage.getItem(ATTEMPTS_KEY),
         AsyncStorage.getItem(SCHEMA_VERSION_KEY),
+        AsyncStorage.getItem(XP_LEDGER_KEY),
+        AsyncStorage.getItem(TOTAL_XP_KEY),
       ]);
+
+      try { if (led) setXpLedger(JSON.parse(led)); } catch { /* ledger rebuilds */ }
+      const parsedXp = Number(txp);
+      if (Number.isFinite(parsedXp) && parsedXp >= 0) {
+        setTotalXp(parsedXp);
+        totalXpRef.current = parsedXp;
+      }
 
       let localHS: Record<string, number> = hs ? JSON.parse(hs) : {};
       let localPS: ProgressStats          = ps ? JSON.parse(ps) : {};
@@ -330,6 +368,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setTablesBest(localTB);
       setSavedMistakes(localSM);
       setAttempts(localAT);
+      attemptsRef.current = localAT;
     } catch (e) { console.error('[GameContext] loadAll failed:', e); }
   }, [getOrCreateDeviceId, buildPayload]);
 
@@ -384,6 +423,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const mastery = useMemo(() => estimateAll(attempts), [attempts]);
   const streak = useMemo(() => currentStreak(attempts), [attempts]);
   const answeredToday = useMemo(() => todayCount(attempts), [attempts]);
+
+  // Derived progression. Level comes from XP (effort, never falls); the mastery
+  // index comes from the mastery model (ability, can fall). Keeping them
+  // separate is what lets the app be honest about ability without ever erasing
+  // a child's record of work.
+  const level = useMemo(() => levelForXp(totalXp), [totalXp]);
+  const masteryIdx = useMemo(
+    () => masteryIndex(Object.values(mastery).map(m => m.value)), [mastery]);
+  const masteryLabel = useMemo(() => masteryBand(masteryIdx), [masteryIdx]);
 
   /**
    * Resolved timer state for the session on screen.
@@ -587,18 +635,48 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       cls: selectedClass, category, difficulty,
     };
 
-    setAttempts(prev => {
-      const next = appendAttempts(prev, [attempt]);
-      setProgressStats(deriveLegacyStats(next));
-      // Persistence is debounced rather than written here: serialising the log
-      // on every answer costs ~945 KB of JSON at the 4000-attempt cap, which is
-      // visible jank on a low-end device mid-session.
-      schedulePersist(next);
-      return next;
+    // ── Award XP (docs/16) ──────────────────────────────────────────────
+    // Computed OUTSIDE the setAttempts updater. Nesting state updates inside an
+    // updater is unreliable — React may invoke it twice (StrictMode, concurrent
+    // rendering), which would double-count XP and corrupt the ledger. The
+    // updater must stay pure.
+    const nextLog = appendAttempts(attemptsRef.current, [attempt]);
+    const before = estimateMastery(skill, attemptsRef.current).value;
+    const after = estimateMastery(skill, nextLog).value;
+    const priorMisses = attemptsRef.current.filter(
+      a => a.skill === skill && !a.correct
+        && a.answeredAt > Date.now() - 30 * 60_000).length;
+
+    const award = awardXp({
+      question, skill, correct,
+      masteryBefore: before, masteryAfter: after,
+      latencyMs, difficulty, cls: selectedClass,
+      scaffolded, priorMissesThisSkill: priorMisses,
+      log: attemptsRef.current, ledger: xpLedger,
     });
 
+    setLastAward(correct ? award : null);
+    if (award.total > 0) {
+      const nextXp = totalXpRef.current + award.total;
+      totalXpRef.current = nextXp;
+      setTotalXp(nextXp);
+      AsyncStorage.setItem(TOTAL_XP_KEY, String(nextXp)).catch(() => {});
+    }
+    if (award.ledger !== xpLedger) {
+      setXpLedger(award.ledger);
+      AsyncStorage.setItem(XP_LEDGER_KEY, JSON.stringify(award.ledger)).catch(() => {});
+    }
+
+    attemptsRef.current = nextLog;
+    setAttempts(nextLog);
+    setProgressStats(deriveLegacyStats(nextLog));
+    // Persistence is debounced rather than written here: serialising the log
+    // on every answer costs ~945 KB of JSON at the 4000-attempt cap, which is
+    // visible jank on a low-end device mid-session.
+    schedulePersist(nextLog);
+
     return misconception ?? null;
-  }, [currentIndex, selectedClass, selectedCategory, difficulty, isTablesMode]);
+  }, [currentIndex, selectedClass, selectedCategory, difficulty, isTablesMode, xpLedger, schedulePersist]);
 
   const rootGapFor = useCallback(
     (skill: SkillId) => findRootGap(skill, mastery), [mastery]);
@@ -787,6 +865,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       highScores, progressStats, tablesBest, savedMistakes,
       saveScore, saveProgressStats, clearMistake, loadAll, getHighScore,
       attempts, mastery, streak, answeredToday,
+      totalXp, level, masteryIdx, masteryLabel, lastAward,
       startAdaptiveSession, isAdaptive, recordAttempt, rootGapFor, sessionSkillFor, retargetNext, topMisconceptions,
       board, setBoard, lang, setLang, prefsLoaded,
       timerPref, setTimerPref, timerOn,

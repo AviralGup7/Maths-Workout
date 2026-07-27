@@ -17,8 +17,10 @@ import { useAnnounce, touchSlop } from '@/hooks/useA11y';
 import { AnswerSurface } from '@/components/answer/AnswerSurface';
 import { grade, expectedAnswer } from '@/generators/interactions';
 import { praiseFor, praiseText } from '@/learning/feedback';
+import { BONUS_LABEL } from '@/progression/labels';
+import { QuestionVisual } from '@/components/visuals/QuestionVisual';
 import { decideAdaptation } from '@/learning/adaptation';
-import { shouldTeach, buildWorkedExample, canTeach } from '@/learning/workedExamples';
+import { shouldTeach, hasFaded, buildWorkedExample, canTeach } from '@/learning/workedExamples';
 import type { WorkedExample as WEType } from '@/learning/workedExamples';
 import { WorkedExample } from '@/components/WorkedExample';
 import { extractOperands } from '@/learning/misconceptions';
@@ -58,6 +60,7 @@ export default function GameScreen() {
     score, selectedClass, selectedCategory, isTablesMode,
     saveProgressStats, saveScore, wrongAnswers, recordAttempt, lang, timerOn,
     mastery, sessionSkillFor, retargetNext, attempts, selectedClass: cls,
+    lastAward,
   } = useGame();
 
   // Motion is routed through useMotion so "reduce motion" is honoured without
@@ -337,6 +340,15 @@ export default function GameScreen() {
     const teachable = decision.kind === 'teach' && canTeach(skill);
     if (!teachable) return { kind: 'continue' };
 
+    // D2 · every intervention must terminate. Two consecutive correct answers
+    // on this skill since teaching means the scaffold has done its job, and
+    // support that does not withdraw produces dependence. This is the precise
+    // fade condition; the 20-attempt cooldown inside shouldTeach is the blunt
+    // backstop for skills that were never taught in this session at all.
+    if (taughtAtRef.current[skill]?.length && hasFaded(sessionLogRef.current, skill)) {
+      return { kind: 'continue' };
+    }
+
     const allow = shouldTeach({
       skill,
       sessionLog: sessionLogRef.current,
@@ -496,6 +508,22 @@ export default function GameScreen() {
       </Animated.View>
 
       {/* Answer grid */}
+      {/* docs/14 §2 — the Concrete→Pictorial stage the audit found entirely
+          absent. Fades automatically with mastery: interactive below 0.55,
+          illustrative to 0.80, gone above. Hidden while a worked example is on
+          screen, which carries its own diagram. */}
+      {!worked && (
+        <QuestionVisual
+          question={currentQuestion}
+          skill={sessionSkillFor(currentIndex)}
+          mastery={(() => {
+            const sk = sessionSkillFor(currentIndex);
+            return (sk ? mastery[sk]?.value : undefined) ?? 0.5;
+          })()}
+          showState={answerState === 'idle' ? 'idle' : answerState}
+        />
+      )}
+
       {/* §1 — while a worked example is up it takes the place of the answer
           surface entirely. Leaving the options visible would invite the child
           to guess again instead of reading the method. */}
@@ -522,11 +550,30 @@ export default function GameScreen() {
         />
       )}
 
-      {/* §9 M3 — process praise. Names the action, not the outcome. */}
+      {/* §9 M3 — process praise. Names the action, not the outcome.
+          XP sits alongside it rather than on its own: the sentence explains
+          what the child did, the number records it. A bare number would be
+          outcome feedback, which is the thing process praise exists to replace. */}
       {praise && answerState === 'correct' && (
         <View style={styles.praiseBox} accessibilityLiveRegion="polite">
           <Feather name="check-circle" size={14} color={C.correct} />
           <Text style={styles.praiseText}>{praise}</Text>
+          {!!lastAward && lastAward.total > 0 && (
+            <Text style={styles.xpText}>+{lastAward.total} XP</Text>
+          )}
+        </View>
+      )}
+
+      {/* Bonus events are the emotional peaks of the economy, and every one is
+          tied to a CHANGE of state — never to volume. */}
+      {answerState === 'correct' && !!lastAward && lastAward.bonuses.length > 0 && (
+        <View style={styles.bonusRow} accessibilityLiveRegion="polite">
+          {lastAward.bonuses.map(b => (
+            <View key={b.id} style={styles.bonusChip}>
+              <Feather name="award" size={11} color={C.primary} />
+              <Text style={styles.bonusText}>{BONUS_LABEL[b.id][lang === 'hi' ? 'hi' : 'en']}</Text>
+            </View>
+          ))}
         </View>
       )}
 
@@ -557,7 +604,15 @@ const styles = StyleSheet.create({
     marginTop: 12, paddingVertical: 10, paddingHorizontal: 12,
     backgroundColor: C.correct + '14', borderRadius: 12,
   },
-  praiseText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.correct },
+  praiseText: { flex: 1, fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.correct },
+  xpText: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.correct },
+  bonusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
+  bonusChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.primary + '14', borderRadius: 999,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  bonusText: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: C.primary },
   diagnosisBox: {
     flexDirection: 'row', gap: 9, alignItems: 'flex-start',
     marginTop: 12, padding: 12,
