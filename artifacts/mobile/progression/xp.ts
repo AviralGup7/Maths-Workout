@@ -148,12 +148,28 @@ export type Structure = keyof typeof STRUCTURE_WEIGHT;
  * edge of your ability, which is exactly the zone of proximal development.
  * We do not have to enforce that. The mathematics enforces it.
  */
+/**
+ * docs/21 · the spread was narrowed from (1.0 … 1.5) to (1.0 … 1.2).
+ *
+ * The original reasoning — that over-reach self-corrects because wrong answers
+ * move mastery down — is sound but incomplete. It assumes the learner picks
+ * hard content they cannot do. A learner who picks hard content they CAN do is
+ * paid twice for the same fact: once by Δmastery (harder items move the
+ * estimate further) and again by this multiplier. Measured over a simulated
+ * year, an "always hard" learner earned 29,038 XP against a gifted learner's
+ * 23,884 while mastering 1 skill against 30 — the difficulty selector had
+ * become the most profitable button in the app.
+ *
+ * `relativeChallenge` already pays for genuine stretch, and it does so
+ * per-learner, which is the honest version of this idea. The residual spread
+ * here only acknowledges that harder items take longer.
+ */
 export const DIFFICULTY_MULTIPLIER: Record<Difficulty | 'expert', number> = {
   easy: 1.00,
-  medium: 1.20,
-  hard: 1.40,
+  medium: 1.10,
+  hard: 1.20,
   /** Reserved for adaptive over-reach: content above the learner's class band. */
-  expert: 1.50,
+  expert: 1.25,
 };
 
 /**
