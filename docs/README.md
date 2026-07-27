@@ -43,6 +43,7 @@ The most recent work is **[15 · Phase 1 Implementation](./15-phase-1-implementa
 | 13 | [**Learning Effectiveness Audit**](./13-learning-effectiveness-audit.md) | **Educational review: learning science, pedagogy, diagnostics, curriculum. Score 6.4/10** |
 | 14 | [Educational Improvement Roadmap](./14-educational-improvement-roadmap.md) | Solution design for every audit finding, phased by learning-per-hour |
 | 15 | [**Phase 1 Implementation**](./15-phase-1-implementation.md) | **What was built, measured results, bugs found, deliberate divergences** |
+| 16 | [**Progression System Design**](./16-progression-system-design.md) | **XP economy, levels, achievements, anti-exploit — simulated against adversarial strategies** |
 
 ---
 
