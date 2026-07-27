@@ -12,7 +12,7 @@
 // questions answered.
 
 import type { Attempt } from '../learning/attempts';
-import { currentStreak, practiceDays, dayKey } from '../learning/attempts';
+import { currentStreak, practiceDays, meaningfulPracticeDays, dayKey } from '../learning/attempts';
 import type { MasteryEstimate } from '../learning/mastery';
 import { MASTERED_THRESHOLD, DAY_MS } from '../learning/mastery';
 import type { SkillId } from '../learning/skills';
@@ -176,14 +176,17 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: { en: 'Fortnight', hi: 'पखवाड़ा' },
     description: { en: 'Practise on 14 different days', hi: '14 अलग-अलग दिन अभ्यास करें' },
     // Distinct DAYS, never questions: a single marathon cannot buy this.
-    progress: ctx => clamp(practiceDays(ctx.log).length / 14),
+    // docs/21 · and days of GENUINE practice, not mere presence — counting any
+    // day with a single tap made this attendance, which a random-tapping
+    // simulated learner earned in full.
+    progress: ctx => clamp(meaningfulPracticeDays(ctx.log).length / 14),
   },
   {
     id: 'season',
     category: 'consistency',
     title: { en: 'Season', hi: 'पूरा मौसम' },
     description: { en: 'Practise on 90 different days', hi: '90 अलग-अलग दिन अभ्यास करें' },
-    progress: ctx => clamp(practiceDays(ctx.log).length / 90),
+    progress: ctx => clamp(meaningfulPracticeDays(ctx.log).length / 90),
   },
   {
     id: 'steady-hand',
@@ -194,7 +197,7 @@ export const ACHIEVEMENTS: Achievement[] = [
       hi: 'आठ हफ़्ते तक, हफ़्ते में चार या अधिक दिन',
     },
     progress: ctx => {
-      const days = new Set(practiceDays(ctx.log));
+      const days = new Set(meaningfulPracticeDays(ctx.log));
       let good = 0;
       for (let w = 0; w < 8; w++) {
         let count = 0;

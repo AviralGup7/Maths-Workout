@@ -240,8 +240,20 @@ export function runLearner(profile: Profile, days: number, startAt = Date.UTC(20
         const baseLatency = guessing ? 700 : 4000 + 9000 * (1 - learner.abilityAt(skill, now));
         const latencyMs = Math.round(baseLatency * profile.speed * (0.6 + 0.8 * rnd()));
 
+        // Choose a PLAUSIBLE wrong answer, not a sentinel string. Answering
+        // 'WRONG' meant no distractor ever matched and `diagnose` never fired:
+        // 692 wrong answers produced ZERO misconceptions, which silently made
+        // every misconception-dependent behaviour untestable.
+        let chosen = String(q.answer);
+        if (!correct) {
+          const wrongs = (q.choices ?? []).filter(c => String(c) !== String(q.answer));
+          chosen = wrongs.length
+            ? String(wrongs[Math.floor(rnd() * wrongs.length)])
+            : String(Number(q.answer) + (rnd() < 0.5 ? 1 : -1));
+        }
+
         const res = recordAnswer(state, {
-          question: q, chosen: correct ? String(q.answer) : 'WRONG',
+          question: q, chosen,
           correct, latencyMs, timedOut: false, scaffolded: false,
           plannedSkill: skill, cls: profile.cls, sessionCategory: categoryForSkill(skill),
           difficulty, isTablesMode: false, now,

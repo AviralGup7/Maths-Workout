@@ -132,6 +132,48 @@ export function practiceDays(log: Attempt[]): string[] {
 }
 
 /**
+ * Minimum genuine attempts for a day to count as PRACTICE rather than presence.
+ *
+ * docs/21. `practiceDays` counts any day containing a single tap, so every
+ * consistency achievement built on it measured attendance, not practice — a
+ * simulated learner who answered at random for a year earned `fortnight` and
+ * `season` in full. Those are the "answer 100 questions" archetype the
+ * achievements module explicitly sets out to avoid, arrived at from the other
+ * direction.
+ *
+ * Deliberately low. A child who is ill, busy or simply having a short day
+ * should still be credited; the bar exists to exclude a day that contained no
+ * real work at all, not to demand a session of a particular size.
+ */
+export const MEANINGFUL_DAY_ATTEMPTS = 5;
+
+/** A tap faster than this cannot be a computed answer. */
+const GUESS_LATENCY_MS = 1200;
+
+/**
+ * Distinct days containing GENUINE practice, most recent first.
+ *
+ * A day qualifies on a small number of real attempts — answers that were not
+ * timed out and were not sub-second taps. Correctness is deliberately NOT
+ * required: a child who tried hard and got everything wrong has practised, and
+ * saying otherwise would punish exactly the learner who most needs credit.
+ */
+export function meaningfulPracticeDays(log: Attempt[]): string[] {
+  const byDay = new Map<string, number>();
+  for (const a of log) {
+    if (a.timedOut) continue;
+    if (a.latencyMs > 0 && a.latencyMs < GUESS_LATENCY_MS) continue;
+    const k = dayKey(a.answeredAt);
+    byDay.set(k, (byDay.get(k) ?? 0) + 1);
+  }
+  return [...byDay.entries()]
+    .filter(([, n]) => n >= MEANINGFUL_DAY_ATTEMPTS)
+    .map(([k]) => k)
+    .sort()
+    .reverse();
+}
+
+/**
  * Current consecutive-day streak, counting back from today.
  * Practising yesterday but not yet today keeps the streak alive.
  */
