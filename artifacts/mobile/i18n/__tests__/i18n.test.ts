@@ -3,11 +3,7 @@
 // mid-sentence exactly when they are already struggling.
 
 import { describe, it, expect } from 'vitest';
-import {
-  S, t, Q, q, CATEGORY_NAMES, categoryLabel, categoryDesc,
-  SHAPE_NAMES, shapeName, LANGUAGES, names, item, money, ITEMS,
-  num, hasDevanagariDigits, UNITS_UNTRANSLATED,
-} from '../strings';
+import { S, t, Q, q, CATEGORY_NAMES, categoryLabel, categoryDesc, SHAPE_NAMES, shapeName, LANGUAGES, names, item, money, ITEMS, num, hasDevanagariDigits, UNITS_UNTRANSLATED, pick, FALLBACK_LANG } from '../strings';
 import { CLASS_LABELS, BOARD_CONFIGS } from '../../curriculum/boards';
 import { MISCONCEPTIONS_HI } from '../misconceptions-hi';
 import { MISCONCEPTIONS } from '../../learning/misconceptions';
@@ -18,9 +14,14 @@ import type { SchoolClass, Difficulty, Category } from '../../generators/types';
 
 describe('translation completeness', () => {
   it('every UI string has a non-empty Hindi value', () => {
+    // `Localised` makes non-fallback languages optional so a partially
+    // translated language is still shippable. Hindi is NOT partial — it is a
+    // launch language, so completeness is asserted here rather than assumed by
+    // the type.
     for (const [key, val] of Object.entries(S)) {
       expect(val.en.length, `${key}.en`).toBeGreaterThan(0);
-      expect(val.hi.length, `${key}.hi`).toBeGreaterThan(0);
+      expect(val.hi, `${key} has no Hindi translation`).toBeDefined();
+      expect(val.hi!.length, `${key}.hi`).toBeGreaterThan(0);
     }
   });
 
@@ -251,7 +252,7 @@ describe('localised word problems', () => {
 describe('numerals stay Western Arabic in every language', () => {
   it('no shipped UI string contains Devanagari digits', () => {
     for (const [key, v] of Object.entries(S)) {
-      expect(hasDevanagariDigits(v.hi), `${key} uses Devanagari digits`).toBe(false);
+      expect(hasDevanagariDigits(v.hi ?? ''), `${key} uses Devanagari digits`).toBe(false);
       expect(hasDevanagariDigits(v.en), `${key} uses Devanagari digits`).toBe(false);
     }
   });
@@ -320,7 +321,7 @@ describe('navigation stays recoverable after an accidental language switch', () 
       const entry = S[key];
       expect(entry, key).toBeDefined();
       const en = entry.en.toLowerCase();
-      const hi = entry.hi.toLowerCase();
+      const hi = (entry.hi ?? '').toLowerCase();
       // The English word (or its first token) must survive in the Hindi string.
       const token = en.split(/[\s·]+/)[0];
       expect(hi, `${key}: "${entry.hi}" has no Latin fallback`).toContain(token);
@@ -329,13 +330,13 @@ describe('navigation stays recoverable after an accidental language switch', () 
 
   it('escape hatches contain Latin characters a non-Hindi reader can recognise', () => {
     for (const key of ESCAPE_HATCHES) {
-      expect(/[A-Za-z]/.test(S[key].hi), `${key} is Devanagari-only`).toBe(true);
+      expect(/[A-Za-z]/.test(S[key].hi ?? ''), `${key} is Devanagari-only`).toBe(true);
     }
   });
 
   it('the language control itself is always readable in both scripts', () => {
     // If this were Hindi-only, switching back would require guessing.
-    expect(/[A-Za-z]/.test(S.selectLanguage.hi)).toBe(true);
+    expect(/[A-Za-z]/.test(S.selectLanguage.hi ?? '')).toBe(true);
     expect(LANGUAGES.find(l => l.key === 'en')!.nativeLabel).toBe('English');
   });
 });
@@ -362,5 +363,48 @@ describe('settings and technical labels stay in Latin script', () => {
     const en = LANGUAGES.find(l => l.key === 'en')!;
     expect(en.label).toBe('English');
     expect(en.nativeLabel).toBe('English');
+  });
+});
+
+// ─── Extensibility: adding a language (docs/19 W3) ───────────────────────────
+
+describe('a new language is a data change, not a refactor', () => {
+  it('resolves a value in the requested language', () => {
+    expect(pick({ en: 'Correct', hi: 'सही' }, 'hi')).toBe('सही');
+    expect(pick({ en: 'Correct', hi: 'सही' }, 'en')).toBe('Correct');
+  });
+
+  it('falls back to English rather than rendering nothing', () => {
+    // A partially translated language must still be shippable: a missing
+    // string shows English, never a blank screen.
+    const partial = { en: 'Correct' } as const;
+    expect(pick(partial, 'hi')).toBe('Correct');
+  });
+
+  it('falls back for an unknown language code', () => {
+    // Defends against a stored preference from a newer build, or a corrupt
+    // value that passed the enum check.
+    expect(pick({ en: 'Correct' }, 'mr' as never)).toBe('Correct');
+  });
+
+  it('works for non-string values', () => {
+    expect(pick<number>({ en: 1, hi: 2 }, 'hi')).toBe(2);
+  });
+
+  it('declares languages as data, so LANGUAGES drives the type', () => {
+    const keys = LANGUAGES.map(l => l.key);
+    expect(keys).toContain(FALLBACK_LANG);
+    expect(new Set(keys).size).toBe(keys.length);
+    for (const l of LANGUAGES) {
+      expect(l.nativeLabel.length, `${l.key} has no native label`).toBeGreaterThan(0);
+    }
+  });
+
+  it('every language is reachable from the language picker', () => {
+    // The escape hatch: a child who switches language by accident must be able
+    // to find their way back, which requires every option to be listed.
+    for (const l of LANGUAGES) {
+      expect(t('selectLanguage', l.key).length).toBeGreaterThan(0);
+    }
   });
 });

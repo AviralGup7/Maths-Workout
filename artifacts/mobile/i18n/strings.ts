@@ -26,14 +26,48 @@
 // The rule of thumb: translate what is being *learned*; keep what is being
 // *navigated* recognisable in both languages.
 
-export type Lang = 'en' | 'hi';
-
-export const LANGUAGES: { key: Lang; label: string; nativeLabel: string }[] = [
+/**
+ * Supported languages.
+ *
+ * Declared as a list rather than a closed union so adding Marathi, Tamil or
+ * Bengali is a DATA change. The audit (docs/19 W3) found 68 inline
+ * `lang === 'hi' ? … : …` ternaries outside this module; every one of them was
+ * a site that a third language would have required editing by hand.
+ *
+ * `Lang` stays a union for type-safety at call sites, but the pattern below —
+ * `pick()` over a partial record with an English fallback — means a new entry
+ * here plus its translations is the whole cost.
+ */
+export const LANGUAGES = [
   { key: 'en', label: 'English', nativeLabel: 'English' },
   { key: 'hi', label: 'Hindi',   nativeLabel: 'हिन्दी' },
-];
+] as const;
 
-type Dict = Record<string, { en: string; hi: string }>;
+export type Lang = typeof LANGUAGES[number]['key'];
+
+/** The language every string is guaranteed to have. */
+export const FALLBACK_LANG: Lang = 'en';
+
+/**
+ * A value that varies by language.
+ *
+ * Only the fallback is required. A translation that has not been written yet
+ * shows English rather than blank — a missing string must never be an empty
+ * screen, and a partially-translated language must still be shippable.
+ */
+export type Localised<T = string> = { en: T } & Partial<Record<Lang, T>>;
+
+/**
+ * Resolve a localised value.
+ *
+ * This replaces the inline ternary. Call sites stop knowing which languages
+ * exist, which is exactly what makes adding one cheap.
+ */
+export function pick<T>(value: Localised<T>, lang: Lang): T {
+  return (value[lang] ?? value[FALLBACK_LANG]) as T;
+}
+
+type Dict = Record<string, Localised>;
 
 export const S: Dict = {
   // ── App / navigation ────────────────────────────────────────────────────

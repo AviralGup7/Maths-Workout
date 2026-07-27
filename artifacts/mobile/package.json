@@ -9,7 +9,11 @@
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "test": "vitest run",
+    "arch": "node scripts/arch-check.mjs",
+    "ui:smoke": "expo export --platform web --output-dir .ui-build && node scripts/ui-smoke.mjs .ui-build",
+    "verify": "npm run typecheck && npm run arch && npm run test"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

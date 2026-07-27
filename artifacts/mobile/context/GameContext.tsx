@@ -48,6 +48,11 @@ import { resolveSkill, SKILLS } from '../learning/skills';
 import { buildSession, categoryForSkill, difficultyFor } from '../learning/scheduler';
 import { diagnose, summariseMisconceptions } from '../learning/misconceptions';
 import { awardXp, type XpLedger, type Award } from '../progression/award';
+import { recordAnswer } from '../progression/recordAnswer';
+import {
+  MANIFEST_VERSION, readManifest, writeManifest,
+  isXpLedger, isStatMap, isNumberMap, isWrongAnswerList,
+} from '../lib/storage';
 import { levelForXp, masteryIndex, masteryBand } from '../progression/levels';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────
@@ -259,6 +264,20 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    */
   const attemptsRef = useRef<Attempt[]>([]);
   const totalXpRef = useRef(0);
+  const ledgerRef = useRef<XpLedger>({});
+
+  /**
+   * Persist the two small progression values.
+   *
+   * Separate from the debounced log flush because they are a few bytes each —
+   * debouncing them would risk losing XP on a hard kill for no benefit.
+   */
+  const persistProgression = useCallback(async (xp: number, ledger: XpLedger) => {
+    try {
+      await AsyncStorage.setItem(TOTAL_XP_KEY, String(xp));
+      await AsyncStorage.setItem(XP_LEDGER_KEY, JSON.stringify(ledger));
+    } catch { /* offline-first: in-memory state remains correct */ }
+  }, []);
   const [board,            setBoardState]       = useState<Board>(DEFAULT_BOARD);
   const [lang,             setLangState]        = useState<Lang>('en');
   const [prefsLoaded,      setPrefsLoaded]      = useState(false);
@@ -315,17 +334,32 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem(TOTAL_XP_KEY),
       ]);
 
-      try { if (led) setXpLedger(JSON.parse(led)); } catch { /* ledger rebuilds */ }
+      // Validated rather than blindly parsed. Untrusted storage is as
+      // dangerous as untrusted network input: it survives upgrades, can be
+      // left half-written by a crash, and on some platforms is user-editable.
+      // A ledger with an out-of-range value would silently mis-price every
+      // future answer, so a failed check discards it rather than propagating.
+      try {
+        const parsed = led ? JSON.parse(led) : null;
+        if (isXpLedger(parsed)) { setXpLedger(parsed); ledgerRef.current = parsed; }
+      } catch { /* ledger rebuilds from scratch; only affects future payouts */ }
       const parsedXp = Number(txp);
       if (Number.isFinite(parsedXp) && parsedXp >= 0) {
         setTotalXp(parsedXp);
         totalXpRef.current = parsedXp;
       }
 
-      let localHS: Record<string, number> = hs ? JSON.parse(hs) : {};
-      let localPS: ProgressStats          = ps ? JSON.parse(ps) : {};
-      let localTB: Record<number, number> = tb ? JSON.parse(tb) : {};
-      let localSM: WrongAnswer[]          = sm ? JSON.parse(sm) : [];
+      // Each shape is validated on read; a corrupt value falls back to empty
+      // rather than propagating into the engine. `sanitiseLog` already did this
+      // for attempts — the other four were parsed unchecked.
+      const safeParse = <T,>(raw: string | null, ok: (x: unknown) => x is T, fb: T): T => {
+        try { const v = raw ? JSON.parse(raw) : null; return ok(v) ? v : fb; }
+        catch { return fb; }
+      };
+      let localHS: Record<string, number> = safeParse(hs, isNumberMap, {});
+      let localPS: ProgressStats          = safeParse(ps, isStatMap, {}) as ProgressStats;
+      let localTB: Record<number, number> = safeParse(tb, isNumberMap, {}) as Record<number, number>;
+      let localSM: WrongAnswer[]          = safeParse(sm, isWrongAnswerList, []) as WrongAnswer[];
       let localAT: Attempt[]              = at ? sanitiseLog(JSON.parse(at)) : [];
 
       // ── Schema migration ────────────────────────────────────────────────
@@ -333,7 +367,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // no timestamps, latency or chosen answers, so the detail is genuinely
       // unrecoverable — but rather than discard the learner's history we seed
       // the log with dated placeholders so mastery has something to work from.
-      const schemaVersion = ver ? Number(ver) : 2;
+      // Migration is gated on the storage MANIFEST rather than a single key's
+      // version, because migrations are cross-cutting: the v2 -> v3 move
+      // rebuilt the attempt log *from* the legacy counters, touching two keys
+      // at once. One monotonic version makes "what still needs to run?" a
+      // question with one answer.
+      const manifest = await readManifest();
+      const schemaVersion = manifest.version || (ver ? Number(ver) : 2);
       if (schemaVersion < CURRENT_SCHEMA && localAT.length === 0) {
         localAT = migrateLegacyStats(localPS, Date.now(), resolveSkill);
         await AsyncStorage.setItem(ATTEMPTS_KEY, JSON.stringify(localAT));
@@ -369,6 +409,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setSavedMistakes(localSM);
       setAttempts(localAT);
       attemptsRef.current = localAT;
+      void writeManifest(MANIFEST_VERSION);
     } catch (e) { console.error('[GameContext] loadAll failed:', e); }
   }, [getOrCreateDeviceId, buildPayload]);
 
@@ -607,76 +648,55 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    * Captures the three fields the legacy model discarded — when, how long, and
    * what was chosen — then runs misconception diagnosis on wrong answers.
    */
+  /**
+   * Record one answered question.
+   *
+   * The pipeline itself lives in `learning/recordAnswer.ts` as a pure function.
+   * This callback is now only an adapter: it gathers the inputs React owns,
+   * calls the reducer, and decides what to persist. Everything that can be got
+   * wrong — diagnosis, mastery movement, XP pricing, the anti-oscillation
+   * ledger — is testable without a renderer.
+   */
   const recordAttempt = useCallback(({ question, chosen, correct, latencyMs, timedOut, scaffolded }: {
     question: Question; chosen: string; correct: boolean; latencyMs: number; timedOut: boolean;
     scaffolded?: boolean;
   }): string | null => {
-    const category = question.resolvedCategory ?? selectedCategory;
-    const skill = sessionSkillsRef.current[currentIndex]
-      ?? resolveSkill(selectedClass, isTablesMode ? 'tables' : category, difficulty);
+    const result = recordAnswer(
+      {
+        log: attemptsRef.current,
+        ledger: ledgerRef.current,
+        totalXp: totalXpRef.current,
+      },
+      {
+        question, chosen, correct, latencyMs, timedOut, scaffolded,
+        plannedSkill: sessionSkillsRef.current[currentIndex],
+        cls: selectedClass,
+        sessionCategory: selectedCategory,
+        difficulty,
+        isTablesMode,
+      },
+    );
 
-    // Prefer the distractor map: if this exact wrong option was generated *by*
-    // a known misconception, that is a direct observation rather than inference.
-    const mapped = !correct ? question.distractorMap?.[chosen] : undefined;
-    const misconception = mapped ?? (correct ? null : diagnose({
-      questionText: question.questionText,
-      expected: String(question.answer),
-      chosen, skill, latencyMs, timedOut,
-    }));
+    // Refs first, so a second answer arriving before React re-renders still
+    // reads the up-to-date log rather than a stale closure.
+    attemptsRef.current = result.state.log;
+    ledgerRef.current = result.state.ledger;
+    totalXpRef.current = result.state.totalXp;
 
-    const attempt: Attempt = {
-      skill, correct, answeredAt: Date.now(), latencyMs, chosen,
-      expected: String(question.answer), questionText: question.questionText,
-      timedOut, misconception: misconception ?? undefined,
-      // Recorded so the anti-inflation guard can tell recognition from recall.
-      // Absent `interaction` on a question means multiple choice.
-      interaction: question.interaction?.kind ?? 'choice',
-      scaffolded: scaffolded || undefined,
-      cls: selectedClass, category, difficulty,
-    };
+    setAttempts(result.state.log);
+    setProgressStats(result.progressStats);
+    setLastAward(correct ? result.award : null);
+    setTotalXp(result.state.totalXp);
+    setXpLedger(result.state.ledger);
 
-    // ── Award XP (docs/16) ──────────────────────────────────────────────
-    // Computed OUTSIDE the setAttempts updater. Nesting state updates inside an
-    // updater is unreliable — React may invoke it twice (StrictMode, concurrent
-    // rendering), which would double-count XP and corrupt the ledger. The
-    // updater must stay pure.
-    const nextLog = appendAttempts(attemptsRef.current, [attempt]);
-    const before = estimateMastery(skill, attemptsRef.current).value;
-    const after = estimateMastery(skill, nextLog).value;
-    const priorMisses = attemptsRef.current.filter(
-      a => a.skill === skill && !a.correct
-        && a.answeredAt > Date.now() - 30 * 60_000).length;
+    // Persistence is debounced for the log: serialising it on every answer
+    // costs ~1.07 MB of JSON at the 4000-attempt cap, which is visible jank on
+    // a low-end device mid-session. The two small values are written directly.
+    schedulePersist(result.state.log);
+    void persistProgression(result.state.totalXp, result.state.ledger);
 
-    const award = awardXp({
-      question, skill, correct,
-      masteryBefore: before, masteryAfter: after,
-      latencyMs, difficulty, cls: selectedClass,
-      scaffolded, priorMissesThisSkill: priorMisses,
-      log: attemptsRef.current, ledger: xpLedger,
-    });
-
-    setLastAward(correct ? award : null);
-    if (award.total > 0) {
-      const nextXp = totalXpRef.current + award.total;
-      totalXpRef.current = nextXp;
-      setTotalXp(nextXp);
-      AsyncStorage.setItem(TOTAL_XP_KEY, String(nextXp)).catch(() => {});
-    }
-    if (award.ledger !== xpLedger) {
-      setXpLedger(award.ledger);
-      AsyncStorage.setItem(XP_LEDGER_KEY, JSON.stringify(award.ledger)).catch(() => {});
-    }
-
-    attemptsRef.current = nextLog;
-    setAttempts(nextLog);
-    setProgressStats(deriveLegacyStats(nextLog));
-    // Persistence is debounced rather than written here: serialising the log
-    // on every answer costs ~945 KB of JSON at the 4000-attempt cap, which is
-    // visible jank on a low-end device mid-session.
-    schedulePersist(nextLog);
-
-    return misconception ?? null;
-  }, [currentIndex, selectedClass, selectedCategory, difficulty, isTablesMode, xpLedger, schedulePersist]);
+    return result.misconception;
+  }, [currentIndex, selectedClass, selectedCategory, difficulty, isTablesMode, schedulePersist]);
 
   const rootGapFor = useCallback(
     (skill: SkillId) => findRootGap(skill, mastery), [mastery]);

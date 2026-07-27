@@ -477,3 +477,134 @@ for the next audit.
 not measure whether the *product* teaches children mathematics — that remains
 unvalidated, as docs/13–18 repeatedly note, and no architectural score should be
 read as evidence about learning outcomes.
+
+---
+
+## 14 · Remediation — what was fixed
+
+Completed immediately after the audit. Every number below was re-measured after
+the change, not projected.
+
+### W2 · `estimateAll` complexity — **fixed**
+
+`estimateMastery` was filtering the whole log once per skill. The estimator core
+is now split out, so `estimateAll` buckets the log in a **single pass** and both
+entry points share one implementation.
+
+```
+                              before      after
+ 45 skills ×  4,000 rows      4.6 ms     0.97 ms
+450 skills × 20,000 rows     98.3 ms      0.5 ms      (~258×)
+```
+
+Equivalence was verified explicitly: for every skill in a 1,500-row log,
+`estimateAll` and `estimateMastery` agree to 12 decimal places on value,
+attempts, correct, trend, confidence, `lastPracticed` and `rawAccuracy`.
+
+Guarded by `learning/__tests__/mastery-scale.test.ts`, which asserts both halves
+— behavioural equivalence, and that widening the skill graph at a fixed log size
+does not multiply the cost.
+
+### W1 · God object — **substantially fixed**
+
+The answer pipeline is extracted to `progression/recordAnswer.ts` as a pure
+`(state, event) → result` function. No I/O, injected clock, no React.
+
+This was the highest-risk code in the product and had **zero direct tests**
+because it could not be exercised without a renderer. It now has **19**,
+including the one that matters most: calling it twice from the same state
+produces the same result, which is the property the XP double-count bug
+violated when the logic lived inside a `setState` updater.
+
+`GameContext` is now an adapter — it decides *when* the pipeline runs and what
+to persist, not *what it does*. The context surface is unchanged for consumers,
+so this was a zero-risk internal refactor. Splitting the context into four
+providers remains worthwhile but is now optional rather than urgent, because the
+untestable part is gone.
+
+### W3 · Language extensibility — **fixed**
+
+`Lang` is now derived from a `LANGUAGES` data list, with `Localised<T>` making
+every non-fallback translation optional and `pick()` resolving with an English
+fallback. A partially translated language is shippable; a missing string shows
+English rather than a blank screen.
+
+The type change surfaced five places where tests assumed Hindi always exists —
+those now assert completeness explicitly rather than relying on the type, which
+is the correct distinction: Hindi is a launch language, a future third language
+may ship partial.
+
+### R1 · Storage versioning — **fixed**
+
+`lib/storage.ts` declares all 15 keys, one monotonic manifest version, and
+validators for every stored shape. Reads are validated rather than blindly
+parsed, because untrusted storage is exactly as dangerous as untrusted network
+input — it survives upgrades, can be left half-written by a crash, and its
+failure mode is silent.
+
+The `isStatMap` validator rejects `correct > attempted`, which the legacy
+cross-device `Math.max` merge could genuinely produce and which would show
+accuracy above 100% in every downstream view.
+
+### §9 · Zero UI tests — **fixed**
+
+`scripts/ui-smoke.mjs` codifies the manual browser audit: 17 assertions across
+three viewports plus the practice loop, exit-code gated for CI.
+
+**Verified it actually bites.** Shrinking the primary button to 28pt produced:
+
+```
+  FAIL  iPhone SE: 1 tap target(s) below 44pt — 254x28 "Start practising"
+  FAIL  iPhone 14: 1 tap target(s) below 44pt — 324x28 "Start practising"
+  FAIL  iPad:      1 tap target(s) below 44pt — 494x28 "Start practising"
+  exit code 1
+```
+
+A first attempt at self-sabotage (shrinking `minHeight` on the tab bar) did
+*not* fail — the content propped the element to exactly 44pt, so the check was
+right and the sabotage was ineffective. Worth recording: a check you have not
+seen fail is not a check.
+
+### §13 · Architecture guard — **added**
+
+`scripts/arch-check.mjs` re-derives the audit's structural measurements on every
+run: cycles, upward layering edges, framework purity of the domain, context
+size, and storage-key manifest coverage. 90 modules, no build step.
+
+**It immediately caught a defect in this very remediation.** `recordAnswer` was
+first placed in `learning/`, where it imported from `progression/` — a genuine
+upward dependency. Rather than allow-list it, the module moved to
+`progression/`, which is the only home that composes both layers without
+inverting them. That is the guard doing exactly its job on day one.
+
+### Not changed, deliberately
+
+- **`evaluateAchievements` at 5.9 ms.** Measured to run only inside a `useMemo`
+  on the Progress screen, never on the answer path. Caching it would add state
+  to solve a problem that does not exist.
+- **Splitting `GameContext` into four providers.** Worthwhile, no longer urgent:
+  the untestable logic has left the building. Re-evaluate when a screen
+  demonstrably suffers from re-render churn.
+- **Content-as-code → template schema.** The strategic item from §5 stands, and
+  should be a deliberate decision rather than a refactor bundled into a
+  remediation pass.
+
+### Verification
+
+```bash
+npm run verify        # typecheck + arch guard + 532 tests
+npm run ui:smoke      # build + 17 browser assertions
+```
+
+```
+typecheck        clean
+arch-check       90 modules · 5 passed, 0 failed
+vitest           532 passed
+ui-smoke         17 passed, 0 failed
+```
+
+**Revised score: 8.0 → 8.7.** The three High findings and the storage risk are
+closed, and — more durably — each is now enforced by a check that fails the
+build rather than waiting for the next audit. The remaining gap to a 9+ is the
+content architecture question in §5, which is a product decision rather than a
+defect.
