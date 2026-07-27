@@ -6,7 +6,25 @@
 //   Class 3 division: basic ÷2–5 (Easy), ÷2–10 (Medium), larger (Hard)
 
 import { SchoolClass, Difficulty, Question } from './types';
-import { ri, pick, addNoCarry, addWithCarry, subNoBorrow, subWithBorrow, makeIntChoices } from './helpers';
+import { ri, pick, addNoCarry, addWithCarry, subNoBorrow, subWithBorrow, makeIntChoices, makeDiagnosticChoices } from './helpers';
+import { resolveSkill } from '../learning/skills';
+import { diagnosticDistractors } from '../learning/misconceptions';
+
+/**
+ * Build a question whose wrong options are the outputs of real misconceptions,
+ * so an incorrect answer identifies the faulty rule the learner applied.
+ */
+function diagnosticQuestion(
+  cls: SchoolClass, diff: Difficulty,
+  cat: 'addition' | 'subtraction' | 'multiplication' | 'division',
+  text: string, a: number, b: number, answer: number,
+): Question {
+  const skill = resolveSkill(cls, cat, diff);
+  const { choices, distractorMap } = makeDiagnosticChoices(
+    answer, diagnosticDistractors(skill, a, b, answer),
+  );
+  return { questionText: text, answer, choices, distractorMap };
+}
 
 export function genAddition(cls: SchoolClass, diff: Difficulty): Question {
   let a: number, b: number;
@@ -55,7 +73,7 @@ export function genAddition(cls: SchoolClass, diff: Difficulty): Question {
         ? [ri(1000, 4999), ri(500, 2999)]
         : [ri(2000, 9999), ri(1000, 4999)];
   }
-  return { questionText: `${a} + ${b} = ?`, answer: a + b, choices: makeIntChoices(a + b) };
+  return diagnosticQuestion(cls, diff, 'addition', `${a} + ${b} = ?`, a, b, a + b);
 }
 
 export function genSubtraction(cls: SchoolClass, diff: Difficulty): Question {
@@ -89,7 +107,7 @@ export function genSubtraction(cls: SchoolClass, diff: Difficulty): Question {
       a = ri(1000, 4999); b = ri(200, Math.floor(a * 0.7)); break;
   }
   if (a < b) { const t = a; a = b; b = t; }
-  return { questionText: `${a} − ${b} = ?`, answer: a - b, choices: makeIntChoices(a - b) };
+  return diagnosticQuestion(cls, diff, 'subtraction', `${a} − ${b} = ?`, a, b, a - b);
 }
 
 export function genMultiplication(cls: SchoolClass, diff: Difficulty): Question {
@@ -137,7 +155,7 @@ export function genMultiplication(cls: SchoolClass, diff: Difficulty): Question 
         ? [ri(20, 99), ri(2, 12)]
         : [ri(20, 50), ri(20, 50)];
   }
-  return { questionText: `${a} × ${b} = ?`, answer: a * b, choices: makeIntChoices(a * b) };
+  return diagnosticQuestion(cls, diff, 'multiplication', `${a} × ${b} = ?`, a, b, a * b);
 }
 
 export function genDivision(cls: SchoolClass, diff: Difficulty): Question {
@@ -149,6 +167,13 @@ export function genDivision(cls: SchoolClass, diff: Difficulty): Question {
   };
   let dividend: number, divisor: number, quotient: number;
   switch (cls) {
+    case '1st':
+    case '2nd':
+      // Division is not in the Class 1/2 curriculum, but the generator must be
+      // safe if it is ever enabled — previously these fell through to the
+      // Class 6 branch and produced questions like "345 ÷ 15" for a six-year-old.
+      [dividend, divisor, quotient] = mkDiv(2, 5, 1, 5);
+      break;
     case '3rd':
       // Class 3: basic division ÷2–5 (easy), ÷2–10 (medium), larger (hard)
       [dividend, divisor, quotient] = diff === 'easy'
@@ -178,7 +203,7 @@ export function genDivision(cls: SchoolClass, diff: Difficulty): Question {
         ? mkDiv(5, 25, 10, 50)
         : mkDiv(10, 30, 20, 60);
   }
-  return { questionText: `${dividend} ÷ ${divisor} = ?`, answer: quotient, choices: makeIntChoices(quotient) };
+  return diagnosticQuestion(cls, diff, 'division', `${dividend} ÷ ${divisor} = ?`, dividend, divisor, quotient);
 }
 
 export function generateTablesQuestions(tableNum: number): Question[] {

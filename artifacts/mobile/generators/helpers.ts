@@ -70,7 +70,11 @@ export function subWithBorrow(minA: number, maxA: number, minB: number, maxB: nu
 
 // ─── Choice generators ────────────────────────────────────────────────────────
 
-export function makeIntChoices(answer: number): number[] {
+export function makeIntChoices(answer: number, opts: { allowNegative?: boolean } = {}): number[] {
+  // Negative distractors confuse learners who have not met negative numbers yet
+  // (they are introduced in Class 6). Default to suppressing them unless the
+  // answer is itself negative, i.e. we are already in the integers topic.
+  const allowNegative = opts.allowNegative ?? answer < 0;
   const spread = Math.abs(answer) <= 15 ? 2 : Math.abs(answer) <= 100 ? 7 : Math.abs(answer) <= 1000 ? 25 : 100;
   const wrong = new Set<number>();
   let tries = 0;
@@ -79,12 +83,23 @@ export function makeIntChoices(answer: number): number[] {
     const delta = ri(-spread, spread);
     if (delta === 0) continue;
     const w = answer + delta;
+    if (!allowNegative && w < 0) continue;
     if (w !== answer) wrong.add(w);
+  }
+  // Guarantee four options even when the non-negative window is tight.
+  let step = 1;
+  while (wrong.size < 3 && step < 1000) {
+    const w = answer + step;
+    if (w !== answer && (allowNegative || w >= 0)) wrong.add(w);
+    step++;
   }
   return shuffleArr([answer, ...Array.from(wrong)]);
 }
 
-export function makeDecChoices(answer: number, step = 0.1): number[] {
+export function makeDecChoices(answer: number, step = 0.1, opts: { allowNegative?: boolean } = {}): number[] {
+  // As with makeIntChoices, negative distractors are suppressed unless the
+  // answer is itself negative — decimals are taught long before integers.
+  const allowNegative = opts.allowNegative ?? answer < 0;
   const round = (n: number) => Math.round(n * 100) / 100;
   const wrong = new Set<number>();
   let tries = 0;
@@ -92,12 +107,85 @@ export function makeDecChoices(answer: number, step = 0.1): number[] {
     tries++;
     const delta = ri(1, 4) * step * (Math.random() < 0.5 ? 1 : -1);
     const w = round(answer + delta);
+    if (!allowNegative && w < 0) continue;
     if (w !== answer) wrong.add(w);
+  }
+  // Guarantee four options when the non-negative window is tight.
+  let k = 1;
+  while (wrong.size < 3 && k < 200) {
+    const w = round(answer + k * step);
+    if (w !== answer && (allowNegative || w >= 0)) wrong.add(w);
+    k++;
   }
   return shuffleArr([answer, ...Array.from(wrong)]);
 }
 
 export function makeStrChoices(answer: string, pool: string[]): string[] {
+  // The answer grid renders four tiles. A pool smaller than four silently
+  // produces a half-empty grid and an easier guess, so fail loudly in dev.
+  if (pool.length < 4) {
+    console.warn(`[generators] makeStrChoices needs >=4 pool entries, got ${pool.length} for "${answer}"`);
+  }
   const others = shuffleArr(pool.filter(x => x !== answer)).slice(0, 3);
   return shuffleArr([answer, ...others]);
+}
+
+// ─── Diagnostic choice builder (Direction D) ─────────────────────────────────
+
+/**
+ * Build choices where each wrong option is the result of a *named misconception*
+ * rather than a random offset.
+ *
+ * The legacy `makeIntChoices` produced distractors as `answer ± spread`, so a
+ * wrong answer carried almost no diagnostic information. Here every distractor
+ * we can attribute is tagged, and any remaining slots are filled with plausible
+ * near-misses so the option count is always four.
+ *
+ * @param answer     the correct value
+ * @param diagnostic candidate wrong values, each tagged with a misconception id
+ * @param allowNegative whether negative distractors are acceptable (integers topic only)
+ */
+export function makeDiagnosticChoices(
+  answer: number,
+  diagnostic: { value: number; misconception: string }[],
+  allowNegative = false,
+): { choices: number[]; distractorMap: Record<string, string> } {
+  const chosen: number[] = [];
+  const map: Record<string, string> = {};
+
+  for (const { value, misconception } of diagnostic) {
+    if (chosen.length >= 3) break;
+    if (value === answer) continue;
+    if (!allowNegative && value < 0) continue;
+    if (!Number.isFinite(value)) continue;
+    if (chosen.includes(value)) continue;
+    chosen.push(value);
+    map[String(value)] = misconception;
+  }
+
+  // Top up with plausible near-misses so there are always four options.
+  const spread = Math.abs(answer) <= 15 ? 2 : Math.abs(answer) <= 100 ? 7 : Math.abs(answer) <= 1000 ? 25 : 100;
+  let guard = 0;
+  while (chosen.length < 3 && guard < 400) {
+    guard++;
+    const delta = ri(-spread, spread);
+    if (delta === 0) continue;
+    const candidate = answer + delta;
+    if (!allowNegative && candidate < 0) continue;
+    if (candidate === answer || chosen.includes(candidate)) continue;
+    chosen.push(candidate);
+  }
+
+  // Last-resort fill, guaranteeing four distinct options.
+  let step = 1;
+  while (chosen.length < 3) {
+    const candidate = answer + step;
+    if (candidate !== answer && !chosen.includes(candidate) && (allowNegative || candidate >= 0)) {
+      chosen.push(candidate);
+    }
+    step++;
+    if (step > 1000) break;
+  }
+
+  return { choices: shuffleArr([answer, ...chosen]), distractorMap: map };
 }

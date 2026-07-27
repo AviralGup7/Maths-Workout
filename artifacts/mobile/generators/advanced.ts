@@ -8,6 +8,12 @@
 import { SchoolClass, Difficulty, Question } from './types';
 import { ri, pick, gcd, lcm, countFactors, shuffleArr, makeIntChoices, makeStrChoices } from './helpers';
 
+/** Smallest base for which `pct`% is a whole number, scaled into a sensible range. */
+function cleanPercentBase(pct: number, maxBase = 200): number {
+  const step = 100 / gcd(pct, 100);
+  return step * ri(1, Math.max(1, Math.floor(maxBase / step)));
+}
+
 // ─── Word Problems ────────────────────────────────────────────────────────────
 
 export function genWordProblems(cls: SchoolClass, diff: Difficulty): Question {
@@ -67,8 +73,29 @@ export function genFactors(cls: SchoolClass, diff: Difficulty): Question {
   type TQ = () => Question;
   const easy: TQ[] = [
     () => { const n = pick([6, 8, 10, 12, 15, 16, 18, 20]); const c = countFactors(n); return { questionText: `How many factors does ${n} have?`, answer: c, choices: makeIntChoices(c) }; },
-    () => { const n = pick([2, 3, 5, 7, 11, 13]); return { questionText: `Is ${n} a prime number?\n(prime = only 2 factors)`, answer: 'Yes', choices: makeStrChoices('Yes', ['Yes', 'No']) }; },
-    () => { const n = pick([4, 6, 8, 9, 10, 12, 14, 15]); return { questionText: `Is ${n} a prime number?`, answer: 'No', choices: makeStrChoices('No', ['Yes', 'No']) }; },
+    // F1/C7: these were true/false, which rendered only 2 options in a grid
+    // built for 4 and reduced a guess from 25% to 50%. Reframed as "pick the
+    // prime", which tests the same understanding with four real options.
+    () => {
+      const primes = [2, 3, 5, 7, 11, 13, 17, 19];
+      const answer = pick(primes);
+      const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21].filter(n => n !== answer);
+      return {
+        questionText: `Which of these is a prime number?\n(prime = only 2 factors)`,
+        answer,
+        choices: shuffleArr([answer, ...shuffleArr(composites).slice(0, 3)]),
+      };
+    },
+    () => {
+      const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18];
+      const answer = pick(composites);
+      const primes = [2, 3, 5, 7, 11, 13, 17, 19, 23];
+      return {
+        questionText: `Which of these is NOT a prime number?`,
+        answer,
+        choices: shuffleArr([answer, ...shuffleArr(primes).slice(0, 3)]),
+      };
+    },
   ];
   const medium: TQ[] = [
     () => { const a = pick([6, 8, 10, 12, 15, 18, 20, 24]); const b = pick([4, 6, 9, 10, 12, 15, 18]); const g = gcd(a, b); return { questionText: `What is the HCF of ${a} and ${b}?`, answer: g, choices: makeIntChoices(g) }; },
@@ -96,7 +123,7 @@ export function genGeometry(cls: SchoolClass, diff: Difficulty): Question {
   const medium: TQ[] = [
     () => { const a = ri(3, 12); const b = ri(2, 10); return { questionText: `Area of a rectangle ${a} × ${b} = ?`, answer: a * b, choices: makeIntChoices(a * b) }; },
     () => { const a = ri(3, 12); const b = ri(2, 10); return { questionText: `Perimeter of a rectangle ${a} × ${b} = ?`, answer: 2 * (a + b), choices: makeIntChoices(2 * (a + b)) }; },
-    () => { const b = ri(4, 14); const h = ri(3, 10); return { questionText: `Area of a triangle, base ${b}, height ${h}:\n(½ × base × height) = ?`, answer: (b * h) / 2, choices: makeIntChoices((b * h) / 2) }; },
+    () => { const b = ri(2, 7) * 2; const h = ri(3, 10); return { questionText: `Area of a triangle, base ${b}, height ${h}:\n(½ × base × height) = ?`, answer: (b * h) / 2, choices: makeIntChoices((b * h) / 2) }; },
     () => ({ questionText: 'Angles in a quadrilateral add up to ___°?', answer: 360, choices: makeIntChoices(360) }),
   ];
   const hard: TQ[] = [
@@ -118,14 +145,14 @@ export function genPercentages(cls: SchoolClass, diff: Difficulty): Question {
     () => { const n = pick([10, 20, 30, 50, 100, 200]); return { questionText: `10% of ${n} = ?`, answer: n / 10, choices: makeIntChoices(n / 10) }; },
   ];
   const medium: TQ[] = [
-    () => { const n = pick([20, 40, 50, 60, 80, 100]); const p = pick([25, 75]); return { questionText: `${p}% of ${n} = ?`, answer: p * n / 100, choices: makeIntChoices(p * n / 100) }; },
-    () => { const n = pick([10, 20, 50, 100]); const k = pick([2, 5, 4, 1]); return { questionText: `What % of ${n} is ${k}?`, answer: k / n * 100, choices: makeIntChoices(k / n * 100) }; },
-    () => { const n = pick([40, 60, 80, 100, 120, 200]); const p = pick([5, 15, 25]); return { questionText: `${p}% of ${n} = ?`, answer: p * n / 100, choices: makeIntChoices(p * n / 100) }; },
+    () => { const p = pick([25, 75]); const n = cleanPercentBase(p, 200); return { questionText: `${p}% of ${n} = ?`, answer: p * n / 100, choices: makeIntChoices(p * n / 100) }; },
+    () => { const n = pick([10, 20, 50, 100]); const pctChoices = [10, 20, 25, 50].filter(q => (q * n) % 100 === 0); const p = pick(pctChoices.length ? pctChoices : [50]); const k = (p * n) / 100; return { questionText: `What % of ${n} is ${k}?`, answer: p, choices: makeIntChoices(p) }; },
+    () => { const p = pick([5, 15, 25]); const n = cleanPercentBase(p, 300); return { questionText: `${p}% of ${n} = ?`, answer: p * n / 100, choices: makeIntChoices(p * n / 100) }; },
   ];
   const hard: TQ[] = [
-    () => { const n = pick([50, 100, 200, 400]); const p = pick([15, 35, 45, 65]); return { questionText: `${p}% of ${n} = ?`, answer: p * n / 100, choices: makeIntChoices(p * n / 100) }; },
-    () => { const n = pick([50, 80, 100, 120, 200]); const p = pick([10, 20, 25]); return { questionText: `Increase ${n} by ${p}% = ?`, answer: n + p * n / 100, choices: makeIntChoices(n + p * n / 100) }; },
-    () => { const n = pick([60, 80, 100, 120, 200]); const p = pick([10, 20, 25]); return { questionText: `Decrease ${n} by ${p}% = ?`, answer: n - p * n / 100, choices: makeIntChoices(n - p * n / 100) }; },
+    () => { const p = pick([15, 35, 45, 65]); const n = cleanPercentBase(p, 400); return { questionText: `${p}% of ${n} = ?`, answer: p * n / 100, choices: makeIntChoices(p * n / 100) }; },
+    () => { const p = pick([10, 20, 25]); const n = cleanPercentBase(p, 250); return { questionText: `Increase ${n} by ${p}% = ?`, answer: n + p * n / 100, choices: makeIntChoices(n + p * n / 100) }; },
+    () => { const p = pick([10, 20, 25]); const n = cleanPercentBase(p, 250); return { questionText: `Decrease ${n} by ${p}% = ?`, answer: n - p * n / 100, choices: makeIntChoices(n - p * n / 100) }; },
   ];
   return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();
 }
@@ -156,14 +183,14 @@ export function genRatio(cls: SchoolClass, diff: Difficulty): Question {
   type TQ = () => Question;
   const easy: TQ[] = [
     () => { const g = ri(2, 5); const mA = ri(1, 4); const mB = mA < 4 ? ri(mA + 1, 4) : ri(1, mA - 1); const a = g * mA; const b = g * mB; return { questionText: `Simplify ${a}:${b}.\nThe simplified ratio is ${a / g}:?`, answer: b / g, choices: makeIntChoices(b / g) }; },
-    () => { const a = ri(2, 5); const b = ri(2, 5); const total = (a + b) * ri(2, 5); return { questionText: `Ratio ${a}:${b}, total = ${total}.\nSmaller part = ?`, answer: Math.min(a, b) / (a + b) * total, choices: makeIntChoices(Math.min(a, b) / (a + b) * total) }; },
+    () => { const a = ri(2, 5); const b = ri(2, 5); const total = (a + b) * ri(2, 5); return { questionText: `Ratio ${a}:${b}, total = ${total}.\nSmaller part = ?`, answer: Math.round((Math.min(a, b) * total) / (a + b)), choices: makeIntChoices(Math.round((Math.min(a, b) * total) / (a + b))) }; },
   ];
   const medium: TQ[] = [
     () => { const cost = ri(2, 8); const n = ri(2, 6); let ask = ri(2, 8); if (ask === n) ask = ask < 8 ? ask + 1 : ask - 1; return { questionText: `${n} pens cost €${n * cost}.\nHow much do ${ask} pens cost?`, answer: ask * cost, choices: makeIntChoices(ask * cost) }; },
-    () => { const a = ri(2, 5); let b = ri(2, 5); if (a === b) b = b < 5 ? b + 1 : b - 1; const total = (a + b) * ri(3, 6); return { questionText: `Divide ${total} in ratio ${a}:${b}.\nLarger share = ?`, answer: Math.max(a, b) / (a + b) * total, choices: makeIntChoices(Math.max(a, b) / (a + b) * total) }; },
+    () => { const a = ri(2, 5); let b = ri(2, 5); if (a === b) b = b < 5 ? b + 1 : b - 1; const total = (a + b) * ri(3, 6); return { questionText: `Divide ${total} in ratio ${a}:${b}.\nLarger share = ?`, answer: Math.round((Math.max(a, b) * total) / (a + b)), choices: makeIntChoices(Math.round((Math.max(a, b) * total) / (a + b))) }; },
   ];
   const hard: TQ[] = [
-    () => { const a = ri(3, 7); let b = ri(2, 6); if (a === b) b = b < 6 ? b + 1 : b - 1; const total = (a + b) * ri(4, 8); const larger = Math.max(a, b) / (a + b) * total; return { questionText: `Share €${total} in ratio ${a}:${b}.\nLarger share = €?`, answer: larger, choices: makeIntChoices(larger) }; },
+    () => { const a = ri(3, 7); let b = ri(2, 6); if (a === b) b = b < 6 ? b + 1 : b - 1; const total = (a + b) * ri(4, 8); const larger = Math.round((Math.max(a, b) * total) / (a + b)); return { questionText: `Share €${total} in ratio ${a}:${b}.\nLarger share = €?`, answer: larger, choices: makeIntChoices(larger) }; },
     () => { const scale = pick([100, 50, 200]); const map = ri(2, 10); return { questionText: `Scale 1:${scale}. Map length = ${map} cm.\nReal length = ___ cm?`, answer: map * scale, choices: makeIntChoices(map * scale) }; },
   ];
   return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();
@@ -174,18 +201,18 @@ export function genRatio(cls: SchoolClass, diff: Difficulty): Question {
 export function genIntegers(cls: SchoolClass, diff: Difficulty): Question {
   type TQ = () => Question;
   const easy: TQ[] = [
-    () => { const a = -ri(1, 5); const b = ri(-a + 1, 10); return { questionText: `${a} + ${b} = ?`, answer: a + b, choices: makeIntChoices(a + b) }; },
+    () => { const a = -ri(1, 5); const b = ri(-a + 1, 10); return { questionText: `${a} + ${b} = ?`, answer: a + b, choices: makeIntChoices(a + b, { allowNegative: true }) }; },
     () => { const n = ri(1, 10); return { questionText: `|−${n}| = ?  (absolute value)`, answer: n, choices: makeIntChoices(n) }; },
     () => { const a = ri(1, 9); const b = ri(a + 1, 15); return { questionText: `Which is colder: −${a}°C or −${b}°C?`, answer: -b, choices: shuffleArr([-a, -b, a, b]) }; },
   ];
   const medium: TQ[] = [
-    () => { const a = -ri(3, 10); const b = -ri(3, 10); return { questionText: `${a} + ${b} = ?`, answer: a + b, choices: makeIntChoices(a + b) }; },
-    () => { const a = ri(2, 10); const b = ri(a + 1, 15); return { questionText: `${a} − ${b} = ?`, answer: a - b, choices: makeIntChoices(a - b) }; },
-    () => { const a = -ri(2, 8); const b = ri(2, 8); return { questionText: `${a} − ${b} = ?`, answer: a - b, choices: makeIntChoices(a - b) }; },
+    () => { const a = -ri(3, 10); const b = -ri(3, 10); return { questionText: `${a} + ${b} = ?`, answer: a + b, choices: makeIntChoices(a + b, { allowNegative: true }) }; },
+    () => { const a = ri(2, 10); const b = ri(a + 1, 15); return { questionText: `${a} − ${b} = ?`, answer: a - b, choices: makeIntChoices(a - b, { allowNegative: true }) }; },
+    () => { const a = -ri(2, 8); const b = ri(2, 8); return { questionText: `${a} − ${b} = ?`, answer: a - b, choices: makeIntChoices(a - b, { allowNegative: true }) }; },
   ];
   const hard: TQ[] = [
-    () => { const a = -ri(2, 8); const b = ri(2, 8); return { questionText: `${a} × ${b} = ?`, answer: a * b, choices: makeIntChoices(a * b) }; },
-    () => { const a = -ri(2, 6); const b = -ri(2, 6); return { questionText: `${a} × ${b} = ?`, answer: a * b, choices: makeIntChoices(a * b) }; },
+    () => { const a = -ri(2, 8); const b = ri(2, 8); return { questionText: `${a} × ${b} = ?`, answer: a * b, choices: makeIntChoices(a * b, { allowNegative: true }) }; },
+    () => { const a = -ri(2, 6); const b = -ri(2, 6); return { questionText: `${a} × ${b} = ?`, answer: a * b, choices: makeIntChoices(a * b, { allowNegative: true }) }; },
     () => { const a = ri(2, 8); const b = -ri(2, 5); return { questionText: `${a * b} ÷ ${b} = ?`, answer: a, choices: makeIntChoices(a) }; },
   ];
   return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();
