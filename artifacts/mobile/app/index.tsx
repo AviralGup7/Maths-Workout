@@ -8,13 +8,15 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { DAILY_GOAL } from '@/context/GameContext';
 
 const C = colors.light;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { loadAll, progressStats, highScores, savedMistakes } = useGame();
+  const { loadAll, progressStats, highScores, savedMistakes,
+          streak, answeredToday, startAdaptiveSession, selectedClass } = useGame();
 
   useEffect(() => { loadAll(); }, []);
 
@@ -56,6 +58,29 @@ export default function HomeScreen() {
           <Text style={styles.tagline}>Train your mental arithmetic every day</Text>
         </View>
 
+        {/* Streak and daily goal — the habit loop */}
+        <View style={styles.streakRow}>
+          <View style={styles.streakBox}>
+            <Feather name="zap" size={15} color={C.gold} />
+            <Text style={styles.streakNum}>{streak}</Text>
+            <Text style={styles.streakLbl}>day{streak === 1 ? '' : 's'}</Text>
+          </View>
+          <View style={styles.goalBox}>
+            <View style={styles.goalTop}>
+              <Text style={styles.goalLbl}>Today's goal</Text>
+              <Text style={styles.goalNum}>
+                {Math.min(answeredToday, DAILY_GOAL)}/{DAILY_GOAL}
+              </Text>
+            </View>
+            <View style={styles.goalTrack}>
+              <View style={[styles.goalFill, {
+                width: `${Math.min(100, (answeredToday / DAILY_GOAL) * 100)}%` as unknown as number,
+                backgroundColor: answeredToday >= DAILY_GOAL ? C.easy : C.primary,
+              }]} />
+            </View>
+          </View>
+        </View>
+
         {/* Mistake review shortcut — shown when there are saved mistakes */}
         {savedMistakes.length > 0 && (
           <TouchableOpacity
@@ -78,12 +103,23 @@ export default function HomeScreen() {
 
         {/* Quick action cards */}
         <View style={styles.quickRow}>
-          <TouchableOpacity style={[styles.quickCard, styles.quickCardPrimary]} onPress={handleStart} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={[styles.quickCard, styles.quickCardPrimary]}
+            onPress={() => {
+              // Direction C: the scheduler picks what to practise, so the
+              // learner is not asked to judge their own weak areas.
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              startAdaptiveSession(selectedClass, '10q');
+              router.push('/game');
+            }}
+            onLongPress={handleStart}
+            activeOpacity={0.85}
+          >
             <View style={styles.quickIconBox}>
-              <Feather name="play" size={22} color="#fff" />
+              <Feather name="zap" size={22} color="#fff" />
             </View>
-            <Text style={styles.quickCardTitle}>Start Practice</Text>
-            <Text style={styles.quickCardSub}>6 classes · 6 topics</Text>
+            <Text style={styles.quickCardTitle}>Smart Practice</Text>
+            <Text style={styles.quickCardSub}>Picks what you need · hold to choose</Text>
           </TouchableOpacity>
 
           <View style={styles.quickCol}>
@@ -173,6 +209,24 @@ const styles = StyleSheet.create({
   tagline: { fontSize: 14, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
 
   quickRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  streakRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  streakBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: C.gold + '18', borderWidth: 1, borderColor: C.gold + '44',
+    borderRadius: 12, paddingHorizontal: 13, paddingVertical: 10,
+  },
+  streakNum: { fontSize: 17, fontFamily: 'Inter_700Bold', color: C.gold },
+  streakLbl: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
+  goalBox: {
+    flex: 1, justifyContent: 'center', backgroundColor: C.card,
+    borderWidth: 1, borderColor: C.border, borderRadius: 12,
+    paddingHorizontal: 13, paddingVertical: 10, gap: 7,
+  },
+  goalTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  goalLbl: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
+  goalNum: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: C.foreground },
+  goalTrack: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
+  goalFill: { height: 5, borderRadius: 3 },
   quickCardPrimary: {
     flex: 1.4, backgroundColor: C.primary, borderRadius: 20, padding: 18,
     justifyContent: 'flex-end', minHeight: 150,

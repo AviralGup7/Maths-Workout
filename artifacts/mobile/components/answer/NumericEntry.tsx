@@ -1,0 +1,143 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import colors from '@/constants/colors';
+
+const C = colors.light;
+
+/**
+ * Numeric keypad entry.
+ *
+ * A custom keypad rather than the OS keyboard: the layout is predictable for
+ * children, there is no autocorrect or emoji row, and it cannot be dismissed
+ * accidentally mid-question.
+ *
+ * Deliberately does NOT auto-submit on digit count — a child typing "12" for a
+ * single-digit answer must not be graded after the first keystroke.
+ */
+export function NumericEntry({
+  allowDecimal,
+  allowNegative,
+  unit,
+  locked,
+  correctAnswer,
+  wasCorrect,
+  onSubmit,
+}: {
+  allowDecimal: boolean;
+  allowNegative: boolean;
+  unit?: string;
+  locked: boolean;
+  correctAnswer: string;
+  wasCorrect: boolean | null;
+  onSubmit: (value: string) => void;
+}) {
+  const [value, setValue] = useState('');
+
+  // Clear the field whenever a new question is presented.
+  useEffect(() => { if (!locked) setValue(''); }, [locked]);
+
+  const press = (key: string) => {
+    if (locked) return;
+    Haptics.selectionAsync();
+    if (key === 'del') { setValue(v => v.slice(0, -1)); return; }
+    if (key === '.') {
+      if (!allowDecimal || value.includes('.')) return;
+      setValue(v => (v === '' ? '0.' : v + '.'));
+      return;
+    }
+    if (key === '-') {
+      if (!allowNegative) return;
+      setValue(v => (v.startsWith('-') ? v.slice(1) : '-' + v));
+      return;
+    }
+    // Cap length so the display cannot overflow.
+    if (value.replace('-', '').replace('.', '').length >= 6) return;
+    setValue(v => v + key);
+  };
+
+  const submit = () => {
+    if (locked || value === '' || value === '-') return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onSubmit(value);
+  };
+
+  // After grading, show what the learner entered alongside the truth.
+  const display = locked && !wasCorrect ? value || '—' : value;
+  const tone = locked ? (wasCorrect ? C.correct : C.wrong) : C.foreground;
+
+  const keys = ['1','2','3','4','5','6','7','8','9', allowDecimal ? '.' : (allowNegative ? '-' : ''), '0', 'del'];
+
+  return (
+    <View style={styles.wrap}>
+      <View style={[styles.display, locked && { borderColor: tone }]}>
+        <Text style={[styles.value, { color: tone }]} numberOfLines={1} adjustsFontSizeToFit>
+          {display || ' '}
+        </Text>
+        {!!unit && <Text style={styles.unit}>{unit}</Text>}
+      </View>
+
+      {locked && !wasCorrect && (
+        <Text style={styles.truth}>
+          Answer: <Text style={{ color: C.correct, fontFamily: 'Inter_700Bold' }}>{correctAnswer}</Text>
+        </Text>
+      )}
+
+      <View style={styles.pad}>
+        {keys.map((k, i) =>
+          k === '' ? <View key={i} style={styles.key} /> : (
+            <TouchableOpacity
+              key={i}
+              style={[styles.key, k === 'del' && styles.keyMuted]}
+              onPress={() => press(k)}
+              disabled={locked}
+              activeOpacity={0.7}
+              accessibilityLabel={k === 'del' ? 'Delete' : k}
+            >
+              {k === 'del'
+                ? <Feather name="delete" size={20} color={C.mutedForeground} />
+                : <Text style={styles.keyText}>{k}</Text>}
+            </TouchableOpacity>
+          ),
+        )}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.submit, (locked || value === '') && styles.submitOff]}
+        onPress={submit}
+        disabled={locked || value === ''}
+        activeOpacity={0.85}
+        accessibilityLabel="Check answer"
+      >
+        <Feather name="check" size={18} color="#fff" />
+        <Text style={styles.submitText}>Check</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: { gap: 10 },
+  display: {
+    flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 6,
+    minHeight: 62, borderRadius: 14, borderWidth: 2, borderColor: C.border,
+    backgroundColor: C.card, paddingHorizontal: 18, paddingVertical: 10,
+  },
+  value: { fontSize: 34, fontFamily: 'Inter_700Bold', color: C.foreground, letterSpacing: 1 },
+  unit: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
+  truth: { textAlign: 'center', fontSize: 12.5, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
+  pad: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
+  key: {
+    width: '31.5%', height: 54, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+  },
+  keyMuted: { backgroundColor: C.secondary },
+  keyText: { fontSize: 22, fontFamily: 'Inter_600SemiBold', color: C.foreground },
+  submit: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    height: 50, borderRadius: 13, backgroundColor: C.primary,
+  },
+  submitOff: { opacity: 0.4 },
+  submitText: { fontSize: 15, fontFamily: 'Inter_700Bold', color: '#fff' },
+});

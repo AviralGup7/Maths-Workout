@@ -2,6 +2,8 @@
 
 export * from './types';
 export * from './helpers';
+export * from './interactions';
+export * from './topics-interactive';
 
 import { SchoolClass, Difficulty, Category, Question, ClassConfig } from './types';
 import { pick } from './helpers';

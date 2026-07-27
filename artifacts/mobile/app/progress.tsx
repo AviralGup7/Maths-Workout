@@ -6,6 +6,8 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, SchoolClass, Category } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { SKILLS } from '@/learning/skills';
+import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from '@/learning/mastery';
 
 const C = colors.light;
 const CATS: Category[] = ['addition', 'subtraction', 'multiplication', 'division', 'mixed'];
@@ -13,7 +15,8 @@ const CATS: Category[] = ['addition', 'subtraction', 'multiplication', 'division
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router  = useRouter();
-  const { progressStats, getHighScore, tablesBest, savedMistakes } = useGame();
+  const { progressStats, getHighScore, tablesBest, savedMistakes,
+          mastery, topMisconceptions, rootGapFor, streak } = useGame();
 
   const [filterClass, setFilterClass] = useState<SchoolClass | 'all'>('all');
 
@@ -50,6 +53,16 @@ export default function ProgressScreen() {
   const tablesPerfect = Object.values(tablesBest).filter(v => v === 12).length;
   const tablesTotal   = Object.keys(tablesBest).length;
 
+  // ── Direction D: turn raw attempts into actionable insight ────────────────
+  const insights = useMemo(() => topMisconceptions().slice(0, 3), [topMisconceptions]);
+
+  const skillRows = useMemo(() => {
+    return Object.values(mastery)
+      .filter(m => m.attempts >= 3 && SKILLS[m.skill])
+      .sort((a, b) => a.value - b.value)
+      .slice(0, 6);
+  }, [mastery]);
+
   return (
     <View style={[styles.container, { paddingTop: top }]}>
       <View style={styles.header}>
@@ -64,6 +77,67 @@ export default function ProgressScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: bot + 24 }]} showsVerticalScrollIndicator={false}>
+
+        {/* What to work on — named misconceptions with concrete next steps.
+            This is the difference between "68% correct" and knowing *why*. */}
+        {insights.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>WHAT TO WORK ON</Text>
+            <View style={styles.insightCard}>
+              {insights.map(({ id, count, info }) => (
+                <View key={id} style={styles.insightRow}>
+                  <View style={styles.insightBadge}>
+                    <Text style={styles.insightCount}>{count}×</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.insightTitle}>{info.label}</Text>
+                    <Text style={styles.insightBody}>{info.explanation}</Text>
+                    <View style={styles.insightFix}>
+                      <Feather name="arrow-right" size={11} color={C.easy} />
+                      <Text style={styles.insightFixText}>{info.remediation}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Per-skill mastery, weakest first, with the root cause where known. */}
+        {skillRows.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { marginTop: 20 }]}>SKILL MASTERY</Text>
+            <View style={styles.insightCard}>
+              {skillRows.map(m => {
+                const pct = Math.round(m.value * 100);
+                const tone = m.value >= MASTERED_THRESHOLD ? C.easy
+                           : m.value >= STRUGGLING_THRESHOLD ? C.medium : C.hard;
+                const gap = rootGapFor(m.skill);
+                return (
+                  <View key={m.skill} style={styles.skillRow}>
+                    <View style={styles.skillTop}>
+                      <Text style={styles.skillName} numberOfLines={1}>{SKILLS[m.skill].label}</Text>
+                      <Text style={[styles.skillPct, { color: tone }]}>{pct}%</Text>
+                    </View>
+                    <View style={styles.skillTrack}>
+                      <View style={[styles.skillFill, { width: `${pct}%` as unknown as number, backgroundColor: tone }]} />
+                    </View>
+                    {gap && SKILLS[gap] && (
+                      <Text style={styles.skillGap}>
+                        Likely cause: {SKILLS[gap].label} needs work first
+                      </Text>
+                    )}
+                    {m.trend !== 0 && Math.abs(m.trend) > 0.15 && (
+                      <Text style={[styles.skillTrend, { color: m.trend > 0 ? C.easy : C.medium }]}>
+                        {m.trend > 0 ? '▲ improving' : '▼ slipping'}
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         {/* Empty state */}
         {totalAtt === 0 && (
@@ -221,6 +295,25 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
+  insightCard: { backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border, padding: 14, gap: 16 },
+  insightRow: { flexDirection: 'row', gap: 11, alignItems: 'flex-start' },
+  insightBadge: {
+    minWidth: 34, height: 24, borderRadius: 7, backgroundColor: C.hard + '22',
+    alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
+  },
+  insightCount: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: C.hard },
+  insightTitle: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: C.foreground, marginBottom: 3 },
+  insightBody: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
+  insightFix: { flexDirection: 'row', gap: 5, alignItems: 'flex-start', marginTop: 6 },
+  insightFixText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_500Medium', color: C.easy, lineHeight: 16 },
+  skillRow: { gap: 5 },
+  skillTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
+  skillName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.foreground },
+  skillPct: { fontSize: 13, fontFamily: 'Inter_700Bold' },
+  skillTrack: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
+  skillFill: { height: 5, borderRadius: 3 },
+  skillGap: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.medium, marginTop: 1 },
+  skillTrend: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold' },
   container: { flex: 1, backgroundColor: C.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
   backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },

@@ -20,6 +20,19 @@ export interface Question {
   choices: ChoiceValue[];
   /** Actual category used when 'mixed' was selected */
   resolvedCategory?: Category;
+  /**
+   * Maps a wrong choice to the misconception that produces it.
+   * Populated by generators that use diagnostic distractors, so a wrong answer
+   * identifies the faulty rule the learner applied rather than merely being
+   * marked incorrect. Key is String(choice).
+   */
+  distractorMap?: Record<string, string>;
+  /**
+   * How this question is answered. Absent means multiple choice, so every
+   * pre-existing generator keeps working unchanged.
+   * See generators/interactions.ts and docs/10-question-engine-evolution.md.
+   */
+  interaction?: import('./interactions').Interaction;
 }
 
 export interface WrongAnswer {

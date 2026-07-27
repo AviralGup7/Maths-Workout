@@ -8,8 +8,22 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, ChoiceValue } from '@/context/GameContext';
 import colors from '@/constants/colors';
+import { MISCONCEPTIONS } from '@/learning/misconceptions';
+import { AnswerSurface } from '@/components/answer/AnswerSurface';
+import { grade, expectedAnswer } from '@/generators/interactions';
 
 const PER_Q_SECS = 15;
+/**
+ * Constructed-response questions (typing, selecting a set, building a sequence)
+ * take substantially longer than tapping one of four tiles. Applying the same
+ * budget would penalise the harder — and more valuable — modality.
+ */
+const CONSTRUCTED_SECS = 45;
+/** Seconds allowed for a question, by interaction type. */
+function secondsFor(q?: { interaction?: { kind: string } }): number {
+  const kind = q?.interaction?.kind;
+  return !kind || kind === 'choice' ? PER_Q_SECS : CONSTRUCTED_SECS;
+}
 const BLITZ_SECS = 60;
 const C = colors.light;
 
@@ -30,18 +44,23 @@ export default function GameScreen() {
     questions, currentIndex, totalQuestions, sessionType,
     submitAnswer, nextQuestion, endGame, isGameOver,
     score, selectedClass, selectedCategory, isTablesMode,
-    saveProgressStats, saveScore, wrongAnswers,
+    saveProgressStats, saveScore, wrongAnswers, recordAttempt,
   } = useGame();
 
   const isBlitz = sessionType === 'timed60' && !isTablesMode;
 
   const [answerState,    setAnswerState]    = useState<AnswerState>('idle');
-  const [selectedChoice, setSelectedChoice] = useState<ChoiceValue | null>(null);
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [perQLocked,     setPerQLocked]     = useState(false);
   const [perQTime,       setPerQTime]       = useState(PER_Q_SECS);
+  const [perQBudget,     setPerQBudget]     = useState(PER_Q_SECS);
   const [blitzTime,      setBlitzTime]      = useState(BLITZ_SECS);
 
   const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** When the current question was first shown — used to measure response latency. */
+  const shownAtRef    = useRef<number>(Date.now());
+  /** Misconception detected for the current question, surfaced as a hint. */
+  const [diagnosis, setDiagnosis] = useState<string | null>(null);
   const shakeAnimRef  = useRef<Animated.Value | null>(null);
   const fadeAnimRef   = useRef<Animated.Value | null>(null);
   const scaleAnimRef  = useRef<Animated.Value | null>(null);
@@ -52,7 +71,10 @@ export default function GameScreen() {
   const currentQuestion = questions[currentIndex];
   const classConfig     = CLASS_CONFIGS.find(c => c.key === selectedClass);
   const classColor      = classConfig?.color ?? C.primary;
-  const catMeta         = isTablesMode ? CATEGORY_META['tables'] : CATEGORY_META[selectedCategory];
+  // In adaptive and Mixed sessions the topic changes per question, so label the
+  // question actually on screen rather than the session's nominal category.
+  const activeCategory  = currentQuestion?.resolvedCategory ?? selectedCategory;
+  const catMeta         = isTablesMode ? CATEGORY_META['tables'] : CATEGORY_META[activeCategory];
 
   // ─── Timers ───────────────────────────────────────────────────────────────
 
@@ -73,12 +95,21 @@ export default function GameScreen() {
 
   const handleTimeUp = useCallback(() => {
     if (perQLocked) return;
+    const q = questions[currentIndex];
     setPerQLocked(true);
     setAnswerState('wrong');
-    saveProgressStats(false);
+    // C12: pass the resolved category so Mixed sessions attribute the miss to
+    // the real topic rather than to the literal category "mixed".
+    saveProgressStats(false, q?.resolvedCategory);
+    if (q) {
+      recordAttempt({
+        question: q, chosen: '', correct: false,
+        latencyMs: Date.now() - shownAtRef.current, timedOut: true,
+      });
+    }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     shake(() => setTimeout(advanceQuestion, 600));
-  }, [perQLocked]); // eslint-disable-line
+  }, [perQLocked, questions, currentIndex]); // eslint-disable-line
 
   useEffect(() => {
     if (isBlitz || perQLocked) return;
@@ -94,6 +125,14 @@ export default function GameScreen() {
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [currentIndex, perQLocked, isBlitz]); // eslint-disable-line
+
+  // Restart the latency clock and the time budget whenever a question is shown.
+  useEffect(() => {
+    shownAtRef.current = Date.now();
+    const budget = secondsFor(questions[currentIndex]);
+    setPerQBudget(budget);
+    setPerQTime(budget);
+  }, [currentIndex, questions]);
 
   useEffect(() => {
     if (isGameOver) router.replace('/results');
@@ -120,7 +159,10 @@ export default function GameScreen() {
       setAnswerState('idle');
       setSelectedChoice(null);
       setPerQLocked(false);
-      setPerQTime(PER_Q_SECS);
+      setPerQTime(secondsFor(questions[currentIndex + 1]));
+      setPerQBudget(secondsFor(questions[currentIndex + 1]));
+      setDiagnosis(null);
+      shownAtRef.current = Date.now();
       Animated.parallel([
         Animated.timing(fadeAnim,  { toValue: 1, duration: 180, useNativeDriver: true }),
         Animated.timing(scaleAnim, { toValue: 1, duration: 180, useNativeDriver: true }),
@@ -130,13 +172,32 @@ export default function GameScreen() {
 
   // ─── Answer handler ───────────────────────────────────────────────────────
 
-  const handleChoice = (choice: ChoiceValue) => {
+  /**
+   * Handle a submitted answer from any interaction surface.
+   *
+   * The surface has already normalised its answer to a comparable string, so
+   * this path is identical for tapping a tile, typing on a keypad, selecting a
+   * set or building a sequence.
+   */
+  const handleSubmit = (normalised: string) => {
     if (perQLocked || !currentQuestion) return;
     if (!isBlitz && timerRef.current) clearInterval(timerRef.current);
     setPerQLocked(true);
-    setSelectedChoice(choice);
-    const correct = submitAnswer(choice);
+    setSelectedChoice(normalised);
+
+    const latencyMs = Date.now() - shownAtRef.current;
+    const correct = grade(currentQuestion, normalised);
+
+    // Pass the grade explicitly: composite answers ("2,3,6") cannot be
+    // compared against q.answer by the store's simple string equality.
+    submitAnswer(normalised, correct);
     saveProgressStats(correct, currentQuestion.resolvedCategory);
+
+    // Direction D: capture what was chosen and diagnose the underlying error.
+    const found = recordAttempt({
+      question: currentQuestion, chosen: normalised, correct, latencyMs, timedOut: false,
+    });
+    setDiagnosis(correct ? null : found);
     setAnswerState(correct ? 'correct' : 'wrong');
 
     if (correct) {
@@ -147,7 +208,10 @@ export default function GameScreen() {
       ]).start(() => setTimeout(advanceQuestion, isBlitz ? 300 : 450));
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      shake(() => setTimeout(advanceQuestion, isBlitz ? 400 : 600));
+      // Non-choice surfaces reveal the correct answer, so allow longer to read it.
+      const pause = currentQuestion.interaction && currentQuestion.interaction.kind !== 'choice'
+        ? 1500 : (isBlitz ? 400 : 600);
+      shake(() => setTimeout(advanceQuestion, pause));
     }
   };
 
@@ -158,7 +222,7 @@ export default function GameScreen() {
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
 
-  const timerPct   = isBlitz ? blitzTime / BLITZ_SECS : perQTime / PER_Q_SECS;
+  const timerPct   = isBlitz ? blitzTime / BLITZ_SECS : perQTime / perQBudget;
   const timerVal   = isBlitz ? blitzTime : perQTime;
   const timerColor = timerPct > 0.5 ? C.easy : timerPct > 0.25 ? C.medium : C.hard;
 
@@ -269,30 +333,41 @@ export default function GameScreen() {
       </Animated.View>
 
       {/* Answer grid */}
-      <View style={[styles.grid, hasStringChoices && styles.gridText]}>
-        {currentQuestion.choices.map((choice, i) => (
-          <TouchableOpacity
-            key={i}
-            style={choiceStyle(choice) as any}
-            onPress={() => handleChoice(choice)}
-            activeOpacity={0.75}
-            disabled={perQLocked}
-          >
-            <Text style={[
-              styles.choiceText,
-              { fontSize: choiceFontSize, color: choiceTextColor(choice) },
-            ]}>
-              {formatChoice(choice)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Answer surface — dispatches on interaction type. The screen itself
+          stays agnostic: timing, scoring, feedback and diagnosis are shared. */}
+      <AnswerSurface
+        question={currentQuestion}
+        locked={perQLocked}
+        wasCorrect={answerState === 'idle' ? null : answerState === 'correct'}
+        selectedChoice={selectedChoice}
+        onSubmit={handleSubmit}
+      />
+
+      {/* Direction D — explain *why* the answer was wrong, not merely that it was.
+          Shown only when a specific misconception was identified. */}
+      {diagnosis && MISCONCEPTIONS[diagnosis] && (
+        <View style={styles.diagnosisBox} accessibilityLiveRegion="polite">
+          <Feather name="info" size={14} color={C.medium} style={{ marginTop: 1 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.diagnosisTitle}>{MISCONCEPTIONS[diagnosis].label}</Text>
+            <Text style={styles.diagnosisText}>{MISCONCEPTIONS[diagnosis].explanation}</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 18 },
+  diagnosisBox: {
+    flexDirection: 'row', gap: 9, alignItems: 'flex-start',
+    marginTop: 12, padding: 12,
+    backgroundColor: C.medium + '18', borderRadius: 12,
+    borderWidth: 1, borderColor: C.medium + '44',
+  },
+  diagnosisTitle: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: C.medium, marginBottom: 2 },
+  diagnosisText:  { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, gap: 8 },
   xBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   topMid: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 6 },
