@@ -328,6 +328,24 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
       'Ask "should this be bigger or smaller than what I started with?" before deciding.',
     skills: ['numsense.reasonable'],
   },
+  'patterns.additive-only': {
+    id: 'patterns.additive-only',
+    label: 'Assuming every pattern adds the same amount',
+    explanation:
+      'The sequence was continued by adding a constant, but this pattern grows in a different way — by doubling, or by a gap that itself increases.',
+    remediation:
+      'Write the gaps between the terms underneath. If the gaps are not equal, the rule is not simple addition.',
+    skills: ['patterns.basic'],
+  },
+  'symmetry.miscounts-lines': {
+    id: 'symmetry.miscounts-lines',
+    label: 'Missing lines of symmetry',
+    explanation:
+      'Only the obvious vertical and horizontal folds were counted — regular shapes also fold along their diagonals.',
+    remediation:
+      'Imagine folding the shape so both halves match exactly, and try every direction, not just up-down and left-right.',
+    skills: ['symmetry.basic'],
+  },
   'guessing': {
     id: 'guessing',
     label: 'Answering without working',
@@ -570,6 +588,21 @@ export function diagnose(input: DiagnosisInput): string | null {
         return 'numsense.magnitude-blind';
       }
     }
+  }
+
+  // ── Patterns ───────────────────────────────────────────────────────────────
+  if (skill === 'patterns.basic' && operands.length >= 3 && numeric) {
+    // Continued with a constant step where the real rule grows.
+    const step = operands[1] - operands[0];
+    if (operands[operands.length - 1] + step === got && got !== exp) {
+      return 'patterns.additive-only';
+    }
+  }
+
+  // ── Symmetry ───────────────────────────────────────────────────────────────
+  if (skill === 'symmetry.basic' && numeric) {
+    // Undercounting is the characteristic error: diagonals get missed.
+    if (got > 0 && got < exp) return 'symmetry.miscounts-lines';
   }
 
   // ── Money ──────────────────────────────────────────────────────────────────

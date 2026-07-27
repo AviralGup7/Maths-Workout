@@ -20,9 +20,9 @@ through as they land.
 | 6 | `PartModel` visual | docs/14 §2 | ✅ done |
 | 7 | `ArrayGrid` visual | docs/14 §2 | ✅ done |
 | 8 | `BaseTen` visual | docs/14 §2 | ✅ done |
-| 9 | Error-hunting questions (R2) | docs/14 §7 | ☐ |
-| 10 | Patterns strand | docs/14 §8 | ☐ |
-| 11 | Symmetry strand | docs/14 §8 | ☐ |
+| 9 | Error-hunting questions (R2) | docs/14 §7 | ✅ done |
+| 10 | Patterns strand | docs/14 §8 | ✅ done |
+| 11 | Symmetry strand | docs/14 §8 | ✅ done |
 | 12 | Confidence rating | docs/14 §5C | ☐ |
 | 13 | Parent weekly card | docs/14 §10 | ☐ |
 | 14 | XP ledger (`paidHighWater` persisted) | docs/16 A | ✅ done |
@@ -152,3 +152,84 @@ Currently illustrative mode only.
 **Bug caught in the browser:** `PartModel` reserved label space unconditionally,
 so a fraction bar lost a quarter of its height and collapsed into an unreadable
 strip. Now reserved only when a label is drawn.
+
+
+### Batch 2 — Group C (reasoning and coverage)
+
+**Tests 429 → 436.** Typecheck clean. Verified in Chromium.
+
+`generators/reasoning.ts` adds three strands, all live in the question stream:
+
+| strand | share of 27,000 sampled |
+|---|---|
+| error hunting (R2) | 0.15% (Class 3+, low by design) |
+| patterns | 0.83% |
+| symmetry | 0.81% |
+
+**Error hunting** generates its planted error from the existing misconception
+library, so the mistake shown is one children actually make. "Neither step" is
+always an option — without it the task degrades into "spot which of two" and a
+child could score 50% without evaluating anything.
+
+**Patterns** asks for the *rule*, not only the next term, from Class 4. A child
+can often continue `2, 4, 6, __` by ear without generalising, and generalisation
+is what transfers to algebra. `patterns.basic` is a prerequisite of
+`algebra.basic` for that reason.
+
+**Symmetry** is restricted to a fixed library of clean shapes. The circle is
+excluded: infinitely many lines of symmetry is not an answer a child can pick
+from four tiles, and giving it a finite one would be a lie.
+
+Diagnostic coverage held at **45/45** — the two new skills got misconceptions
+and Hindi copy in the same change.
+
+---
+
+## Three scheduler bugs found at curriculum scale
+
+Growing the graph from 41 to 45 skills exposed three latent defects. All three
+silently harmed the learner rather than failing loudly, which is the worst kind.
+Guarded now by `learning/__tests__/scheduler-scale.test.ts`.
+
+### B1 · A practised skill could vanish from the ranking
+
+The candidate set was built only from `resolveSkill` over the *current class's*
+categories, and `resolveSkill` maps each (class, category, difficulty) cell to
+one skill. Measured: `factors.basic` with **10 attempts and 0.06 mastery was
+absent from the ranking entirely** — a learner who met it through Mixed
+practice, a board change or a different class could never be scheduled to repair
+it. Any skill with real practice history is now a candidate.
+
+### B2 · New material was introduced in arbitrary order
+
+Every `new` skill shared priority 40, so the pool was round-robined in object
+order. Measured over 10 simulated days: a Class 4 learner's designated weak
+skill was introduced **zero times** — it sat at rank 26 of 31 forever. Now
+ordered by depth in the prerequisite graph, which is the order a curriculum
+should follow anyway. First reached on day 4 from a blank slate.
+
+### B3 · Expansion outran consolidation
+
+This one took four attempts and is worth recording honestly. A fixed
+"2 new skills per session" cap produced a strong learner who **touched 24 skills
+in 12 days and mastered one**. Removing the cap sent over-practice to 80%
+against a 25% ceiling. Weighting the focus pool by priority made concentration
+*worse* (63% → 34%), because ranking is dominated by `reason` rather than by
+weakness.
+
+The fix was a principle, not a constant: **do not open new material while
+existing material is unconsolidated.** The fresh budget is now a function of how
+many started-but-unmastered skills are in flight (≥6 open → 0 new).
+
+Measured after, all three simultaneously:
+
+| property | before | after |
+|---|---|---|
+| weak skill in session top-5 | 41% | **100%** |
+| weak skill vs average practice | 1.10× | **6.1×** |
+| strong learner: skills mastered in 12 days | 1 | **10** |
+| over-practice share | 0.80 | **0.25** (at cap) |
+
+A test fixture was also wrong: it seeded foundations but *excluded* the weak
+skill, modelling a learner who had never encountered the thing they were defined
+as bad at. A skill never met cannot be "weak" — it is unintroduced.

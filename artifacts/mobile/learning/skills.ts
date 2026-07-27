@@ -77,6 +77,13 @@ export const SKILLS: Record<SkillId, Skill> = {
   // that already exists, with no new routing code.
   'numsense.estimate':   { id: 'numsense.estimate',   label: 'Estimate before calculating',   prerequisites: ['numsense.compare'],   introducedIn: '2nd', category: 'number_sense' },
   'numsense.reasonable': { id: 'numsense.reasonable', label: 'Is the answer sensible?',       prerequisites: ['numsense.estimate'],  introducedIn: '3rd', category: 'number_sense' },
+
+  // ── Patterns (NCERT Ch. 1) and symmetry (Ch. 9) — docs/14 §8 ──────────────
+  // Patterns is a prerequisite of algebra: generalising a sequence is the entry
+  // point to algebraic reasoning, and NCERT places it as Chapter 1 for exactly
+  // that reason.
+  'patterns.basic':      { id: 'patterns.basic',      label: 'Number patterns',               prerequisites: ['numsense.compare'],   introducedIn: '1st', category: 'number_sense' },
+  'symmetry.basic':      { id: 'symmetry.basic',      label: 'Lines of symmetry',             prerequisites: ['shapes.basic'],       introducedIn: '3rd', category: 'shapes' },
   'placevalue':          { id: 'placevalue',          label: 'Place value',                   prerequisites: ['numsense.compare'],   introducedIn: '2nd', category: 'place_value' },
 
   // ── Fractions / decimals ───────────────────────────────────────────────────
@@ -94,7 +101,7 @@ export const SKILLS: Record<SkillId, Skill> = {
   'measurement.basic':   { id: 'measurement.basic',   label: 'Measurement and units',         prerequisites: ['placevalue'],         introducedIn: '2nd', category: 'measurement' },
   'data.basic':          { id: 'data.basic',          label: 'Mean, median, mode and range',  prerequisites: ['div.tables'],         introducedIn: '5th', category: 'data' },
   'integers.basic':      { id: 'integers.basic',      label: 'Positive and negative numbers', prerequisites: ['sub.3digit'],         introducedIn: '6th', category: 'integers' },
-  'algebra.basic':       { id: 'algebra.basic',       label: 'Find the unknown value',        prerequisites: ['mul.tables.full'],    introducedIn: '6th', category: 'algebra' },
+  'algebra.basic':       { id: 'algebra.basic',       label: 'Find the unknown value',        prerequisites: ['mul.tables.full', 'patterns.basic'], introducedIn: '6th', category: 'algebra' },
   'wordproblems':        { id: 'wordproblems',        label: 'Word problems',                 prerequisites: ['add.2digit.carry', 'mul.tables.mid', 'numsense.reasonable'], introducedIn: '3rd', category: 'word_problems' },
   'shapes.basic':        { id: 'shapes.basic',        label: 'Shapes',                        prerequisites: [],                     introducedIn: '1st', category: 'shapes' },
   'time.basic':          { id: 'time.basic',          label: 'Telling the time',              prerequisites: ['count.objects'],      introducedIn: '1st', category: 'time' },
@@ -159,7 +166,7 @@ export function resolveSkill(cls: SchoolClass, cat: Category, diff: Difficulty):
     case 'integers':      return 'integers.basic';
     case 'algebra':       return 'algebra.basic';
     case 'word_problems': return 'wordproblems';
-    case 'shapes':        return 'shapes.basic';
+    case 'shapes':        return diff === 'hard' ? 'symmetry.basic' : 'shapes.basic';
     case 'time':          return 'time.basic';
     case 'money':         return 'money.basic';
     // `mixed` is always resolved to a concrete category before reaching here.

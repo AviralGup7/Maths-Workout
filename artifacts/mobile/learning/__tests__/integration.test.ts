@@ -70,6 +70,40 @@ function simulateUnseeded(
   accuracyStrong: number,
 ): Attempt[] {
   let log: Attempt[] = [];
+
+  // Seed the foundations a learner of this class would already have.
+  //
+  // Previously these simulations started a Class 4 child from ZERO on all 45
+  // skills, which is not a Class 4 learner — it is a Class 1 learner
+  // mislabelled. With a small curriculum the distinction did not bite; once the
+  // graph grew past 40 skills it did, because the scheduler correctly spends
+  // early sessions on foundations before it reaches Class 4 material.
+  const foundations = [
+    'add.within10', 'add.within20', 'add.2digit.nocarry', 'add.2digit.carry',
+    'sub.within10', 'sub.within20', 'sub.2digit.noborrow', 'sub.2digit.borrow',
+    'mul.tables.easy', 'numsense.compare', 'placevalue', 'count.objects',
+    ...weak,
+  ].filter(s => SKILLS[s]);
+
+  if (['3rd', '4th', '5th', '6th'].includes(cls)) {
+    for (const skill of foundations) {
+      // Weak skills are seeded too, but with a poor record. A skill the learner
+      // has never met cannot be "avoided" or "weak" — it is simply unintroduced,
+      // and the scheduler correctly spends early sessions on foundations before
+      // reaching it. Excluding weak skills from the seed modelled a learner who
+      // had never encountered the thing they were defined as bad at.
+      const isWeak = weak.includes(skill);
+      for (let i = 0; i < 8; i++) {
+        log.push({
+          skill, correct: isWeak ? i < 2 : true,
+          answeredAt: START - 30 * DAY_MS + i * 60_000,
+          latencyMs: 4000, chosen: '1', expected: '1', questionText: 'seed',
+          timedOut: false, interaction: 'entry',
+          cls, category: SKILLS[skill].category, difficulty: 'medium',
+        });
+      }
+    }
+  }
   for (let d = 0; d < days; d++) {
     const dayStart = START + d * DAY_MS;
     const mastery = estimateAll(log, dayStart);
@@ -132,9 +166,11 @@ describe('the engine adapts to a struggling learner', () => {
       if (weakCount > median) concentrated++;
     }
 
-    // Comfortably below the ~86% measured rate, so this is a regression guard
-    // rather than a restatement of current noise.
-    expect(concentrated / RUNS).toBeGreaterThan(0.7);
+    // Measured at 100% across 300 seeds after the curriculum-order fix (the
+    // fresh pool is now introduced shallowest-first, so a weak skill is
+    // actually reached instead of sitting at rank 26 of 31 forever). Asserted
+    // at 0.8 to leave headroom for the deliberate interleaving variance.
+    expect(concentrated / RUNS).toBeGreaterThan(0.8);
   });
 
   it('keeps the weak skill on easy difficulty', () => {

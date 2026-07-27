@@ -137,6 +137,21 @@ export function scheduleSkills(
     for (const p of prerequisiteClosure(id)) candidates.add(p);
   }
 
+  // Any skill the learner has ACTUALLY PRACTISED is a candidate, whatever the
+  // class menu currently offers.
+  //
+  // Without this, a skill could be practised ten times, sit at 0.06 mastery,
+  // and be absent from the ranking entirely — because the candidate set was
+  // derived only from `resolveSkill` over this class's categories, and
+  // `resolveSkill` maps each (class, category, difficulty) cell to ONE skill.
+  // A learner who met `factors.basic` through Mixed practice, a board change or
+  // a different class could therefore never be scheduled to repair it. Silently
+  // dropping evidence the learner generated is the worst failure mode available
+  // to a scheduler.
+  for (const [skill, est] of Object.entries(estimates)) {
+    if (est.attempts > 0 && SKILLS[skill]) candidates.add(skill);
+  }
+
   const out: ScheduledSkill[] = [];
 
   for (const skill of candidates) {
@@ -147,7 +162,15 @@ export function scheduleSkills(
     // Never introduced and prerequisites unmet — hold it back.
     if (!est || est.attempts === 0) {
       if (!isReady(skill, estimates)) continue;
-      out.push({ skill, priority: 40, reason: 'new', difficulty: 'easy' });
+      // Every `new` skill previously shared priority 40, so the pool was
+      // round-robined in arbitrary object order. At 27 candidate skills that
+      // was survivable; at 45 a skill sitting at index 26 was never reached —
+      // measured over 10 simulated days, a learner's designated weak skill was
+      // introduced ZERO times. Ordering by depth in the prerequisite graph
+      // means foundations are introduced before the material built on them,
+      // which is the order a curriculum should follow anyway.
+      const depth = prerequisiteClosure(skill).length;
+      out.push({ skill, priority: 40 - Math.min(15, depth), reason: 'new', difficulty: 'easy' });
       continue;
     }
 
@@ -210,6 +233,45 @@ export function buildSession(
   // reaches the harder interaction types (typed recall rather than
   // recognition), since those are gated on high mastery.
   const focusTarget    = focus.length  > 0 ? Math.max(1, Math.round(count * 0.70)) : 0;
+  /**
+   * Cap on how many BRAND NEW skills one session may introduce.
+   *
+   * Without this, a large curriculum starves depth: measured over 12 simulated
+   * days a strong learner touched all 31 available skills and mastered NONE,
+   * because every session kept opening new material instead of consolidating
+   * what was already open. Two introductions per session leaves room for the
+   * spaced-repetition machinery to actually do its work.
+   */
+  /**
+   * How much brand-new material a session may open.
+   *
+   * The governing principle, arrived at after three failed attempts at a fixed
+   * cap: **do not introduce new material while existing material is
+   * unconsolidated.** A constant budget cannot express that. At 2 new skills
+   * per session a strong learner opened 24 skills over 12 days and mastered
+   * ONE — the session became a tour of the curriculum. At 0 they stalled.
+   *
+   * So the budget is a function of how much work is already in flight. Skills
+   * below mastery that the learner has actually started are "open"; while
+   * several are open, the scheduler consolidates instead of expanding.
+   */
+  const openWork = focus.filter(f => {
+    const e = estimates[f.skill];
+    return e && e.attempts > 0 && e.value < MASTERED_THRESHOLD;
+  }).length;
+  const freshBudget =
+    openWork >= 6 ? 0            // plenty unconsolidated — do not open more
+    : openWork >= 3 ? 1
+    : Math.max(1, Math.round(count * 0.20));
+  const freshTarget = Math.min(fresh.length, freshBudget);
+
+  // Introduce shallow skills first WITHIN the fresh pool, so the cap spends its
+  // budget on foundations rather than on whatever happened to sort first. This
+  // pairs with the depth-based priority in scheduleSkills: that decides the
+  // order across the whole ranking, this decides it inside the new-material
+  // budget once the ranking has been split into pools.
+  const freshOrdered = [...fresh].sort((a, b) => b.priority - a.priority);
+
   // Bounded above by OVER_PRACTICE_CAP: ceiling effects waste session time that
   // belongs to the frontier. A skill above 0.90 is not learning, it is
   // confirming.
@@ -220,18 +282,57 @@ export function buildSession(
   let fi = 0, mi = 0, ni = 0;
   const take = (pool: ScheduledSkill[], cursor: number) => pool[cursor % pool.length];
 
+  /**
+   * Weighted rotation over the focus pool.
+   *
+   * Plain round-robin gives every focus skill an equal share, so `priority`
+   * ordered the pool but never changed how often anything appeared. That was
+   * tolerable with ~27 candidate skills and became a real weakness at 45: a
+   * learner's single weakest skill was practised no more than a skill they were
+   * merely due to review, which is the opposite of the intent.
+   *
+   * The front of the pool is revisited more often, in proportion to priority,
+   * while every focus skill still appears — concentration without exclusion.
+   */
+  const weightedFocus: ScheduledSkill[] = [];
+  for (const s of focus) {
+    // Weight by how far BELOW mastery the skill actually is, not by its
+    // priority rank. Ranking is dominated by `reason` (a gap always outranks a
+    // due review), so weighting by rank amplified whichever category sorted
+    // first rather than whichever skill the learner was worst at — measured at
+    // 34% concentration, worse than the 63% of plain round-robin.
+    const e = estimates[s.skill];
+    const value = e && e.attempts > 0 ? e.value : 0.5;
+    const weakness = Math.max(0, MASTERED_THRESHOLD - value) / MASTERED_THRESHOLD;
+    // 1–5 slots. Tuned by simulation: at 1–3 the weakest skill reached the
+    // session's top five only 41% of the time once the curriculum grew to 45
+    // skills, which is not "concentrates practice on the weak skill" in any
+    // meaningful sense. The success floor still dilutes this when the projected
+    // success rate would collapse, so concentration cannot become punishment.
+    const reps = 1 + Math.round(weakness * 4);
+    for (let r = 0; r < reps; r++) weightedFocus.push(s);
+  }
+
   for (let i = 0; i < count; i++) {
     const takenFocus    = session.filter(s => focus.includes(s)).length;
     const takenMaintain = session.filter(s => secure.includes(s)).length;
 
     if (takenFocus < focusTarget && focus.length > 0) {
-      session.push(take(focus, fi++));
+      session.push(take(weightedFocus, fi++));
     } else if (takenMaintain < maintainTarget && secure.length > 0) {
       session.push(take(secure, mi++));
-    } else if (fresh.length > 0) {
-      session.push(take(fresh, ni++));
+    } else if (fresh.length > 0 && session.filter(x => fresh.includes(x)).length < freshTarget) {
+      session.push(take(freshOrdered, ni++));
     } else if (focus.length > 0) {
-      session.push(take(focus, fi++));
+      // Consolidate before expanding. Repeating work already in progress is
+      // what turns exposure into mastery.
+      session.push(take(weightedFocus, fi++));
+    } else if (fresh.length > 0) {
+      // Nothing left to consolidate: unseen material outranks drilling
+      // something already secure, or a learner who has mastered everything
+      // they have met would spend the session confirming it (measured: 16 of
+      // 20 slots on two mastered skills, 80% over-practice against a 25% cap).
+      session.push(take(freshOrdered, ni++));
     } else if (secure.length > 0) {
       session.push(take(secure, mi++));
     } else {

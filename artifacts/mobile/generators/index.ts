@@ -5,12 +5,14 @@ export * from './helpers';
 export * from './interactions';
 export * from './topics-interactive';
 export * from './number-sense';
+export * from './reasoning';
 
 import { SchoolClass, Difficulty, Category, Question, ClassConfig } from './types';
 import { pick } from './helpers';
 import { genAddition, genSubtraction, genMultiplication, genDivision, generateTablesQuestions } from './arithmetic';
 import { genCounting, genNumberSense } from './early-years';
 import { genNumberSenseStrand } from './number-sense';
+import { genErrorHunt, genPattern, genSymmetry } from './reasoning';
 import { genShapes, genTime, genMoney, genPlaceValue, genMeasurement } from './topics-core';
 import { genFractions, genDecimals } from './fractions-decimals';
 import { genWordProblems, genFactors, genGeometry, genPercentages, genData, genRatio, genIntegers, genAlgebra } from './advanced';
@@ -128,10 +130,24 @@ export function generateQuestion(cls: SchoolClass, diff: Difficulty, cat: Catego
       // The audit measured 0 estimation questions in 27,000 sampled; this is
       // the fix. Weighted toward the new strand because comparison was already
       // well covered and estimation was entirely absent.
-      return Math.random() < 0.7
-        ? genNumberSenseStrand(cls, diff)
-        : genNumberSense(cls, diff);
-    case 'shapes':         return genShapes(cls, diff);
+      {
+        // Patterns (NCERT Ch. 1) and error hunting share this category. Error
+        // hunting is weighted low and only from Class 3: auditing someone
+        // else's method is harder than executing your own, and it is gated on
+        // mastery by the scheduler rather than offered indiscriminately.
+        const r = Math.random();
+        const cn = ['1st','2nd','3rd','4th','5th','6th'].indexOf(cls) + 1;
+        if (r < 0.20) return genPattern(cls, diff);
+        if (r < 0.30 && cn >= 3) return genErrorHunt(cls, diff);
+        if (r < 0.75) return genNumberSenseStrand(cls, diff);
+        return genNumberSense(cls, diff);
+      }
+    case 'shapes':
+      // Symmetry joins shapes from Class 3 (NCERT Ch. 9) rather than becoming
+      // its own menu entry — it is a property of shapes, not a separate topic.
+      return (['3rd','4th','5th','6th'].includes(cls) && Math.random() < 0.3)
+        ? genSymmetry(cls, diff)
+        : genShapes(cls, diff);
     case 'time':           return genTime(cls, diff);
     case 'money':          return genMoney(cls, diff);
     case 'place_value':    return genPlaceValue(cls, diff);
