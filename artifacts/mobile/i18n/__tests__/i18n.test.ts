@@ -231,15 +231,26 @@ describe('localised word problems', () => {
   });
 
   it('scales operand size with the board', () => {
+    // This compares two MEANS over random samples, so the sample size decides
+    // whether it is a test or a coin flip. At 400 draws the measured
+    // false-failure rate was 5% — roughly one red CI run in twenty, for a
+    // property that is genuinely true. Measured separation is stable at ~10.5
+    // (icse ~112.9 vs state ~102.3 over 40,000 draws), so the effect is real
+    // and it is the measurement that was too noisy.
+    //
+    // 5,000 draws puts the standard error well below the effect, and the
+    // assertion carries a margin so a marginal regression fails rather than
+    // flickering.
+    const N = 5000;
     const sample = (board: 'cbse' | 'icse' | 'state') => {
       let total = 0;
-      for (let i = 0; i < 400; i++) {
+      for (let i = 0; i < N; i++) {
         const qn = genWordProblemsI18n('5th', 'hard', 'en', board);
         total += Math.max(...(qn.questionText.match(/\d+/g) ?? ['0']).map(Number));
       }
-      return total / 400;
+      return total / N;
     };
-    expect(sample('icse')).toBeGreaterThan(sample('state'));
+    expect(sample('icse')).toBeGreaterThan(sample('state') + 3);
   });
 });
 

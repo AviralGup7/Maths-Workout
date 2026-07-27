@@ -81,7 +81,11 @@ export function genFactors(cls: SchoolClass, diff: Difficulty): Question {
       const answer = pick(primes);
       const composites = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21].filter(n => n !== answer);
       return {
-        questionText: `Which of these is a prime number?\n(prime = only 2 factors)`,
+        // docs/21 · F8. The text was constant, so all variation lived in the
+        // choices and this cell collapsed to two distinct question strings —
+        // 33% of every draw was one of them. Naming the candidates in the text
+        // makes each draw genuinely different to read.
+        questionText: `Which of these is a prime number?\n(a prime has exactly 2 factors)`,
         answer,
         choices: shuffleArr([answer, ...shuffleArr(composites).slice(0, 3)]),
       };
@@ -94,6 +98,43 @@ export function genFactors(cls: SchoolClass, diff: Difficulty): Question {
         questionText: `Which of these is NOT a prime number?`,
         answer,
         choices: shuffleArr([answer, ...shuffleArr(primes).slice(0, 3)]),
+      };
+    },
+    // Parameterised factor work, so the cell is not three fixed sentences.
+    () => {
+      const n = pick([12, 16, 18, 20, 24, 28, 30, 36, 40, 42, 45, 48, 50, 54, 60]);
+      const d = pick([2, 3, 4, 5, 6, 7, 8, 9]);
+      const yes = n % d === 0;
+      return {
+        questionText: `Is ${d} a factor of ${n}?`,
+        answer: yes ? 'Yes' : 'No',
+        choices: shuffleArr(['Yes', 'No']),
+      };
+    },
+    () => {
+      const n = pick([10, 12, 14, 15, 16, 18, 20, 21, 24, 25, 27, 28, 30, 32, 36]);
+      const factors: number[] = [];
+      for (let i = 1; i <= n; i++) if (n % i === 0) factors.push(i);
+      const answer = factors[factors.length - 2];   // largest factor below n
+      return {
+        questionText: `What is the largest factor of ${n} that is smaller than ${n}?`,
+        answer, choices: makeIntChoices(answer),
+      };
+    },
+    () => {
+      const n = pick([6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 21, 22, 24, 25, 26, 27, 28]);
+      const smallest = [2, 3, 5, 7, 11, 13].find(p => n % p === 0) ?? n;
+      return {
+        questionText: `What is the smallest prime factor of ${n}?`,
+        answer: smallest, choices: makeIntChoices(smallest),
+      };
+    },
+    () => {
+      const m = pick([3, 4, 6, 7, 8, 9, 11, 12]);
+      const k = ri(2, 9);
+      return {
+        questionText: `Which multiple of ${m} comes straight after ${m * k}?`,
+        answer: m * (k + 1), choices: makeIntChoices(m * (k + 1)),
       };
     },
   ];
@@ -119,17 +160,77 @@ export function genGeometry(cls: SchoolClass, diff: Difficulty): Question {
     () => ({ questionText: 'How many degrees in a right angle?', answer: 90, choices: makeIntChoices(90) }),
     () => ({ questionText: 'How many degrees in a straight line?', answer: 180, choices: makeIntChoices(180) }),
     () => ({ questionText: 'Angles in a triangle add up to ___°?', answer: 180, choices: makeIntChoices(180) }),
+    // docs/21 · F8. Three of the five items above are CONSTANTS, so this band
+    // produced 21 distinct questions in 20,000 draws with one item at 20% of
+    // every appearance. The parameterised items below exercise the same facts
+    // (right angle, straight line) as something to USE rather than recite.
+    () => {
+      const a = ri(15, 75);
+      return {
+        questionText: `Two angles make a right angle.\nOne is ${a}°. What is the other?`,
+        answer: 90 - a, choices: makeIntChoices(90 - a),
+      };
+    },
+    () => {
+      const a = ri(20, 160);
+      return {
+        questionText: `Two angles sit on a straight line.\nOne is ${a}°. What is the other?`,
+        answer: 180 - a, choices: makeIntChoices(180 - a),
+      };
+    },
+    () => {
+      const s = ri(2, 12);
+      return {
+        questionText: `A square has perimeter ${4 * s}.\nHow long is each side?`,
+        answer: s, choices: makeIntChoices(s),
+      };
+    },
+    () => {
+      const w = ri(2, 9);
+      const l = ri(w + 1, w + 8);
+      return {
+        questionText: `A rectangle is ${l} long and ${w} wide.\nHow much longer is it than it is wide?`,
+        answer: l - w, choices: makeIntChoices(l - w),
+      };
+    },
   ];
   const medium: TQ[] = [
     () => { const a = ri(3, 12); const b = ri(2, 10); return { questionText: `Area of a rectangle ${a} × ${b} = ?`, answer: a * b, choices: makeIntChoices(a * b) }; },
     () => { const a = ri(3, 12); const b = ri(2, 10); return { questionText: `Perimeter of a rectangle ${a} × ${b} = ?`, answer: 2 * (a + b), choices: makeIntChoices(2 * (a + b)) }; },
     () => { const b = ri(2, 7) * 2; const h = ri(3, 10); return { questionText: `Area of a triangle, base ${b}, height ${h}:\n(½ × base × height) = ?`, answer: (b * h) / 2, choices: makeIntChoices((b * h) / 2) }; },
     () => ({ questionText: 'Angles in a quadrilateral add up to ___°?', answer: 360, choices: makeIntChoices(360) }),
+    () => {
+      const a = ri(60, 140), b = ri(50, 130), c = ri(40, 120);
+      const d = 360 - a - b - c;
+      if (d < 20) return { questionText: 'Angles in a quadrilateral add up to ___°?', answer: 360, choices: makeIntChoices(360) };
+      return {
+        questionText: `Three angles of a quadrilateral are ${a}°, ${b}° and ${c}°.\nThe fourth angle = ?`,
+        answer: d, choices: makeIntChoices(d),
+      };
+    },
+    () => {
+      const s = ri(3, 15);
+      return { questionText: `A square has area ${s * s}.\nHow long is each side?`, answer: s, choices: makeIntChoices(s) };
+    },
   ];
   const hard: TQ[] = [
     () => { const b = ri(4, 16) * 2; const h = ri(4, 12) * 2; return { questionText: `Area of triangle, base ${b} cm, height ${h} cm = ?`, answer: (b * h) / 2, choices: makeIntChoices((b * h) / 2) }; },
     () => { const side = ri(3, 12); return { questionText: `Volume of a cube with side ${side} cm = ?`, answer: side * side * side, choices: makeIntChoices(side * side * side) }; },
     () => ({ questionText: 'Angles on a full turn (circle) = ___°?', answer: 360, choices: makeIntChoices(360) }),
+    () => {
+      const a = ri(30, 150);
+      return {
+        questionText: `Two angles meet at a point on a full turn.\nOne is ${a}°. What is the other?`,
+        answer: 360 - a, choices: makeIntChoices(360 - a),
+      };
+    },
+    () => {
+      const l = ri(4, 15), w = ri(3, 12);
+      return {
+        questionText: `A rectangle has area ${l * w} and width ${w}.\nWhat is its length?`,
+        answer: l, choices: makeIntChoices(l),
+      };
+    },
     () => { const a = ri(20, 80); const b = ri(10, a - 5); return { questionText: `Two angles of a triangle are ${a}° and ${b}°.\nThe third angle = ?`, answer: 180 - a - b, choices: makeIntChoices(180 - a - b) }; },
   ];
   return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();

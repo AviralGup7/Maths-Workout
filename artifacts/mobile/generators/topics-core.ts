@@ -35,18 +35,73 @@ export function genShapes(cls: SchoolClass, diff: Difficulty): Question {
     ? SHAPE_DATA.filter(s => s.sides <= 4)
     : SHAPE_DATA;
   const shape = pick(pool);
-  if (ri(0, 1) === 0) {
-    if (shape.name === 'Circle') {
-      return { questionText: `How many corners does a Circle have?`, answer: 0, choices: makeIntChoices(0) };
-    }
-    return { questionText: `How many sides does a ${shape.name} have?`, answer: shape.sides, choices: makeIntChoices(shape.sides) };
-  }
   const shapeNames = SHAPE_DATA.map(s => s.name);
-  return {
-    questionText: `A shape with ${shape.sides === 0 ? 'no' : shape.sides} sides is a ___?`,
-    answer: shape.name,
-    choices: makeStrChoices(shape.name, shapeNames),
-  };
+
+  // docs/21 · F8. Two question shapes over a four-shape pool produced SEVEN
+  // distinct questions across all three difficulties, with one item accounting
+  // for 25% of every draw. A child meets the same sentence within minutes. The
+  // variants below ask genuinely different things about the same shapes —
+  // corners, right angles, and recognising them in the world — which is also
+  // closer to how shape is actually taught at this age.
+  switch (ri(0, 4)) {
+    case 0:
+      if (shape.name === 'Circle') {
+        return { questionText: 'How many corners does a Circle have?', answer: 0, choices: makeIntChoices(0) };
+      }
+      return {
+        questionText: `How many sides does a ${shape.name} have?`,
+        answer: shape.sides, choices: makeIntChoices(shape.sides),
+      };
+
+    case 1:
+      return {
+        questionText: `A shape with ${shape.sides === 0 ? 'no' : shape.sides} sides is a ___?`,
+        answer: shape.name,
+        choices: makeStrChoices(shape.name, shapeNames),
+      };
+
+    case 2:
+      // Corners equal sides for every polygon here, but asking it separately is
+      // not redundant to a young child: "side" and "corner" are distinct ideas
+      // and conflating them is a documented early misconception.
+      return {
+        questionText: `How many corners does a ${shape.name} have?`,
+        answer: shape.sides, choices: makeIntChoices(shape.sides),
+      };
+
+    case 3: {
+      const rightAngles: Record<string, number> = { Square: 4, Rectangle: 4, Triangle: 0, Circle: 0, Pentagon: 0, Hexagon: 0, Octagon: 0 };
+      const n = rightAngles[shape.name] ?? 0;
+      return {
+        questionText: `How many right angles does a ${shape.name} have?`,
+        answer: n, choices: makeIntChoices(n),
+      };
+    }
+
+    default: {
+      const objects: Record<string, string[]> = {
+        Circle:    ['a wheel', 'a chapati', 'a coin', 'a clock face'],
+        Square:    ['a carrom board', 'a chessboard', 'a window pane'],
+        Rectangle: ['a door', 'a book cover', 'a cricket pitch', 'a blackboard'],
+        Triangle:  ['a samosa', 'a slice of pizza', 'a road sign'],
+        Pentagon:  ['a home plate', 'a football patch'],
+        Hexagon:   ['a honeycomb cell', 'a pencil end'],
+        Octagon:   ['a STOP sign'],
+      };
+      const opts = objects[shape.name];
+      if (!opts) {
+        return {
+          questionText: `How many sides does a ${shape.name} have?`,
+          answer: shape.sides, choices: makeIntChoices(shape.sides),
+        };
+      }
+      return {
+        questionText: `What shape is ${pick(opts)}?`,
+        answer: shape.name,
+        choices: makeStrChoices(shape.name, shapeNames),
+      };
+    }
+  }
 }
 
 // ─── Time ────────────────────────────────────────────────────────────────────
@@ -63,22 +118,70 @@ export function genTime(cls: SchoolClass, diff: Difficulty): Question {
       () => ({ questionText: 'How many months are in 1 year?', answer: 12, choices: makeIntChoices(12) }),
       () => ({ questionText: 'How many days are in February (non-leap year)?', answer: 28, choices: makeIntChoices(28) }),
       () => { const n = ri(1, 5); return { questionText: `${n} o'clock — how many hours until ${n + 1} o'clock?`, answer: 1, choices: makeIntChoices(1) }; },
+      // docs/21 · F8. The five constants above gave this cell 10 distinct
+      // questions across ALL difficulties, so a Class 1 child saw the same
+      // sentence every few minutes. These ask the same Class 1 ideas — ordering
+      // the day, counting on in hours — with real variation.
+      () => {
+        const start = ri(1, 8);
+        const on = ri(1, 4);
+        return {
+          questionText: `It is ${start} o'clock.\nWhat time will it be in ${on} hour${on > 1 ? 's' : ''}?`,
+          answer: start + on, choices: makeIntChoices(start + on),
+        };
+      },
+      () => {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const i = ri(0, 6);
+        return {
+          questionText: `What day comes straight after ${days[i]}?`,
+          answer: days[(i + 1) % 7],
+          choices: makeStrChoices(days[(i + 1) % 7], days),
+        };
+      },
+      () => {
+        const months = ['January', 'February', 'March', 'April', 'May', 'June',
+          'July', 'August', 'September', 'October', 'November', 'December'];
+        const i = ri(0, 11);
+        return {
+          questionText: `Which month comes straight after ${months[i]}?`,
+          answer: months[(i + 1) % 12],
+          choices: makeStrChoices(months[(i + 1) % 12], months),
+        };
+      },
+      () => {
+        const w = ri(2, 4);
+        return { questionText: `How many days are in ${w} weeks?`, answer: w * 7, choices: makeIntChoices(w * 7) };
+      },
     ];
     return pick(facts)();
   }
 
   // Class 2: facts + simple hour-based duration
   if (cls === '2nd') {
+    // docs/21 · F8. Four constants gave this cell four distinct questions.
     const easy: TQ[] = [
       () => ({ questionText: 'How many minutes are in 1 hour?', answer: 60, choices: makeIntChoices(60) }),
       () => ({ questionText: 'How many hours are in 1 day?', answer: 24, choices: makeIntChoices(24) }),
       () => ({ questionText: 'How many days are in 1 week?', answer: 7, choices: makeIntChoices(7) }),
       () => ({ questionText: 'How many months are in 1 year?', answer: 12, choices: makeIntChoices(12) }),
+      () => { const w = ri(2, 6); return { questionText: `How many days are in ${w} weeks?`, answer: w * 7, choices: makeIntChoices(w * 7) }; },
+      () => { const h = ri(1, 9); const on = ri(1, 3); return { questionText: `It is ${h} o'clock.\nWhat time will it be in ${on} hour${on > 1 ? 's' : ''}?`, answer: h + on, choices: makeIntChoices(h + on) }; },
+      () => { const m = ri(1, 11) * 5; return { questionText: `It is ${m} minutes past the hour.\nHow many minutes until the next hour?`, answer: 60 - m, choices: makeIntChoices(60 - m) }; },
+      () => {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const i = ri(0, 6);
+        return { questionText: `What day comes straight after ${days[i]}?`, answer: days[(i + 1) % 7], choices: makeStrChoices(days[(i + 1) % 7], days) };
+      },
     ];
     const medium: TQ[] = [
       () => { const n = ri(2, 6); return { questionText: `How many minutes in ${n} hours?`, answer: n * 60, choices: makeIntChoices(n * 60) }; },
       () => { const h = ri(1, 8); const add = ri(1, 4); return { questionText: `A lesson starts at ${h}:00 and lasts ${add} hour${add > 1 ? 's' : ''}.\nWhat hour does it end?`, answer: h + add, choices: makeIntChoices(h + add) }; },
       () => ({ questionText: 'How many days are in February (non-leap year)?', answer: 28, choices: makeIntChoices(28) }),
+      () => { const n = ri(2, 6); return { questionText: `How many hours in ${n} days?`, answer: n * 24, choices: makeIntChoices(n * 24) }; },
+      () => { const m = ri(2, 9) * 5; return { questionText: `A game lasts ${m} minutes and starts on the hour.\nHow many minutes before the next hour does it end?`, answer: 60 - m, choices: makeIntChoices(60 - m) }; },
+      () => { const w = ri(2, 8); return { questionText: `How many days are in ${w} weeks?`, answer: w * 7, choices: makeIntChoices(w * 7) }; },
+      () => { const h = ri(1, 9); const on = ri(2, 4); return { questionText: `School starts at ${h}:00 and lasts ${on} hours.\nWhat hour does it finish?`, answer: h + on, choices: makeIntChoices(h + on) }; },
     ];
     const hard: TQ[] = [
       () => { const start = ri(6, 10); const end = ri(start + 1, start + 6); return { questionText: `How many hours from ${start}:00 to ${end}:00?`, answer: end - start, choices: makeIntChoices(end - start) }; },
@@ -87,18 +190,56 @@ export function genTime(cls: SchoolClass, diff: Difficulty): Question {
     return pick(diff === 'easy' ? easy : diff === 'medium' ? medium : hard)();
   }
 
-  // Class 3+: full time generators
+  // Class 3+: full time generators.
+  //
+  // docs/21 · F8. The `easy` band held four CONSTANT facts and nothing else, so
+  // 20,000 draws produced 4 distinct questions and a single item was 25% of
+  // everything a Class 4 child ever saw in this cell. Against the 60-question
+  // repetition window the probability of a repeat was 1.0, which both bores the
+  // learner and lets them memorise a string rather than read a clock.
+  //
+  // The parameterised items below ask the same underlying skills — unit
+  // conversion and clock reading — with real variation.
   const easy: TQ[] = [
     () => ({ questionText: 'How many minutes are in 1 hour?', answer: 60, choices: makeIntChoices(60) }),
     () => ({ questionText: 'How many hours are in 1 day?', answer: 24, choices: makeIntChoices(24) }),
     () => ({ questionText: 'How many days are in 1 week?', answer: 7, choices: makeIntChoices(7) }),
     () => ({ questionText: 'How many months are in 1 year?', answer: 12, choices: makeIntChoices(12) }),
+    // Reading a clock face, quarter by quarter.
+    () => {
+      const h = ri(1, 12);
+      const q = pick([15, 30, 45]);
+      const label = q === 15 ? 'quarter past' : q === 30 ? 'half past' : 'quarter to';
+      const shown = q === 45 ? (h === 12 ? 1 : h + 1) : h;
+      return {
+        questionText: `The clock reads ${label} ${h}.\nHow many minutes past ${shown === h ? h : h}:00 is that?`,
+        answer: q, choices: makeIntChoices(q),
+      };
+    },
+    // Minutes remaining in the hour — the most common real-world time question.
+    () => {
+      const m = ri(1, 11) * 5;
+      return {
+        questionText: `It is ${m} minutes past the hour.\nHow many minutes until the next hour?`,
+        answer: 60 - m, choices: makeIntChoices(60 - m),
+      };
+    },
+    () => {
+      const d = ri(2, 6);
+      return { questionText: `How many hours in ${d} days?`, answer: d * 24, choices: makeIntChoices(d * 24) };
+    },
+    () => {
+      const w = ri(2, 8);
+      return { questionText: `How many days in ${w} weeks?`, answer: w * 7, choices: makeIntChoices(w * 7) };
+    },
   ];
   const medium: TQ[] = [
     () => { const n = ri(2, 6); return { questionText: `How many minutes in ${n} hours?`, answer: n * 60, choices: makeIntChoices(n * 60) }; },
     () => { const n = ri(2, 5); return { questionText: `How many seconds in ${n} minutes?`, answer: n * 60, choices: makeIntChoices(n * 60) }; },
     () => { const h = ri(1, 10); const add = ri(1, 6); return { questionText: `A lesson starts at ${h}:00 and lasts ${add} hours.\nWhat hour does it end?`, answer: h + add, choices: makeIntChoices(h + add) }; },
     () => ({ questionText: 'How many days are in February (non-leap year)?', answer: 28, choices: makeIntChoices(28) }),
+    () => { const d = ri(2, 9); return { questionText: `How many hours in ${d} days?`, answer: d * 24, choices: makeIntChoices(d * 24) }; },
+    () => { const m = ri(1, 11) * 5; return { questionText: `A bus leaves ${m} minutes past the hour.\nHow many minutes is that before the next hour?`, answer: 60 - m, choices: makeIntChoices(60 - m) }; },
   ];
   const hard: TQ[] = [
     () => { const h = ri(1, 6); const m = ri(15, 45); return { questionText: `A film starts at ${h}:00 and is ${m} minutes long.\nHow many minutes past ${h} does it end?`, answer: m, choices: makeIntChoices(m) }; },
