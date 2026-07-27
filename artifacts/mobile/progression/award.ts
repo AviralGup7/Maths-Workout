@@ -15,7 +15,7 @@ import { dayKey } from '../learning/attempts';
 import type { SkillId } from '../learning/skills';
 import type { Difficulty, SchoolClass, Question } from '../generators/types';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from '../learning/mastery';
-import { computeXp, BONUS, type Structure, type XpBreakdown } from './xp';
+import { computeXp, BONUS, MAX_XP_PER_QUESTION, type Structure, type XpBreakdown } from './xp';
 import {
   sessionDecay, skillSaturation, repetitionDecay, payableDelta,
   comebackMultiplier,
@@ -88,6 +88,25 @@ export function structureOf(q: Question, skill: SkillId): Structure {
  * deliberately no "answered N questions" bonus: that rewards attendance rather
  * than learning.
  */
+/**
+ * Minimum real time a skill must have been left alone before returning to it
+ * can count as a *recovery* (docs/21 · E1).
+ *
+ * The original rule — `masteryBefore < 0.5 && priorOnSkill > 3` — described a
+ * state, not an event. For a learner who is permanently below 0.5 that state is
+ * true on every single answer, so `recovered` became an unconditional 30 XP per
+ * correct answer with no cooldown. Simulation measured 26,580 XP from this one
+ * bonus over 180 days for a learner who never improved: 96% of their income,
+ * and the single largest exploit in the economy.
+ *
+ * "Recovered" can only mean something if the skill actually decayed, and decay
+ * takes TIME. Requiring a genuine gap since the previous attempt makes the
+ * bonus describe the event it is named after. A learner tapping continuously
+ * has gaps of seconds and earns nothing; a learner returning after a fortnight
+ * earns it exactly once, on the answer that marks the return.
+ */
+export const RECOVERY_MIN_GAP_DAYS = 7;
+
 export function detectBonuses(args: {
   correct: boolean;
   masteryBefore: number;
@@ -97,21 +116,47 @@ export function detectBonuses(args: {
   interaction?: string;
   scaffolded?: boolean;
   wasDue?: boolean;
+  /**
+   * Per-skill high-water mark of mastery already PAID for.
+   *
+   * Threshold bonuses are gated on this for the same reason `learningXp` is:
+   * crossing 0.55 for the eleventh time is not a breakthrough. Without it a
+   * learner can sawtooth across a threshold indefinitely and re-collect.
+   */
+  ledger?: XpLedger;
+  now?: number;
 }): { id: keyof typeof BONUS; xp: number }[] {
-  const { correct, masteryBefore, masteryAfter, skill, log, interaction, scaffolded, wasDue } = args;
+  const {
+    correct, masteryBefore, masteryAfter, skill, log, interaction, scaffolded,
+    wasDue, ledger = {}, now = Date.now(),
+  } = args;
   if (!correct) return [];
   const out: { id: keyof typeof BONUS; xp: number }[] = [];
 
-  const priorOnSkill = log.filter(a => a.skill === skill).length;
+  const onSkill = log.filter(a => a.skill === skill);
+  const priorOnSkill = onSkill.length;
+
+  // Mastery already paid for on this skill. A bonus tied to "reaching" a level
+  // may only fire for territory above this line.
+  const paid = ledger[skill] ?? 0;
 
   // First correct answer on a skill never attempted before.
   if (priorOnSkill <= 1) out.push({ id: 'firstContact', xp: BONUS.firstContact });
 
   // Threshold crossings — the two biggest moments in the model.
-  if (masteryBefore < STRUGGLING_THRESHOLD && masteryAfter >= STRUGGLING_THRESHOLD) {
+  //
+  // Gated on the high-water mark so each threshold pays ONCE per skill, ever.
+  // The crossing must also be genuinely new ground: `masteryAfter > paid`.
+  if (
+    masteryBefore < STRUGGLING_THRESHOLD && masteryAfter >= STRUGGLING_THRESHOLD
+    && paid < STRUGGLING_THRESHOLD
+  ) {
     out.push({ id: 'breakthrough', xp: BONUS.breakthrough });
   }
-  if (masteryBefore < MASTERED_THRESHOLD && masteryAfter >= MASTERED_THRESHOLD) {
+  if (
+    masteryBefore < MASTERED_THRESHOLD && masteryAfter >= MASTERED_THRESHOLD
+    && paid < MASTERED_THRESHOLD
+  ) {
     out.push({ id: 'mastery', xp: BONUS.mastery });
     // Mastery earned on produced rather than recognised evidence is worth more,
     // and closes the loop with the anti-inflation guard.
@@ -121,8 +166,15 @@ export function detectBonuses(args: {
   }
 
   // Recovered a skill that had decayed badly since last practice.
+  //
+  // Requires a REAL absence (see RECOVERY_MIN_GAP_DAYS): the bonus pays for
+  // coming back, not for being persistently weak.
   if (masteryBefore < 0.5 && priorOnSkill > 3) {
-    out.push({ id: 'recovered', xp: BONUS.recovered });
+    const last = onSkill[onSkill.length - 1]?.answeredAt;
+    const gapDays = last === undefined ? Infinity : (now - last) / 86_400_000;
+    if (gapDays >= RECOVERY_MIN_GAP_DAYS) {
+      out.push({ id: 'recovered', xp: BONUS.recovered });
+    }
   }
 
   // Applied a method immediately after being taught it — the completion-problem
@@ -195,20 +247,59 @@ export function awardXp(input: AwardInput): Award {
   const comeback = comebackMultiplier(daysAvoided, masteryBefore);
   const base = Math.round(breakdown.total * comeback * 10) / 10;
 
-  const bonuses = detectBonuses({
+  const rawBonuses = detectBonuses({
     correct, masteryBefore, masteryAfter, skill, log,
     interaction: question.interaction?.kind ?? 'choice', scaffolded,
+    ledger, now,
   });
+
+  // ── docs/21 · the central economy fix ──────────────────────────────────────
+  //
+  // Bonuses used to be added AFTER every defence the core layer provides:
+  //
+  //     total: base + bonuses.reduce(...)
+  //
+  // `base` had passed through the plausibility gate, the session decay, the
+  // saturation decay and the repetition decay. The second term had passed
+  // through none of them. That one line inverted the whole economy — simulation
+  // measured a deliberate 60%-correct "cycler" earning 5.3x an honest
+  // 100%-correct learner, and 400 taps at 120 ms (every one of them flagged
+  // `suppressed: 'non-attempt'`) still paying out 3,020 XP.
+  //
+  // Two rules restore the design that xp.ts already describes:
+  //
+  //   1 · If computeXp refused to pay, bonuses pay nothing either. An answer
+  //       the engine has declared a non-attempt or incorrect is not an
+  //       achievement, whatever state it happens to coincide with.
+  //   2 · Bonuses decay with the same suppressors as base XP. They are peak
+  //       events; a peak that repeats 300 times in a day is not a peak.
+  //
+  // Suppressors are applied but NOT the bonus-multiplier stack: a bonus is a
+  // flat, legible reward ("Breakthrough! +40"), and scaling it by difficulty
+  // and speed would make it unexplainable to a child.
+  const suppressed = Boolean(breakdown.suppressed);
+  const bonuses = suppressed
+    ? []
+    : rawBonuses.map(b => ({ id: b.id, xp: Math.round(b.xp * decay * 10) / 10 }))
+        .filter(b => b.xp > 0);
 
   const nextLedger = payable > 0
     ? { ...ledger, [skill]: Math.max(paid, masteryAfter) }
     : ledger;
+
+  // The per-question ceiling governs what the learner is actually paid, not an
+  // internal subtotal. Previously it capped `breakdown.total` only, so
+  // concurrent bonuses could carry a single answer well past it.
+  const total = Math.min(
+    MAX_XP_PER_QUESTION,
+    Math.round((base + bonuses.reduce((s, b) => s + b.xp, 0)) * 10) / 10,
+  );
 
   return {
     xp: base,
     breakdown,
     bonuses,
     ledger: nextLedger,
-    total: base + bonuses.reduce((s, b) => s + b.xp, 0),
+    total,
   };
 }

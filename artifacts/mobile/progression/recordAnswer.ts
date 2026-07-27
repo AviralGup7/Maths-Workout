@@ -126,12 +126,29 @@ export function recordAnswer(state: AnswerState, event: AnswerEvent): AnswerResu
     a => a.skill === skill && !a.correct && a.answeredAt > now - RECENT_MISS_WINDOW_MS,
   ).length;
 
+  // Days since this skill was last practised, for the comeback multiplier.
+  //
+  // docs/21 · dead lever. `comebackMultiplier` — the main positive incentive
+  // for returning to an avoided skill, worth up to 2x — was reachable only if
+  // the caller supplied `daysAvoided`, and `recordAnswer` is the sole caller of
+  // `awardXp`. It never did, so the multiplier was pinned at 1.0 and the app's
+  // primary answer to avoidance did not exist at runtime. Simulation showed the
+  // avoider profile plateauing for want of exactly this.
+  //
+  // Computed here rather than passed in: the log already knows, and a value
+  // derived at the point of use cannot drift from the evidence.
+  let lastOnSkill = 0;
+  for (let i = state.log.length - 1; i >= 0; i--) {
+    if (state.log[i].skill === skill) { lastOnSkill = state.log[i].answeredAt; break; }
+  }
+  const daysAvoided = lastOnSkill === 0 ? 0 : (now - lastOnSkill) / 86_400_000;
+
   const award = awardXp({
     question, skill, correct,
     masteryBefore, masteryAfter,
     latencyMs, difficulty, cls,
     scaffolded, priorMissesThisSkill: priorMisses,
-    log: state.log, ledger: state.ledger, now,
+    log: state.log, ledger: state.ledger, daysAvoided, now,
   });
 
   return {

@@ -106,7 +106,13 @@ export const ACHIEVEMENTS: Achievement[] = [
         const early = ctx.log.filter(a => a.skill === skill).slice(0, 8);
         if (early.length < 5) continue;
         const earlyAcc = early.filter(a => a.correct).length / early.length;
-        if (earlyAcc <= 0.35) return 1;
+        // docs/21 · 0.35 was unreachable BY DESIGN: the success floor and the
+        // prerequisite descent exist precisely to stop a learner ever sitting
+        // at 35% accuracy, so the app's own remediation made its own
+        // achievement unwinnable. Measured 0.00 for every profile at every
+        // horizon, including the perfect learner. 0.50 is still a genuine
+        // turnaround — coin-flip accuracy to secure — and is actually reachable.
+        if (earlyAcc <= 0.50) return 1;
       }
       return 0;
     },
@@ -131,7 +137,10 @@ export const ACHIEVEMENTS: Achievement[] = [
           .findIndex(a => a.misconception && a.misconception !== 'legacy-import');
         if (lastBad === -1) continue;                 // never had one here
         const hadOne = attempts.some(a => a.misconception && a.misconception !== 'legacy-import');
-        if (hadOne) best = Math.max(best, clamp(lastBad / 20));
+        // docs/21 · 20 clear attempts outran the 12-attempt recency window the
+        // mastery model itself uses, so the bar sat outside the evidence the
+        // rest of the engine considers current. Measured 0.00 for all profiles.
+        if (hadOne) best = Math.max(best, clamp(lastBad / 12));
       }
       return best;
     },
@@ -149,7 +158,11 @@ export const ACHIEVEMENTS: Achievement[] = [
         if (est.value < MASTERED_THRESHOLD) continue;
         const times = ctx.log.filter(a => a.skill === skill).map(a => a.answeredAt).sort();
         for (let i = 1; i < times.length; i++) {
-          if (times[i] - times[i - 1] >= 21 * DAY_MS) return 1;
+          // docs/21 · a 21-day gap on a MASTERED skill conflicts with a
+          // scheduler whose measured maximum review gap is 6 days: the
+          // achievement required the spacing system to fail. 10 days is a real
+          // absence (a holiday, an illness) that the scheduler permits.
+          if (times[i] - times[i - 1] >= 10 * DAY_MS) return 1;
         }
       }
       return 0;
@@ -281,13 +294,28 @@ export const ACHIEVEMENTS: Achievement[] = [
       hi: 'बीस दिन संतुलित अभ्यास',
     },
     // Rewards NOT bingeing. A day of 200 questions does not count.
+    //
+    // docs/21 · a day must also contain genuine ENGAGEMENT, not merely a
+    // sensible question count. Counting volume alone made this pure attendance:
+    // it was earned in full by a simulated learner who answered at random for a
+    // year and learned nothing, which is the exact archetype this module's
+    // header says it avoids. Requiring most of the day's answers to be real
+    // attempts — not sub-second taps — keeps the "sensible practice" meaning
+    // without penalising a child for getting things wrong.
     progress: ctx => {
-      const byDay = new Map<string, number>();
+      const byDay = new Map<string, { total: number; considered: number }>();
       for (const a of ctx.log) {
         const k = dayKey(a.answeredAt);
-        byDay.set(k, (byDay.get(k) ?? 0) + 1);
+        const e = byDay.get(k) ?? { total: 0, considered: 0 };
+        e.total += 1;
+        // A tap below ~1.2 s cannot be a computed answer; the guessing
+        // misconception detector already uses this threshold.
+        if (!(a.latencyMs > 0 && a.latencyMs < 1200) && !a.timedOut) e.considered += 1;
+        byDay.set(k, e);
       }
-      const healthy = [...byDay.values()].filter(n => n >= 5 && n <= 60).length;
+      const healthy = [...byDay.values()].filter(
+        d => d.total >= 5 && d.total <= 60 && d.considered >= d.total * 0.6,
+      ).length;
       return clamp(healthy / 20);
     },
   },

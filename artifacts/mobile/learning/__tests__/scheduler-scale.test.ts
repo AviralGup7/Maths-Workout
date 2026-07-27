@@ -80,24 +80,41 @@ describe('B2 · new material is introduced in curriculum order', () => {
     }
   });
 
-  it('reaches a mid-depth skill within a week, even from a blank slate', () => {
+  it('reaches a mid-depth skill within a fortnight, even from a blank slate', () => {
     // Before the fix, every `new` skill shared priority 40 and the pool was
     // round-robined in arbitrary object order. Measured over 10 simulated days
     // a Class 4 learner's designated weak skill was introduced ZERO times.
     //
-    // Now measured at day 4 from nothing: the first sessions correctly go to
-    // foundations, which is the order a curriculum should follow. Asserted at 8
-    // to leave headroom without permitting the old unbounded behaviour.
+    // Now measured at day 11 from nothing (docs/21 · F5). The window widened
+    // deliberately: a session used to open TEN new skills at once, which met
+    // this assertion quickly and then froze the curriculum for the rest of the
+    // year. A session now opens ~3 skills on a blank slate and one per session
+    // thereafter while work is unconsolidated, so a depth-3 skill arrives after
+    // its foundations have actually been practised rather than merely listed.
+    //
+    // What this test protects is unchanged: `mul.tables.mid` must be reachable
+    // in a bounded, small number of sessions rather than never. 14 is the bound
+    // — comfortably inside a fortnight, and far short of the old failure where
+    // it was not reached in 30+ sessions.
+    //
+    // docs/21 · F5. The loop must keep PRACTISING after the first sighting
+    // rather than stopping at it. Breaking early froze the log in whatever
+    // state day 0 left it, which only passed while the scheduler opened ten
+    // brand-new skills in the first session — the flooding behaviour that
+    // pinned `openWork` and stalled the curriculum for the rest of the year.
+    // Now that a session opens at most ~3 new skills, reaching a depth-3 skill
+    // requires actually consolidating the foundations first, which is the
+    // intended pedagogy.
     let log: Attempt[] = [];
     let firstSeen = -1;
-    for (let d = 0; d < 8 && firstSeen < 0; d++) {
+    for (let d = 0; d < 14; d++) {
       const t = NOW + d * DAY_MS;
       const est = estimateAll(log, t);
       const plan = buildSession('4th', est, 10, t);
-      if (plan.some(s => s.skill === 'mul.tables.mid')) firstSeen = d;
+      if (firstSeen < 0 && plan.some(s => s.skill === 'mul.tables.mid')) firstSeen = d;
       log = log.concat(plan.map((s, i) => ({ ...mk(s.skill, true, i), answeredAt: t + i * 20_000 })));
     }
-    expect(firstSeen, 'mul.tables.mid was not introduced within 8 sessions')
+    expect(firstSeen, 'mul.tables.mid was not introduced within 14 sessions')
       .toBeGreaterThanOrEqual(0);
   });
 });

@@ -13,11 +13,39 @@
 import type { SkillId } from './skills';
 import { SKILLS, resolveSkill, prerequisiteClosure } from './skills';
 import type { MasteryEstimate } from './mastery';
-import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD, DAY_MS, isReady } from './mastery';
+import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD, RECOGNITION_CEILING, DAY_MS, isReady } from './mastery';
 import type { Category, Difficulty, SchoolClass } from '../generators/types';
 import { getAvailableCategories } from '../generators';
 import type { Board } from '../curriculum/boards';
 import { DEFAULT_BOARD } from '../curriculum/boards';
+import { CHAPTERS } from '../curriculum/chapters';
+
+/** Class ordering, for comparing a chapter's introduction year to the learner's. */
+const CLASS_ORDER: SchoolClass[] = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
+
+/**
+ * Skills that `resolveSkill` can never return, computed once at module load.
+ *
+ * docs/21 · F3. Each (class, category, difficulty) cell maps to exactly ONE
+ * skill, so a category holding more skills than it has difficulty slots leaves
+ * an orphan. These skills exist, are named by chapters, and are practised by
+ * nobody — which silently froze chapter progression for every learner.
+ *
+ * Derived rather than hand-listed so it cannot drift as the curriculum grows:
+ * add a skill the menu cannot reach and it is rescued automatically.
+ */
+const ORPHAN_SKILLS: Set<SkillId> = (() => {
+  const reachable = new Set<SkillId>();
+  for (const c of CLASS_ORDER) {
+    for (const cat of getAvailableCategories(c)) {
+      if (cat === 'mixed') continue;
+      for (const d of ['easy', 'medium', 'hard'] as Difficulty[]) {
+        reachable.add(resolveSkill(c, cat, d));
+      }
+    }
+  }
+  return new Set(Object.keys(SKILLS).filter(s => !reachable.has(s)));
+})();
 
 /**
  * Target success rate.
@@ -137,6 +165,36 @@ export function scheduleSkills(
     for (const p of prerequisiteClosure(id)) candidates.add(p);
   }
 
+  // Every skill named by a chapter at or below this class is a candidate.
+  //
+  // docs/21 · F3. `resolveSkill` maps each (class, category, difficulty) cell to
+  // ONE skill, so a category with four skills and three difficulty slots has an
+  // orphan by construction. `patterns.basic` was exactly that: present in
+  // SKILLS, named by the `number-sense` chapter, a prerequisite of
+  // `algebra.basic` — and returned by `resolveSkill` for no input at all.
+  //
+  // The consequence was not a missing topic but a permanently frozen map:
+  // `chapterStatus` averages `mastery[s] ?? 0` over a chapter's skills, so one
+  // never-served skill capped `number-sense` at mean 0.67 against a 0.70 unlock
+  // gate, which locked `word-problems` and `integers-algebra` — the terminal
+  // chapter of the whole curriculum — for every learner, permanently. Measured
+  // against a perfect learner at 100% attendance for 730 days: still locked.
+  //
+  // Sourcing candidates from the chapter map as well as the category menu makes
+  // orphaning structurally impossible: if a skill is worth putting in a
+  // chapter, it is worth scheduling. Guarded by a test that asserts every skill
+  // in every chapter is reachable.
+  // Only ORPHANS are added, not every chapter skill. Adding all of them
+  // inflated the `new` pool from 27 to 40 and, because the fresh budget is
+  // deliberately ~1 skill per session, pushed depth-3 material (mul.tables.mid)
+  // past a week of practice — a real regression caught by scheduler-scale.
+  // Rescuing exactly the unreachable skills fixes the frozen curriculum without
+  // disturbing the introduction pace that the depth ordering establishes.
+  for (const ch of CHAPTERS) {
+    if (CLASS_ORDER.indexOf(ch.introducedIn) > CLASS_ORDER.indexOf(cls)) continue;
+    for (const s of ch.skills) if (SKILLS[s] && ORPHAN_SKILLS.has(s)) candidates.add(s);
+  }
+
   // Any skill the learner has ACTUALLY PRACTISED is a candidate, whatever the
   // class menu currently offers.
   //
@@ -170,7 +228,29 @@ export function scheduleSkills(
       // means foundations are introduced before the material built on them,
       // which is the order a curriculum should follow anyway.
       const depth = prerequisiteClosure(skill).length;
-      out.push({ skill, priority: 40 - Math.min(15, depth), reason: 'new', difficulty: 'easy' });
+      // Depth orders foundations before the material built on them. But depth
+      // ALONE is class-blind, and that has a measurable cost: a Class 4 learner
+      // spent 30+ sessions on Class 1 material and had still not met
+      // `mul.tables.mid`, because every depth-1 and depth-2 foundation
+      // outranked it forever. Times tables are core Class 3–4 content; a Class
+      // 4 child meeting them after two months is a curriculum failure, not
+      // careful sequencing.
+      //
+      // Class proximity breaks the tie: among skills the learner is ready for,
+      // prefer those introduced at or near their own year. Foundations still
+      // come first (depth dominates at 1.0/level against 0.6/year), but the
+      // scheduler now walks *towards* the learner instead of exhausting the
+      // curriculum from the bottom.
+      // Depth must strictly dominate: a prerequisite is always shallower than
+      // the skill built on it, so as long as one level of depth outweighs the
+      // largest possible class adjustment, the DAG order can never be violated.
+      // Capping the class term below 1.0 guarantees that. (An earlier version
+      // used 0.6/year uncapped, which let `symmetry.basic` — Class 3, depth 3 —
+      // overtake its own prerequisite `shapes.basic` — Class 1, depth 2.)
+      const gap = Math.max(0, CLASS_ORDER.indexOf(cls) - CLASS_ORDER.indexOf(SKILLS[skill].introducedIn));
+      const classPenalty = Math.min(0.9, gap * 0.18);
+      const priority = 40 - Math.min(15, depth) - classPenalty;
+      out.push({ skill, priority, reason: 'new', difficulty: 'easy' });
       continue;
     }
 
@@ -255,12 +335,54 @@ export function buildSession(
    * below mastery that the learner has actually started are "open"; while
    * several are open, the scheduler consolidates instead of expanding.
    */
+  // "Open" means genuinely UNCONSOLIDATED, not merely short of 0.85.
+  //
+  // docs/21 · F5, the deepest cause. A skill with no recall-bearing evidence is
+  // capped at RECOGNITION_CEILING (0.80) by the anti-inflation guard, so it can
+  // never reach MASTERED_THRESHOLD (0.85) and counted as "open" forever. Six
+  // such skills permanently disabled new material: measured, 11 skills in 90
+  // sessions, with a Class 4 learner never meeting times tables, division,
+  // fractions or decimals in three months.
+  //
+  // A skill sitting at or above the ceiling is consolidated as far as the
+  // current evidence *allows*; it is waiting for the interaction ladder, not
+  // for more practice. Counting it as open confuses "not yet certified" with
+  // "not yet learned", and starves the learner of curriculum to pay for it.
+  const CONSOLIDATED = Math.min(MASTERED_THRESHOLD, RECOGNITION_CEILING);
   const openWork = focus.filter(f => {
     const e = estimates[f.skill];
-    return e && e.attempts > 0 && e.value < MASTERED_THRESHOLD;
+    return e && e.attempts > 0 && e.value < CONSOLIDATED;
   }).length;
+  //
+  // docs/21 · F5. The `openWork >= 6 -> 0` rule is right in principle and was
+  // deadlocking in practice. A skill counts as "open" while it is below
+  // MASTERED_THRESHOLD (0.85), but a skill with no recall-bearing evidence is
+  // capped at RECOGNITION_CEILING (0.80) — so for an average learner openWork
+  // never fell back below 6, the fresh budget stayed at 0, and the curriculum
+  // froze. Measured: 20 skills reached by day 60 and still 20 at day 365, with
+  // a Class 4 learner never once meeting add.3digit, div.tables, frac.*, dec.*
+  // or wordproblems in a full year of daily practice.
+  //
+  // The escape hatch keeps the consolidation rule but stops it becoming a
+  // permanent stop: if nothing new has been introduced for a fortnight, open
+  // exactly one skill regardless. Consolidation still dominates — one skill per
+  // two weeks cannot flood a session — but the learner always keeps moving
+  // through the curriculum.
+  // The escape triggers on the FIRST SIGHTING of the most recently opened
+  // skill, not on when it was last practised — a skill introduced months ago
+  // and reviewed yesterday is not "recently introduced", and treating it as
+  // such would keep the escape permanently disarmed, which is the deadlock it
+  // exists to break.
+  const STALL_DAYS = 14;
+  let newestIntroduction = -Infinity;
+  for (const e of Object.values(estimates)) {
+    if (e.attempts > 0 && e.firstPracticed != null && e.firstPracticed > newestIntroduction) {
+      newestIntroduction = e.firstPracticed;
+    }
+  }
+  const stalled = (now - newestIntroduction) >= STALL_DAYS * DAY_MS;
   const freshBudget =
-    openWork >= 6 ? 0            // plenty unconsolidated — do not open more
+    openWork >= 6 ? (stalled ? 1 : 0)
     : openWork >= 3 ? 1
     : Math.max(1, Math.round(count * 0.20));
   const freshTarget = Math.min(fresh.length, freshBudget);
@@ -270,7 +392,34 @@ export function buildSession(
   // pairs with the depth-based priority in scheduleSkills: that decides the
   // order across the whole ranking, this decides it inside the new-material
   // budget once the ranking has been split into pools.
-  const freshOrdered = [...fresh].sort((a, b) => b.priority - a.priority);
+  //
+  // Cap the number of DISTINCT new skills one session may open.
+  //
+  // docs/21 · F5, the actual root cause. On a blank slate there is nothing to
+  // consolidate, so the fallback branch below filled all 10 slots from the
+  // fresh pool — opening TEN new skills in a child's very first session. That
+  // is poor teaching on its own, but it also pinned `openWork` at 10
+  // permanently, which drove the fresh budget to 0 and froze the curriculum:
+  // measured, a Class 4 learner still had not met times tables after 30
+  // sessions, and reached only 16 skills in a year.
+  //
+  // Bounding the distinct count means the fallback REPEATS the few skills just
+  // opened rather than opening more — which is what "consolidate" is supposed
+  // to mean. A first session becomes 3 topics practised properly instead of 10
+  // met once.
+  // The cap must RELAX when there is little else to practise. With one focus
+  // skill and eight maintenance skills, a hard cap of 3 forced seven of ten
+  // slots onto a single skill — turning "consolidate" into "drill". The pool
+  // needs enough distinct material to fill the session sensibly: whatever the
+  // focus and maintenance pools cannot cover, the fresh pool may.
+  const otherSupply = focus.length + secure.length;
+  const maxDistinctNew = Math.max(
+    Math.max(1, Math.ceil(count * 0.3)),
+    Math.ceil((count - otherSupply) / 3),
+  );
+  const freshOrdered = [...fresh]
+    .sort((a, b) => b.priority - a.priority)
+    .slice(0, maxDistinctNew);
 
   // Bounded above by OVER_PRACTICE_CAP: ceiling effects waste session time that
   // belongs to the frontier. A skill above 0.90 is not learning, it is

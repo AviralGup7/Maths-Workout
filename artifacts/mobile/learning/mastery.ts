@@ -57,6 +57,13 @@ export interface MasteryEstimate {
   correct: number;
   /** Epoch ms of the most recent attempt, or null if never practised. */
   lastPracticed: number | null;
+  /**
+   * Epoch ms of the FIRST attempt, or null if never practised.
+   *
+   * Optional so that hand-built estimates in tests and callers stay valid; the
+   * scheduler treats an absent value as "unknown", never as "just now".
+   */
+  firstPracticed?: number | null;
   /** Change in accuracy between the older and newer half of recent attempts. */
   trend: number;
   /** Raw accuracy before decay is applied — used for reporting, not scheduling. */
@@ -120,7 +127,7 @@ function estimateFromRelevant(
   if (relevant.length === 0) {
     return {
       skill, value: 0.5, confidence: 0, attempts: 0, correct: 0,
-      lastPracticed: null, trend: 0, rawAccuracy: 0,
+      lastPracticed: null, firstPracticed: null, trend: 0, rawAccuracy: 0,
     };
   }
 
@@ -142,10 +149,25 @@ function estimateFromRelevant(
   });
 
   // Laplace-smoothed estimate: sparse evidence stays near the prior.
+  //
+  // docs/21 · F7. The prior must FADE as evidence accumulates. With a fixed
+  // strength of 2 the 0.5 prior never lets go: a learner observed failing 500
+  // times was still estimated near 0.5, because decay also pulls toward 0.5 and
+  // nothing pulls away from it. Two consequences, both bad — the estimate
+  // overstated true ability by +0.475 for a persistently-failing learner, and
+  // (worse) the remediation machinery that triggers below STRUGGLING_THRESHOLD
+  // (0.55) could never fire for the children who most needed it. The app was
+  // structurally incapable of noticing its weakest learners.
+  //
+  // Fading the prior over the first ~10 attempts keeps sparse estimates
+  // appropriately humble while letting a substantial body of evidence speak for
+  // itself. Sparse behaviour is unchanged; only the well-evidenced case moves.
+  const priorStrength = PRIOR_STRENGTH * Math.pow(0.5, relevant.length / 10);
   const smoothed =
-    (weightedCorrect + PRIOR_STRENGTH * 0.5) / (weightTotal + PRIOR_STRENGTH);
+    (weightedCorrect + priorStrength * 0.5) / (weightTotal + priorStrength);
 
   const lastPracticed = relevant[relevant.length - 1].answeredAt;
+  const firstPracticed = relevant[0].answeredAt;
   const daysSince = Math.max(0, (now - lastPracticed) / DAY_MS);
   let value = clamp01(applyDecay(smoothed, daysSince));
 
@@ -162,7 +184,24 @@ function estimateFromRelevant(
   }
 
   // Confidence grows with evidence and shrinks as evidence goes stale.
-  const evidence = Math.min(1, relevant.length / 8);
+  //
+  // docs/21 · F6. Evidence VOLUME is not evidence QUALITY. Confidence was
+  // `min(1, n/8)` scaled by freshness, so it saturated at ~0.98 after eight
+  // attempts of any kind — including 536 consecutive sub-second random taps on
+  // a skill whose true ability was 0.03. The model was maximally confident
+  // about a learner it had only ever watched guess, and anything downstream
+  // that treats confidence as a reliability weight (parent reports, diagnosis,
+  // any future cross-device aggregation) would read pure noise as near-certain.
+  //
+  // Attempts too fast to be genuine cognition are counted at a fraction of
+  // their weight. They are still real evidence — a child who taps is telling us
+  // something — but not evidence we should be confident about.
+  const GUESS_LATENCY_MS = 1200;
+  const credible = relevant.reduce(
+    (sum, a) => sum + (a.latencyMs > 0 && a.latencyMs < GUESS_LATENCY_MS ? 0.25 : 1),
+    0,
+  );
+  const evidence = Math.min(1, credible / 8);
   const freshness = Math.pow(0.5, daysSince / (DECAY_HALF_LIFE_DAYS * 2));
   const confidence = clamp01(evidence * (0.4 + 0.6 * freshness));
 
@@ -183,6 +222,7 @@ function estimateFromRelevant(
     attempts: relevant.length,
     correct: totalCorrect,
     lastPracticed,
+    firstPracticed,
     trend,
     rawAccuracy,
   };

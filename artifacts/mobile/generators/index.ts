@@ -11,7 +11,7 @@ import { SchoolClass, Difficulty, Category, Question, ClassConfig } from './type
 import { pick } from './helpers';
 import { genAddition, genSubtraction, genMultiplication, genDivision, generateTablesQuestions } from './arithmetic';
 import { genCounting, genNumberSense } from './early-years';
-import { genNumberSenseStrand } from './number-sense';
+import { genNumberSenseStrand, genEstimation, genComparison, genReasonableness } from './number-sense';
 import { genErrorHunt, genPattern, genSymmetry } from './reasoning';
 import { genShapes, genTime, genMoney, genPlaceValue, genMeasurement } from './topics-core';
 import { genFractions, genDecimals } from './fractions-decimals';
@@ -116,6 +116,47 @@ export function getAvailableCategories(cls: SchoolClass, board: Board = DEFAULT_
 }
 
 // ─── Main dispatcher ──────────────────────────────────────────────────────────
+
+/**
+ * Generators that serve ONE specific skill, for skills whose category picks a
+ * strand at random.
+ *
+ * docs/21 · F3. The `number_sense` category rolls a die across patterns, error
+ * hunting, the number-sense strand and legacy comparison. That is good variety
+ * when the learner chose "Number Sense" from the menu, but wrong when the
+ * *scheduler* asked for a named skill: it would plan `patterns.basic` and then
+ * serve an estimation question 80% of the time, so the attempt would be logged
+ * against a skill the child never actually practised. Mastery for that skill
+ * would then be estimated from evidence belonging to a different one.
+ *
+ * When the caller knows which skill it wants, it says so, and gets it.
+ */
+const SKILL_GENERATORS: Record<string, (cls: SchoolClass, diff: Difficulty) => Question> = {
+  'patterns.basic':      (c, d) => genPattern(c, d),
+  'numsense.compare':    (c, d) => genComparison(c, d),
+  'numsense.estimate':   (c, d) => genEstimation(c, d),
+  'numsense.reasonable': (c, d) => genReasonableness(c, d),
+  'symmetry.basic':      (c, d) => genSymmetry(c, d),
+};
+
+/**
+ * Generate a question for a NAMED SKILL, falling back to the category
+ * dispatcher when the skill has no dedicated generator.
+ *
+ * This is what the adaptive scheduler should call: it guarantees the question
+ * the learner sees exercises the skill the attempt will be logged against.
+ */
+export function generateForSkill(
+  cls: SchoolClass,
+  diff: Difficulty,
+  cat: Category,
+  skill: string,
+  board: Board = DEFAULT_BOARD,
+): Question {
+  const dedicated = SKILL_GENERATORS[skill];
+  if (dedicated) return dedicated(cls, diff);
+  return generateQuestion(cls, diff, cat, board);
+}
 
 export function generateQuestion(cls: SchoolClass, diff: Difficulty, cat: Category, board: Board = DEFAULT_BOARD): Question {
   switch (cat) {

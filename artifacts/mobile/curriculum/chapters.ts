@@ -159,6 +159,32 @@ const classNum = (c: SchoolClass) => CLASS_ORDER.indexOf(c) + 1;
 
 export type ChapterStatus = 'locked' | 'available' | 'inProgress' | 'complete';
 
+/**
+ * Mean mastery over a chapter's skills, for UNLOCK decisions.
+ *
+ * docs/21 · F3, defence-in-depth. Treating an unpractised skill as 0 conflates
+ * "the learner is bad at this" with "the learner has never been offered this",
+ * and only the first should hold a gate shut. When one skill in a three-skill
+ * chapter could never be scheduled, the chapter was capped at mean 0.67 against
+ * a 0.70 gate and every descendant locked permanently — for every learner.
+ *
+ * The scheduler fix makes that specific orphan impossible, but the gate should
+ * not be one lookup-table omission away from freezing the curriculum again. So
+ * unlock readiness is judged on the evidence that EXISTS: skills the learner
+ * has actually met. A chapter whose skills are all unmet returns 0 and stays
+ * shut, which is correct — that is a learner who has not started, not one being
+ * silently blocked.
+ *
+ * Completion deliberately still requires every skill (see `chapterStatus`):
+ * you cannot finish a chapter by never meeting half of it.
+ */
+function unlockMastery(skills: SkillId[], mastery: Record<SkillId, number>): number {
+  if (skills.length === 0) return 1;
+  const met = skills.filter(k => mastery[k] !== undefined);
+  if (met.length === 0) return 0;
+  return met.reduce((s, k) => s + (mastery[k] ?? 0), 0) / met.length;
+}
+
 function meanMastery(skills: SkillId[], mastery: Record<SkillId, number>): number {
   if (skills.length === 0) return 1;
   return skills.reduce((s, k) => s + (mastery[k] ?? 0), 0) / skills.length;
@@ -178,7 +204,7 @@ export function chapterStatus(
   if (classNum(ch.introducedIn) > classNum(cls)) return 'locked';
 
   const ready = ch.prerequisites.every(
-    pid => !CHAPTER_BY_ID[pid] || meanMastery(CHAPTER_BY_ID[pid].skills, mastery) >= CHAPTER_UNLOCK_MASTERY,
+    pid => !CHAPTER_BY_ID[pid] || unlockMastery(CHAPTER_BY_ID[pid].skills, mastery) >= CHAPTER_UNLOCK_MASTERY,
   );
   if (!ready) return 'locked';
 

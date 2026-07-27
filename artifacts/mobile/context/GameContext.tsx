@@ -20,7 +20,7 @@ import type {
   SchoolClass, Difficulty, Category, SessionType,
   Question, WrongAnswer, ProgressStats,
 } from '../generators';
-import { generateQuestion, generateTablesQuestions } from '../generators';
+import { generateQuestion, generateForSkill, generateTablesQuestions } from '../generators';
 import { expectedAnswer, pickInteraction, toEntry } from '../generators/interactions';
 import type { Board } from '../curriculum/boards';
 import { DEFAULT_BOARD, categoriesFor, BOARD_CONFIGS } from '../curriculum/boards';
@@ -527,7 +527,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const q =
       cat === 'word_problems' ? genWordProblemsI18n(cls, diff, lang, board) :
       cat === 'money'         ? genMoneyI18n(cls, diff, lang, board) :
-      generateQuestion(cls, diff, cat, board);
+      // Skill-targeted: categories that pick a strand at random (number_sense,
+      // shapes) must serve the skill the attempt will be logged against.
+      generateForSkill(cls, diff, cat, skill, board);
     // The ladder: secure skills lose the multiple-choice scaffold.
     const withLadder = pickInteraction(level, { entry: true }) === 'entry' ? toEntry(q) : q;
     return { ...withLadder, resolvedCategory: withLadder.resolvedCategory ?? cat };
