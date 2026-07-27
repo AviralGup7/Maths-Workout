@@ -41,6 +41,7 @@ cause and the verified three-line fix are in
 | 10 | [Question Engine Evolution](./10-question-engine-evolution.md) | Interaction taxonomy, UI plan, and what was built |
 | 11 | [Curriculum Research](./11-curriculum-research.md) | CBSE / ICSE / state syllabus sources behind the board model |
 | 12 | [Performance & Delight](./12-performance-and-delight.md) | Accessibility, reduced motion, perceived speed, celebration, onboarding |
+| 13 | [**Learning Effectiveness Audit**](./13-learning-effectiveness-audit.md) | **Educational review: learning science, pedagogy, diagnostics, curriculum. Score 6.4/10** |
 
 ---
 
