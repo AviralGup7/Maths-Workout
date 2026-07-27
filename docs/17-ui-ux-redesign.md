@@ -674,3 +674,76 @@ audit.
   semi-Hindi policy (numerals Latin, navigation bilingual) is unchanged and must
   survive the rebuild — there are already 14 policy-guard tests.
 - **The 7-week estimate assumes one engineer** and excludes artwork.
+
+---
+
+## 14 · Implementation log
+
+### M0 · Token layer + M1 · Accessibility emergency fixes — **shipped**
+
+**Files:** `theme/{tokens,contrast,useTheme}.ts(x)`,
+`components/ui/{AnswerTile,StateBadge}.tsx`,
+`theme/__tests__/{contrast,no-colour-only}.test.ts`, `constants/colors.ts` (shim).
+
+**Tests:** 307 → **360**. Typecheck clean. Verified in Chromium at 320×568 and
+390×844.
+
+#### An important negative result
+
+The plan assumed A1 could be fixed by choosing better colours. **It cannot.**
+A search over the green/red space established:
+
+> The maximum achievable worst-case CVD separation for a green/red pair where
+> both colours pass WCAG AA on white is **2.29** — and that pair is teal
+> `#0B8484` against near-black maroon `#5A0C17`, which most sighted users would
+> no longer read as "green" and "red" at all. Constrained to recognisable hues,
+> nothing exceeds ~1.6. **Tritanopia is the binding constraint** and no palette
+> escapes it.
+
+This changed the design. Colour is not merely *one of* four signals as a matter
+of good practice — it is structurally incapable of carrying this message alone,
+so icon shape, glyph and text label are **required fields** on `StateSignal`
+and are asserted in CI. The shipped pair reaches 2.54 worst-case separation in
+light (up from **1.01**) with a 3.17 luminance ratio, and correct/wrong use
+different icon *families* (filled circle vs outlined square) rather than the
+same silhouette in two colours.
+
+#### Measured outcomes
+
+| Finding | Before | After |
+|---|---|---|
+| A1 correct/wrong under deuteranopia | 1.01 | **2.54** worst-case across all three dichromacies |
+| A1 outcome without colour | none | icon + glyph + screen-reader label ("119, the correct answer") |
+| A2 primary on surface | 4.41 / 3.95 **FAIL** | **8.6 / 8.6 AA** |
+| A2 border vs card | 1.23 | focus ring `borderStrong` ≥ 3.0 |
+| A3 answer-tile targets | 74pt tiles, 32–38pt chrome | **171×72**, zero below 48 |
+| A8 type floor | 32 instances ≤ 11pt | scale floor 13pt |
+| A9 inverted palette (docs/04 C5) | `light` held dark values | **fixed at the root** |
+
+#### Decisions worth flagging
+
+**The legacy `constants/colors.ts` became a shim rather than being deleted.**
+17 screens still use `const C = colors.light` at module scope. Mapping that
+export onto the audited tokens fixed the inverted palette for all of them in one
+step, and — because the palettes were inverted — flipped the app from dark to
+light, which is the intended end state. The alternative was 17 simultaneous
+screen rewrites, which is exactly the big-bang migration the plan rejects.
+
+**`revealed` is a distinct tile state from `correct`.** After a miss, a child
+must be able to tell the right answer apart from the answer they chose.
+Colouring both green would destroy that distinction, so revealed is *outlined*
+and correct is *filled*. There is a test for it.
+
+**Source-reading tests were used for the no-colour-only guard.** Normally a
+smell, justified here: "no state is conveyed by colour alone" is a whole-file
+property that a render test would only cover for the states it happens to
+exercise, and this is an equity defect affecting ~1 in 12 boys.
+
+#### Still outstanding
+
+6 sub-44pt targets and 11 sub-12pt strings remain on **unmigrated** screens
+(category-select, difficulty-select, home). Those are M3–M4. The practice
+screen's answer surface — the most-tapped element in the product — is clean.
+
+Not yet built: navigation rebuild, home screen, progress/journey, parent view,
+responsive breakpoints, motion pass.

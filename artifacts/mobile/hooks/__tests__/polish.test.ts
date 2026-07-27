@@ -140,16 +140,25 @@ describe('accessibility coverage', () => {
   const screens = sourceFiles(['app', 'components']);
 
   it('every answer surface labels its controls', () => {
-    for (const name of ['AnswerSurface', 'NumericEntry', 'MultiSelect', 'OrderingTray']) {
-      const src = read(`components/answer/${name}.tsx`);
-      expect(src, `${name} has no accessibilityRole`).toContain('accessibilityRole');
-      expect(src, `${name} has no accessibilityLabel`).toContain('accessibilityLabel');
+    // AnswerSurface now delegates the choice grid to components/ui/AnswerTile,
+    // so its labelling lives there. The requirement is unchanged — it simply
+    // follows the control.
+    const surfaces = [
+      'components/answer/NumericEntry.tsx',
+      'components/answer/MultiSelect.tsx',
+      'components/answer/OrderingTray.tsx',
+      'components/ui/AnswerTile.tsx',
+    ];
+    for (const path of surfaces) {
+      const src = read(path);
+      expect(src, `${path} has no accessibilityRole`).toContain('accessibilityRole');
+      expect(src, `${path} has no accessibilityLabel`).toContain('accessibilityLabel');
     }
   });
 
   it('interactive surfaces expose disabled and selected state', () => {
-    const src = read('components/answer/AnswerSurface.tsx');
-    expect(src).toContain('accessibilityState');
+    expect(read('components/ui/AnswerTile.tsx')).toContain('accessibilityState');
+    expect(read('components/answer/MultiSelect.tsx')).toContain('accessibilityState');
   });
 
   it('the keypad hints what Check will do', () => {

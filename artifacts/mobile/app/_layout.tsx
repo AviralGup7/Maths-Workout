@@ -16,6 +16,7 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { GameProvider } from '@/context/GameContext';
+import { ThemeProvider } from '@/theme/useTheme';
 import { installScriptAwareText } from '@/components/ScriptAwareText';
 
 // Substitute Noto Sans Devanagari wherever Hindi text appears, since Inter has
@@ -61,10 +62,12 @@ export default function RootLayout() {
       <ErrorBoundary>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <KeyboardProvider>
-            <GameProvider>
-              <StatusBar style="light" />
-              <RootLayoutNav />
-            </GameProvider>
+            <ThemeProvider>
+              <GameProvider>
+                <StatusBar style="auto" />
+                <RootLayoutNav />
+              </GameProvider>
+            </ThemeProvider>
           </KeyboardProvider>
         </GestureHandlerRootView>
       </ErrorBoundary>

@@ -3,6 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import colors from '@/constants/colors';
 import type { Question, ChoiceValue } from '@/generators/types';
 import { normaliseSet, normaliseSequence, normaliseEntry, expectedAnswer } from '@/generators/interactions';
+import { AnswerTile } from '@/components/ui/AnswerTile';
+import type { TileState } from '@/components/ui/AnswerTile';
+import { useTheme } from '@/theme/useTheme';
+import { useGame } from '@/context/GameContext';
 import { NumericEntry } from './NumericEntry';
 import { MultiSelect } from './MultiSelect';
 import { OrderingTray } from './OrderingTray';
@@ -84,9 +88,15 @@ export function AnswerSurface({
 }
 
 /**
- * The original four-tile grid, extracted unchanged in behaviour.
- * Still the right affordance for early learners and for review, where seeing
- * the answer among options is a deliberate scaffold.
+ * The four-tile answer grid.
+ *
+ * Rebuilt on AnswerTile for M1 of docs/17. The previous implementation
+ * signalled correct/wrong with border and background colour ONLY, which
+ * measured 1.07 separation under simulated deuteranopia — the two states were
+ * literally the same colour for roughly 1 in 12 boys. Tiles now carry an icon
+ * and an accessible outcome label as well, and the "revealed" state is visually
+ * distinct from a correct tap so a child can tell the right answer apart from
+ * their own.
  */
 function ChoiceGrid({
   question,
@@ -99,13 +109,8 @@ function ChoiceGrid({
   selectedChoice: string | null;
   onSubmit: (choice: ChoiceValue) => void;
 }) {
-  const hasStringChoices = question.choices.some(c => typeof c === 'string');
-  const fontSize = hasStringChoices
-    ? 16
-    : question.choices.some(c => Math.abs(Number(c)) > 999) ? 22 : 28;
-
-  // Screen readers read "−" as "minus sign"; spell the operation out instead.
-  const formatChoiceLabel = (v: ChoiceValue): string => String(v).replace('−', 'minus ');
+  const { space } = useTheme();
+  const { lang } = useGame();
 
   const format = (v: ChoiceValue): string => {
     if (typeof v === 'string') return v;
@@ -113,42 +118,38 @@ function ChoiceGrid({
     return String(v);
   };
 
-  const tileStyle = (choice: ChoiceValue) => {
-    const base = [styles.tile, hasStringChoices && styles.tileText];
-    if (!locked) return base;
-    if (String(choice) === String(question.answer)) return [...base, styles.tileCorrect];
-    if (String(choice) === selectedChoice) return [...base, styles.tileWrong];
-    return [...base, styles.tileDim];
+  const stateFor = (choice: ChoiceValue): TileState => {
+    if (!locked) return 'idle';
+    const isAnswer = String(choice) === String(question.answer);
+    const isChosen = String(choice) === selectedChoice;
+    if (isAnswer && isChosen) return 'correct';
+    if (isAnswer) return 'revealed';        // right answer the child did not pick
+    if (isChosen) return 'wrong';
+    return 'dimmed';
   };
 
-  const textColor = (choice: ChoiceValue) => {
-    if (!locked) return C.foreground;
-    if (String(choice) === String(question.answer)) return C.correct;
-    if (String(choice) === selectedChoice) return C.wrong;
-    return C.mutedForeground;
-  };
+  // Two rows of two, so tiles stay wide enough to hit comfortably.
+  const rows: ChoiceValue[][] = [];
+  for (let i = 0; i < question.choices.length; i += 2) {
+    rows.push(question.choices.slice(i, i + 2));
+  }
 
   return (
-    <View style={styles.grid}>
-      {question.choices.map((choice, i) => (
-        <TouchableOpacity
-          key={i}
-          style={tileStyle(choice) as any}
-          onPress={() => onSubmit(choice)}
-          activeOpacity={0.75}
-          disabled={locked}
-          accessibilityRole="button"
-          accessibilityLabel={`${formatChoiceLabel(choice)}`}
-          accessibilityHint={locked ? undefined : 'Answer option'}
-          accessibilityState={{
-            disabled: locked,
-            selected: locked && String(choice) === selectedChoice,
-          }}
-        >
-          <Text style={[styles.tileTextBase, { fontSize, color: textColor(choice) }]}>
-            {format(choice)}
-          </Text>
-        </TouchableOpacity>
+    <View style={{ gap: space.md }}>
+      {rows.map((row, r) => (
+        <View key={r} style={{ flexDirection: 'row', gap: space.md }}>
+          {row.map((choice, i) => (
+            <AnswerTile
+              key={`${r}-${i}`}
+              label={format(choice)}
+              state={stateFor(choice)}
+              onPress={() => onSubmit(choice)}
+              lang={lang}
+              index={r * 2 + i + 1}
+              total={question.choices.length}
+            />
+          ))}
+        </View>
       ))}
     </View>
   );
