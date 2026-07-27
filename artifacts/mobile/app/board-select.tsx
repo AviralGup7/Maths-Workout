@@ -144,6 +144,26 @@ export default function BoardSelectScreen() {
           {timerPref === 'auto' ? t('timerAutoNote', lang) : t('timerNote', lang)}
         </Text>
 
+        {/* Parents live here rather than in a tab: a child opening the app 300
+            times should not see a door labelled "for grown-ups" 300 times. */}
+        <TouchableOpacity
+          style={[styles.card, { borderColor: C.border, marginTop: 22 }]}
+          onPress={() => { Haptics.selectionAsync(); router.push('/parent'); }}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={t('forParents', lang)}
+        >
+          <View style={styles.cardBody}>
+            <Text style={styles.cardTitle}>{t('forParents', lang)}</Text>
+            <Text style={styles.cardNote}>
+              {lang === 'hi'
+                ? 'प्रगति, मज़बूत और कमज़ोर विषय, और आगे क्या करें'
+                : 'Progress, strengths and gaps, and what to do next'}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={20} color={C.mutedForeground} />
+        </TouchableOpacity>
+
         {/* What actually changes, so the choice is informed rather than arbitrary. */}
         <View style={styles.diffCard}>
           <Text style={styles.diffTitle}>

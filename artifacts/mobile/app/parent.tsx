@@ -1,0 +1,131 @@
+import React, { useMemo } from 'react';
+import { View, Text, ScrollView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import { useGame } from '@/context/GameContext';
+import { useTheme } from '@/theme/useTheme';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { buildParentReport } from '@/learning/parentReport';
+import { t } from '@/i18n/strings';
+
+/**
+ * The parent view — docs/14 §10, docs/17 §6.5.
+ *
+ * One screen, scannable in 30 seconds. The governing constraint: **parents do
+ * not lack data, they lack a next action.** So there are no charts, no
+ * comparison to peers or grade level, no time-on-task target, and no daily
+ * report. What a parent cannot get anywhere else is a named misconception and
+ * something concrete to do about it at the kitchen table.
+ *
+ * Reached through Settings rather than a tab. A child opening the app 300 times
+ * should not see a door labelled "for grown-ups" 300 times: it implies
+ * surveillance and changes how the child uses the product.
+ */
+export default function ParentScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { attempts, mastery, lang } = useGame();
+  const { c, type, space } = useTheme();
+
+  const report = useMemo(
+    () => buildParentReport({ log: attempts, estimates: mastery, lang }),
+    [attempts, mastery, lang],
+  );
+
+  const top = Platform.OS === 'web' ? 67 : insets.top;
+
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: top }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: space.base, gap: space.md }}>
+        <Button
+          label={t('back', lang)} onPress={() => router.back()}
+          variant="ghost" size="md" icon="arrow-left" fullWidth={false}
+        />
+      </View>
+
+      <ScrollView contentContainerStyle={{ padding: space.base, gap: space.base, paddingBottom: space.xxl }}>
+        <Text style={[type('title'), { color: c.text }]}>{t('forParents', lang)}</Text>
+
+        {report.insufficientData ? (
+          <EmptyState
+            icon="clock"
+            title={t('notEnoughYet', lang)}
+            body={lang === 'hi'
+              ? 'कुछ और अभ्यास सत्रों के बाद यहाँ उपयोगी जानकारी दिखेगी।'
+              : 'A few more practice sessions and there will be something useful to show here.'}
+          />
+        ) : (
+          <>
+            {/* Practice pattern. Days, not minutes — minutes invite a target,
+                and a time target rewards sitting still rather than thinking. */}
+            <Card>
+              <Text style={[type('label'), { color: c.textMuted, marginBottom: space.sm }]}>
+                {t('thisWeek', lang).toUpperCase()}
+              </Text>
+              <Text style={[type('heading'), { color: c.text }]}>
+                {lang === 'hi'
+                  ? `${report.daysInWindow} में से ${report.daysPractised} दिन अभ्यास किया`
+                  : `Practised on ${report.daysPractised} of ${report.daysInWindow} days`}
+              </Text>
+              <Text style={[type('body'), { color: c.textMuted, marginTop: space.xs }]}>
+                {report.questions} {lang === 'hi' ? 'प्रश्न' : 'questions'} · {report.minutes} {lang === 'hi' ? 'मिनट' : 'minutes'}
+              </Text>
+            </Card>
+
+            {(report.strongest || report.needsWork) && (
+              <Card>
+                {report.strongest && (
+                  <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
+                    <Feather name="check-circle" size={16} color={c.correct} />
+                    <Text style={[type('body'), { color: c.text, flex: 1 }]}>
+                      {t('strongest', lang)}: {report.strongest.label}
+                    </Text>
+                  </View>
+                )}
+                {report.needsWork && (
+                  <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center', marginTop: space.sm }}>
+                    <Feather name="alert-circle" size={16} color={c.attention} />
+                    <Text style={[type('body'), { color: c.text, flex: 1 }]}>
+                      {lang === 'hi' ? 'ध्यान चाहिए' : 'Needs work'}: {report.needsWork.label}
+                    </Text>
+                  </View>
+                )}
+              </Card>
+            )}
+
+            {/* The whole point of the screen. */}
+            {report.focus && (
+              <Card>
+                <Text style={[type('label'), { color: c.primary, marginBottom: space.sm }]}>
+                  {t('whatWouldHelp', lang)}
+                </Text>
+                <Text style={[type('body'), { color: c.text }]}>{report.focus.what}</Text>
+                <View style={{
+                  marginTop: space.md, padding: space.md,
+                  backgroundColor: c.primarySoft, borderRadius: 12,
+                }}>
+                  <Text style={[type('label'), { color: c.primary, marginBottom: space.xs }]}>
+                    {t('tryThis', lang)}
+                  </Text>
+                  <Text style={[type('body'), { color: c.text }]}>{report.focus.tryThis}</Text>
+                </View>
+              </Card>
+            )}
+
+            {report.growth && (
+              <Card>
+                <View style={{ flexDirection: 'row', gap: space.sm, alignItems: 'center' }}>
+                  <Feather name="trending-up" size={16} color={c.correct} />
+                  <Text style={[type('body'), { color: c.text, flex: 1 }]}>{report.growth}</Text>
+                </View>
+              </Card>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}

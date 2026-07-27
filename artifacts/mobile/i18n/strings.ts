@@ -145,6 +145,28 @@ export const S: Dict = {
   timerAuto:        { en: 'Auto',              hi: 'स्वतः · Auto' },
   timerAutoNote:    { en: 'Off below Class 3', hi: 'कक्षा 3 से पहले बंद' },
   timerNote:        { en: 'Blitz always keeps its clock', hi: 'ब्लिट्ज़ में घड़ी हमेशा चलती है' },
+
+  // ── Navigation (docs/17 M4) ─────────────────────────────────────────────
+  // Tab labels are short by necessity; they stay single-language in Hindi
+  // because the icon carries the redundancy and a bilingual label would not
+  // fit a third of a phone width.
+  navPractice:      { en: 'Practice',          hi: 'अभ्यास' },
+  navProgress:      { en: 'Progress',          hi: 'प्रगति' },
+  navSettings:      { en: 'Settings',          hi: 'सेटिंग' },
+
+  // ── Home (docs/17 §6.1) ─────────────────────────────────────────────────
+  continueLearning: { en: 'Continue',          hi: 'जारी रखें' },
+  todaysSession:    { en: "Today's practice",  hi: 'आज का अभ्यास' },
+  needsAttention:   { en: 'NEEDS A LOOK',      hi: 'इन पर ध्यान दें' },
+  reviewDue:        { en: 'Ready to review',   hi: 'दोहराने का समय' },
+  startPractising:  { en: 'Start practising',  hi: 'अभ्यास शुरू करें' },
+  chooseTopic:      { en: 'Choose a topic',    hi: 'विषय चुनें' },
+  forParents:       { en: 'For parents',       hi: 'अभिभावकों के लिए' },
+  thisWeek:         { en: 'This week',         hi: 'इस सप्ताह' },
+  whatWouldHelp:    { en: 'WHAT WOULD HELP MOST', hi: 'सबसे ज़्यादा क्या मदद करेगा' },
+  tryThis:          { en: 'Try this together', hi: 'यह साथ मिलकर करें' },
+  strongest:        { en: 'Strongest',         hi: 'सबसे मज़बूत' },
+  notEnoughYet:     { en: 'Not enough practice yet to say much', hi: 'अभी इतना अभ्यास नहीं कि कुछ कहा जाए' },
 };
 
 /** Look up a UI string. Falls back to English if a Hindi value is missing. */

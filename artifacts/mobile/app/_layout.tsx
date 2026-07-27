@@ -13,10 +13,13 @@ import {
   NotoSansDevanagari_600SemiBold,
   NotoSansDevanagari_700Bold,
 } from '@expo-google-fonts/noto-sans-devanagari';
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { GameProvider } from '@/context/GameContext';
 import { ThemeProvider } from '@/theme/useTheme';
+import { TabBar } from '@/components/ui/TabBar';
+import { useGame } from '@/context/GameContext';
 import { installScriptAwareText } from '@/components/ScriptAwareText';
 
 // Substitute Noto Sans Devanagari wherever Hindi text appears, since Inter has
@@ -27,7 +30,11 @@ import { StatusBar } from 'expo-status-bar';
 SplashScreen.preventAutoHideAsync();
 
 function RootLayoutNav() {
+  // The tab bar lives beside the stack rather than replacing it, so navigation
+  // becomes persistent without rewriting every route at once (docs/17 M4).
+  const { lang } = useGame();
   return (
+    <View style={{ flex: 1 }}>
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="welcome" options={{ gestureEnabled: false }} />
@@ -40,7 +47,10 @@ function RootLayoutNav() {
       <Stack.Screen name="mistake-review" />
       <Stack.Screen name="tables-mode" />
       <Stack.Screen name="progress" />
+      <Stack.Screen name="parent" />
     </Stack>
+    <TabBar lang={lang} />
+    </View>
   );
 }
 

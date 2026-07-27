@@ -13,6 +13,8 @@ import { CLASS_LABELS } from '@/curriculum/boards';
 import { SKILLS } from '@/learning/skills';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from '@/learning/mastery';
 import { biggestGain, growthSentence } from '@/learning/feedback';
+import { evaluateAchievements } from '@/progression/achievements';
+import { CHAPTERS, chapterStatus, chapterProgress } from '@/curriculum/chapters';
 
 const C = colors.light;
 const CATS: Category[] = ['addition', 'subtraction', 'multiplication', 'division', 'mixed'];
@@ -21,7 +23,8 @@ export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router  = useRouter();
   const { progressStats, getHighScore, tablesBest, savedMistakes,
-          mastery, topMisconceptions, rootGapFor, streak, lang, attempts } = useGame();
+          mastery, topMisconceptions, rootGapFor, streak, lang, attempts,
+          selectedClass, level, masteryIdx, masteryLabel, totalXp } = useGame();
 
   const [filterClass, setFilterClass] = useState<SchoolClass | 'all'>('all');
 
@@ -65,6 +68,24 @@ export default function ProgressScreen() {
   // Growth-mindset framing needs evidence of growth, and the data already exists.
   const gain = useMemo(() => biggestGain(attempts), [attempts]);
 
+  // docs/17 §6.4 — the journey. Chapters as a path with secured ground behind
+  // and the frontier ahead makes competence concrete without a single number,
+  // and it makes the prerequisite structure legible.
+  const journey = useMemo(() => {
+    const values: Record<string, number> = {};
+    for (const [k, v] of Object.entries(mastery)) values[k] = v.value;
+    return CHAPTERS
+      .map(ch => ({ ch, status: chapterStatus(ch, values, selectedClass), pct: chapterProgress(ch, values) }))
+      .filter(x => x.status !== 'locked')
+      .sort((a, b) => b.pct - a.pct);
+  }, [mastery, selectedClass]);
+
+  const achievements = useMemo(
+    () => evaluateAchievements({ log: attempts, estimates: mastery, cls: selectedClass, now: Date.now() })
+      .sort((a, b) => b.progress - a.progress),
+    [attempts, mastery, selectedClass]);
+  const earned = achievements.filter(a => a.earned);
+
   const skillRows = useMemo(() => {
     return Object.values(mastery)
       .filter(m => m.attempts >= 3 && SKILLS[m.skill])
@@ -87,6 +108,68 @@ export default function ProgressScreen() {
       </View>
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: bot + 24 }]} showsVerticalScrollIndicator={false}>
+
+        {/* Level and honest ability, side by side. Two numbers because there
+            are two questions — "how much have I done?" (never falls) and "how
+            good am I?" (can fall). Merging them would force a bad trade. */}
+        <View style={styles.statRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{level.level}</Text>
+            <Text style={styles.statLbl}>{lang === 'hi' ? 'स्तर' : 'Level'}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{masteryIdx}</Text>
+            <Text style={styles.statLbl}>{masteryLabel}</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{earned.length}</Text>
+            <Text style={styles.statLbl}>{lang === 'hi' ? 'उपलब्धियाँ' : 'Earned'}</Text>
+          </View>
+        </View>
+
+        {/* The journey. Ordered by progress so a learner resumes rather than
+            restarts. */}
+        {journey.length > 0 && (
+          <>
+            <Text style={styles.sectionLabel}>{lang === 'hi' ? 'आपका सफ़र' : 'YOUR JOURNEY'}</Text>
+            <View style={styles.insightCard}>
+              {journey.slice(0, 6).map(({ ch, status, pct }) => (
+                <View key={ch.id} style={styles.journeyRow}>
+                  <Feather
+                    name={status === 'complete' ? 'check-circle' : status === 'inProgress' ? 'circle' : 'plus-circle'}
+                    size={15}
+                    color={status === 'complete' ? C.easy : status === 'inProgress' ? C.primary : C.mutedForeground}
+                  />
+                  <Text style={styles.journeyTitle}>{lang === 'hi' ? ch.title.hi : ch.title.en}</Text>
+                  <Text style={styles.journeyPct}>{Math.round(pct * 100)}%</Text>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Achievements, nearest-to-earned first, so there is always a visible
+            next step rather than a wall of locked badges. */}
+        <Text style={styles.sectionLabel}>{lang === 'hi' ? 'उपलब्धियाँ' : 'ACHIEVEMENTS'}</Text>
+        <View style={styles.insightCard}>
+          {achievements.slice(0, 6).map(a => (
+            <View key={a.achievement.id} style={styles.journeyRow}>
+              <Feather name={a.earned ? 'award' : 'circle'} size={15}
+                color={a.earned ? C.gold : C.mutedForeground} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.journeyTitle}>
+                  {lang === 'hi' ? a.achievement.title.hi : a.achievement.title.en}
+                </Text>
+                {!a.earned && (
+                  <Text style={styles.achDesc}>
+                    {lang === 'hi' ? a.achievement.description.hi : a.achievement.description.en}
+                  </Text>
+                )}
+              </View>
+              <Text style={styles.journeyPct}>{Math.round(a.progress * 100)}%</Text>
+            </View>
+          ))}
+        </View>
 
         {/* Growth first: the learner should meet progress before problems. */}
         {gain && (
@@ -324,6 +407,17 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
+  statRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  statBox: {
+    flex: 1, backgroundColor: C.card, borderRadius: 14, borderWidth: 1,
+    borderColor: C.border, paddingVertical: 14, alignItems: 'center',
+  },
+  statNum: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.foreground, fontVariant: ['tabular-nums'] },
+  statLbl: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: C.mutedForeground, marginTop: 2 },
+  journeyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
+  journeyTitle: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.foreground },
+  journeyPct: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: C.mutedForeground, fontVariant: ['tabular-nums'] },
+  achDesc: { fontSize: 11.5, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 1 },
   growthCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: C.easy + '14', borderRadius: 14,
