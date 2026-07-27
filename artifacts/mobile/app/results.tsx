@@ -5,14 +5,41 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META } from '@/context/GameContext';
-import colors from '@/constants/colors';
 import { Celebration, isStreakMilestone } from '@/components/Celebration';
 import type { CelebrationReason } from '@/components/Celebration';
 import { useMotion } from '@/hooks/useMotion';
 import { useAnnounce, touchSlop } from '@/hooks/useA11y';
 import { t } from '@/i18n/strings';
+import { useTheme } from '@/theme/useTheme';
 
-const C = colors.light;
+
+/**
+ * Legacy palette keys, resolved reactively from the theme.
+ *
+ * docs/20 F1: `const C = colors.light` was evaluated once at import, so this
+ * screen could never honour the dark preference the app already exposed. This
+ * keeps the same key names — so the StyleSheet below is unchanged — while
+ * making them re-render with the theme.
+ */
+function useLegacyPalette() {
+  const { c } = useTheme();
+  return React.useMemo(() => ({
+    text: c.text, tint: c.primary, background: c.bg, foreground: c.text,
+    card: c.surface, cardForeground: c.text,
+    primary: c.primary, primaryForeground: c.primaryOn,
+    secondary: c.surfaceSunken, secondaryForeground: c.text,
+    muted: c.surfaceSunken, mutedForeground: c.textMuted,
+    accent: c.primary, accentForeground: c.primaryOn,
+    destructive: c.wrong, destructiveForeground: c.wrongOn,
+    border: c.border, input: c.border,
+    easy: c.correct, medium: c.attention, hard: c.wrong,
+    correct: c.correct, wrong: c.wrong, timerWarning: c.attention,
+    gold: c.attention, silver: c.textMuted, bronze: c.attention,
+    catAddition: c.correct, catSubtraction: c.attention,
+    catMultiplication: c.primary, catDivision: c.correct,
+    catMixed: c.attention, catTables: c.primary,
+  }), [c]);
+}
 
 function getStars(s: number, t: number) {
   const p = s / t;
@@ -29,6 +56,8 @@ function getMessage(s: number, t: number) {
 }
 
 export default function ResultsScreen() {
+  const C = useLegacyPalette();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const router  = useRouter();
   const {
@@ -212,7 +241,12 @@ export default function ResultsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+/**
+ * Styles are a factory rather than a module constant: they reference palette
+ * values, and a module-scope StyleSheet freezes those at import time — the
+ * exact defect that left dark mode non-functional (docs/20 F1).
+ */
+const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
   topNav: { position: 'absolute', top: 0, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   homeBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },

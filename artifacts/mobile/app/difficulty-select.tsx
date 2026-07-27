@@ -1,31 +1,33 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
-  useGame, CLASS_CONFIGS, CATEGORY_META,
-  Difficulty, SessionType,
+  useGame, CATEGORY_META, Difficulty, SessionType,
 } from '@/context/GameContext';
-import colors from '@/constants/colors';
-import { touchSlop } from '@/hooks/useA11y';
+import { useTheme } from '@/theme/useTheme';
+import { Screen, ScreenHeader, SectionLabel } from '@/components/ui/Screen';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Chip } from '@/components/ui/Chip';
 import { t, categoryLabel } from '@/i18n/strings';
 import { CLASS_LABELS } from '@/curriculum/boards';
 
-const C = colors.light;
-
-// Labels are held as i18n keys, not literals: this screen previously hardcoded
-// English, so a Hindi-medium learner met an all-English setup screen halfway
-// through an otherwise translated flow. The strings already existed in
-// i18n/strings.ts — they had simply never been wired up here.
+/**
+ * Difficulty and session length.
+ *
+ * Labels are held as i18n KEYS rather than literals: this screen previously
+ * hardcoded English, so a Hindi-medium learner met an all-English screen
+ * halfway through an otherwise translated flow.
+ */
 const DIFF_META: {
   key: Difficulty; labelKey: string; descKey: string;
-  icon: keyof typeof Feather.glyphMap; color: string;
+  icon: keyof typeof Feather.glyphMap; tone: 'correct' | 'attention' | 'wrong';
 }[] = [
-  { key: 'easy',   labelKey: 'easy',   descKey: 'easyDesc',   icon: 'smile',       color: C.easy },
-  { key: 'medium', labelKey: 'medium', descKey: 'mediumDesc', icon: 'zap',         color: C.medium },
-  { key: 'hard',   labelKey: 'hard',   descKey: 'hardDesc',   icon: 'trending-up', color: C.hard },
+  { key: 'easy',   labelKey: 'easy',   descKey: 'easyDesc',   icon: 'smile',       tone: 'correct' },
+  { key: 'medium', labelKey: 'medium', descKey: 'mediumDesc', icon: 'zap',         tone: 'attention' },
+  { key: 'hard',   labelKey: 'hard',   descKey: 'hardDesc',   icon: 'trending-up', tone: 'wrong' },
 ];
 
 const SESSION_META: {
@@ -37,17 +39,12 @@ const SESSION_META: {
 ];
 
 export default function DifficultySelectScreen() {
-  const insets = useSafeAreaInsets();
-  const router  = useRouter();
+  const router = useRouter();
   const { selectedClass, selectedCategory, startGame, getHighScore, lang } = useGame();
+  const { c, type, space } = useTheme();
 
-  const [selDiff, setSelDiff]       = useState<Difficulty>('easy');
+  const [selDiff, setSelDiff] = useState<Difficulty>('easy');
   const [selSession, setSelSession] = useState<SessionType>('10q');
-
-  const classConfig = CLASS_CONFIGS.find(c => c.key === selectedClass)!;
-  const catMeta     = CATEGORY_META[selectedCategory];
-  const top = Platform.OS === 'web' ? 67 : insets.top;
-  const bot = Platform.OS === 'web' ? 34 : insets.bottom;
 
   const handleStart = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -55,137 +52,76 @@ export default function DifficultySelectScreen() {
     router.push('/game');
   };
 
+  const toneColour = { correct: c.correct, attention: c.attention, wrong: c.wrong };
+
   return (
-    <View style={[styles.container, { paddingTop: top, paddingBottom: bot + 16 }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
-          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
-          <Feather name="arrow-left" size={22} color={C.foreground} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>{t('setUpGame', lang)}</Text>
-          <View style={styles.breadcrumb}>
-            <View style={[styles.crumbPill, { backgroundColor: classConfig.color + '22' }]}>
-              <Text style={[styles.crumbText, { color: classConfig.color }]}>{CLASS_LABELS[classConfig.key][lang === 'hi' ? 'hi' : 'en']}</Text>
-            </View>
-            <Feather name="chevron-right" size={12} color={C.mutedForeground} />
-            <View style={[styles.crumbPill, { backgroundColor: catMeta.color + '22' }]}>
-              <Text style={[styles.crumbText, { color: catMeta.color }]}>{categoryLabel(selectedCategory, lang)}</Text>
-            </View>
-          </View>
+    <Screen
+      footer={
+        <View style={{ padding: space.base }}>
+          <Button
+            label={t(selSession === 'timed60' ? 'startBlitz' : 'startGame', lang)}
+            onPress={handleStart}
+            icon="play"
+          />
         </View>
-        <View style={{ width: 40 }} />
-      </View>
+      }
+    >
+      <ScreenHeader
+        title={t('setUpGame', lang)}
+        subtitle={`${CLASS_LABELS[selectedClass][lang === 'hi' ? 'hi' : 'en']} · ${categoryLabel(selectedCategory, lang)}`}
+      />
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Difficulty */}
-        <Text style={styles.sectionLabel}>{t('difficulty', lang)}</Text>
-        <View style={styles.diffList}>
-          {DIFF_META.map(d => {
-            const best = getHighScore(selectedClass, d.key, selectedCategory);
-            const sel  = selDiff === d.key;
-            return (
-              <TouchableOpacity
-                key={d.key}
-                style={[styles.diffCard, sel && { borderColor: d.color, borderWidth: 2 }]}
-                onPress={() => { Haptics.selectionAsync(); setSelDiff(d.key); }}
-                activeOpacity={0.8}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: sel }}
-                accessibilityLabel={t(d.labelKey, lang)}
-                accessibilityHint={t(d.descKey, lang)}
-              >
-                <View style={[styles.diffIcon, { backgroundColor: d.color + '22' }]}>
-                  <Feather name={d.icon} size={22} color={d.color} />
-                </View>
-                <View style={styles.diffBody}>
-                  <Text style={[styles.diffLabel, { color: d.color }]}>{t(d.labelKey, lang)}</Text>
-                  <Text style={styles.diffDesc}>{t(d.descKey, lang)}</Text>
-                </View>
-                <View style={styles.diffRight}>
+      <SectionLabel>{t('difficulty', lang)}</SectionLabel>
+      <View style={{ gap: space.sm }}>
+        {DIFF_META.map(d => {
+          const best = getHighScore(selectedClass, d.key, selectedCategory);
+          const sel = selDiff === d.key;
+          const tint = toneColour[d.tone];
+          return (
+            <Pressable
+              key={d.key}
+              onPress={() => { Haptics.selectionAsync(); setSelDiff(d.key); }}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: sel }}
+              accessibilityLabel={t(d.labelKey, lang)}
+              accessibilityHint={t(d.descKey, lang)}
+            >
+              <Card elevation={sel ? 2 : 1} style={sel ? { borderColor: tint, borderWidth: 2 } : undefined}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                  <View style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    backgroundColor: tint + '22', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Feather name={d.icon} size={20} color={tint} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[type('heading'), { color: tint }]}>{t(d.labelKey, lang)}</Text>
+                    <Text style={[type('caption'), { color: c.textMuted }]}>{t(d.descKey, lang)}</Text>
+                  </View>
                   {best > 0 && (
-                    <View style={styles.bestPill}>
-                      <Feather name="star" size={10} color={C.gold} />
-                      <Text style={styles.bestText}>{t('best', lang)}: {best}</Text>
-                    </View>
+                    <Text style={[type('caption'), { color: c.textMuted }]}>
+                      {t('best', lang)}: {best}
+                    </Text>
                   )}
-                  {sel && <Feather name="check-circle" size={18} color={d.color} />}
+                  {sel && <Feather name="check-circle" size={20} color={tint} />}
                 </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* Session type */}
-        <Text style={[styles.sectionLabel, { marginTop: 20 }]}>{t('sessionType', lang)}</Text>
-        <View style={styles.sessionRow}>
-          {SESSION_META.map(s => {
-            const sel = selSession === s.key;
-            return (
-              <TouchableOpacity
-                key={s.key}
-                style={[styles.sessionCard, sel && { borderColor: C.primary, borderWidth: 2, backgroundColor: C.primary + '18' }]}
-                onPress={() => { Haptics.selectionAsync(); setSelSession(s.key); }}
-                activeOpacity={0.8}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: sel }}
-                accessibilityLabel={`${t(s.labelKey, lang)}, ${t(s.subKey, lang)}`}
-              >
-                <Feather name={s.icon} size={20} color={sel ? C.primary : C.mutedForeground} />
-                <Text style={[styles.sessionLabel, sel && { color: C.primary }]}>{t(s.labelKey, lang)}</Text>
-                <Text style={styles.sessionSub}>{t(s.subKey, lang)}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </ScrollView>
-
-      {/* Start */}
-      <View style={styles.startWrap}>
-        <TouchableOpacity style={styles.startBtn} onPress={handleStart} activeOpacity={0.85}
-          accessibilityRole="button" accessibilityLabel="Start practice">
-          <Feather name="play" size={20} color="#fff" />
-          <Text style={styles.startText}>{t(selSession === 'timed60' ? 'startBlitz' : 'startGame', lang)}</Text>
-        </TouchableOpacity>
+              </Card>
+            </Pressable>
+          );
+        })}
       </View>
-    </View>
+
+      <SectionLabel>{t('sessionType', lang)}</SectionLabel>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.sm }}>
+        {SESSION_META.map(s => (
+          <Chip
+            key={s.key}
+            label={`${t(s.labelKey, lang)} · ${t(s.subKey, lang)}`}
+            selected={selSession === s.key}
+            onPress={() => { Haptics.selectionAsync(); setSelSession(s.key); }}
+          />
+        ))}
+      </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
-  headerCenter: { flex: 1, alignItems: 'center', gap: 6 },
-  headerTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.foreground },
-  breadcrumb: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  crumbPill: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 },
-  crumbText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
-  scroll: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  sectionLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, letterSpacing: 1.5, marginBottom: 10 },
-  diffList: { gap: 10 },
-  diffCard: {
-    backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12,
-  },
-  diffIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  diffBody: { flex: 1 },
-  diffLabel: { fontSize: 16, fontFamily: 'Inter_700Bold' },
-  diffDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 2 },
-  diffRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  bestPill: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: C.gold + '22', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-  bestText: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.gold },
-  sessionRow: { flexDirection: 'row', gap: 10 },
-  sessionCard: {
-    flex: 1, backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.border,
-    padding: 14, alignItems: 'center', gap: 6,
-  },
-  sessionLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.foreground, textAlign: 'center' },
-  sessionSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
-  startWrap: { paddingHorizontal: 16, paddingTop: 12 },
-  startBtn: {
-    backgroundColor: C.primary, borderRadius: 16, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18,
-  },
-  startText: { fontSize: 18, fontFamily: 'Inter_700Bold', color: '#fff' },
-});

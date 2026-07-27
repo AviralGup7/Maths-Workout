@@ -2,9 +2,36 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useReducedMotion, announce } from '@/hooks/useA11y';
-import colors from '@/constants/colors';
+import { useTheme } from '@/theme/useTheme';
 
-const C = colors.light;
+
+/**
+ * Legacy palette keys, resolved reactively from the theme.
+ *
+ * docs/20 F1: `const C = colors.light` was evaluated once at import, so this
+ * screen could never honour the dark preference the app already exposed. This
+ * keeps the same key names — so the StyleSheet below is unchanged — while
+ * making them re-render with the theme.
+ */
+function useLegacyPalette() {
+  const { c } = useTheme();
+  return React.useMemo(() => ({
+    text: c.text, tint: c.primary, background: c.bg, foreground: c.text,
+    card: c.surface, cardForeground: c.text,
+    primary: c.primary, primaryForeground: c.primaryOn,
+    secondary: c.surfaceSunken, secondaryForeground: c.text,
+    muted: c.surfaceSunken, mutedForeground: c.textMuted,
+    accent: c.primary, accentForeground: c.primaryOn,
+    destructive: c.wrong, destructiveForeground: c.wrongOn,
+    border: c.border, input: c.border,
+    easy: c.correct, medium: c.attention, hard: c.wrong,
+    correct: c.correct, wrong: c.wrong, timerWarning: c.attention,
+    gold: c.attention, silver: c.textMuted, bronze: c.attention,
+    catAddition: c.correct, catSubtraction: c.attention,
+    catMultiplication: c.primary, catDivision: c.correct,
+    catMixed: c.attention, catTables: c.primary,
+  }), [c]);
+}
 
 /**
  * A lightweight particle burst for genuinely earned moments.
@@ -29,12 +56,18 @@ export type CelebrationReason =
 
 const PARTICLE_COUNT = 14;
 
-const PALETTE: Record<CelebrationReason, string[]> = {
+/**
+ * Particle colours per reason.
+ *
+ * A factory rather than a module constant: it reads theme values, and a
+ * module-scope object would freeze them at import (docs/20 F1).
+ */
+const makePalette = (C: ReturnType<typeof useLegacyPalette>): Record<CelebrationReason, string[]> => ({
   streak:   [C.gold, '#FFB74D', '#FFE082'],
   recovery: [C.easy, '#81C784', '#A5D6A7'],
   mastery:  [C.primary, '#9575CD', '#B39DDB'],
   best:     [C.gold, C.primary, C.easy],
-};
+});
 
 export function Celebration({
   visible,
@@ -47,6 +80,8 @@ export function Celebration({
   message: string;
   onDone?: () => void;
 }) {
+  const C = useLegacyPalette();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
   const reduced = useReducedMotion();
   const progress = useRef(new Animated.Value(0)).current;
   const bannerY = useRef(new Animated.Value(0)).current;
@@ -98,7 +133,7 @@ export function Celebration({
 
   if (!visible) return null;
 
-  const paletteFor = PALETTE[reason];
+  const paletteFor = makePalette(C)[reason];
 
   return (
     <View style={styles.overlay} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -153,7 +188,12 @@ export function Celebration({
   );
 }
 
-const styles = StyleSheet.create({
+/**
+ * Styles are a factory rather than a module constant: they reference palette
+ * values, and a module-scope StyleSheet freezes those at import time — the
+ * exact defect that left dark mode non-functional (docs/20 F1).
+ */
+const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', zIndex: 50 },
   particle: { position: 'absolute' },
   banner: {

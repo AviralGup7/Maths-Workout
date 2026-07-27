@@ -32,7 +32,7 @@ const INTER_WEIGHTS = new Set<string>([
 ]);
 
 /** Swap an Inter family for its Devanagari equivalent where needed. */
-export function resolveFontFamily(style: TextStyle | undefined, text: string): TextStyle | undefined {
+function resolveFontFamily(style: TextStyle | undefined, text: string): TextStyle | undefined {
   if (!style) return style;
   const family = style.fontFamily;
   if (!family || !INTER_WEIGHTS.has(family)) return style;

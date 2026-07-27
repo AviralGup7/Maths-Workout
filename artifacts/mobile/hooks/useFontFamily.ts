@@ -22,12 +22,12 @@ const DEVANAGARI: Record<InterWeight, string> = {
 };
 
 /** The font family to use for a given Inter weight in the active language. */
-export function fontFor(weight: InterWeight, lang: Lang): string {
+function fontFor(weight: InterWeight, lang: Lang): string {
   return lang === 'hi' ? DEVANAGARI[weight] : weight;
 }
 
 /** True when the string contains Devanagari, so mixed content can be detected. */
-export function hasDevanagari(text: string): boolean {
+function hasDevanagari(text: string): boolean {
   return /[\u0900-\u097F]/.test(text);
 }
 

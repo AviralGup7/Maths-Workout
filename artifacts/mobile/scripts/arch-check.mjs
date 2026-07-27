@@ -170,7 +170,49 @@ const report = (ok, msg) => (ok ? passes : failures).push(msg);
     (offenders.length ? `\n      ${offenders.join('\n      ')}` : ''));
 }
 
-// ── 5 · Storage keys go through the manifest ─────────────────────────────────
+// ── 5 · No module-scope palette constants ────────────────────────────────────
+// docs/20 F1. `const C = colors.light` at module scope is evaluated once at
+// import, before any preference can be read, so a screen written that way can
+// never honour the theme. That defect left dark mode non-functional on 10 of 12
+// screens while the app advertised a dark preference in settings.
+{
+  const offenders = [];
+  for (const f of files) {
+    const src = sources.get(f);
+    if (/^const\s+C\s*=\s*colors\./m.test(src)) offenders.push(rel(f));
+    if (/^import\s+colors\s+from/m.test(src)) offenders.push(rel(f));
+  }
+  report(offenders.length === 0,
+    `modules resolving colour at import time: ${offenders.length}` +
+    (offenders.length ? `\n      ${[...new Set(offenders)].join('\n      ')}` : ''));
+}
+
+// ── 6 · No unreachable subsystems ────────────────────────────────────────────
+// docs/20 F2. A domain module whose ONLY importer is a test file is a feature
+// that is specified, built, tested and documented — but that no user can reach.
+// That is more dangerous than dead code, because the suite is green and the
+// docs record it as delivered.
+{
+  const DOMAIN = ['learning/', 'progression/', 'curriculum/'];
+  const testFiles = walk(ROOT).filter(f => f.includes('__tests__'));
+  const testSrc = testFiles.map(f => readFileSync(f, 'utf8')).join('\n');
+  const dark = [];
+  for (const f of files) {
+    const r = rel(f);
+    if (!DOMAIN.some(d => r.startsWith(d))) continue;
+    if (r.includes('__tests__')) continue;
+    const stem = r.split('/').pop().replace(/\.tsx?$/, '');
+    const importedByProd = files.some(g => g !== f && (edges.get(g) ?? new Set()).has(f));
+    if (importedByProd) continue;
+    // Referenced by a test but by no production module.
+    if (new RegExp(`/${stem}'`).test(testSrc)) dark.push(`${r} (only imported by tests)`);
+  }
+  report(dark.length === 0,
+    `unreachable domain modules: ${dark.length}` +
+    (dark.length ? `\n      ${dark.join('\n      ')}` : ''));
+}
+
+// ── 7 · Storage keys go through the manifest ─────────────────────────────────
 // An unmanifested key has no version and no validator, and its failure mode is
 // silent: JSON.parse succeeds, the shape is wrong, behaviour degrades elsewhere.
 {

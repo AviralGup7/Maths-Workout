@@ -353,3 +353,113 @@ npm run ui:smoke   # build + 17 browser assertions
 nothing about whether the product teaches children mathematics — that remains
 unvalidated, and no architectural score should be read as evidence about
 learning outcomes.
+
+---
+
+## 12 · Remediation — all three findings closed
+
+Every number re-measured after the change.
+
+### F1 · Dark mode — **fixed**
+
+All 16 legacy files migrated off `const C = colors.light`, and
+**`constants/colors.ts` and `hooks/useColors.ts` are deleted.** The migration is
+not finished until the shim is gone; leaving it is precisely what let a shipped
+feature be silently non-functional.
+
+Three screens were rewritten onto new `Screen` / `ScreenHeader` primitives
+(`class-select` 120 → 84 lines, plus `category-select` and `difficulty-select`),
+which collapses the boilerplate the audit measured: `Platform.OS === 'web' ? 67`
+appeared 12 times, `container` 10 times, `header`/`backBtn`/`headerTitle` 6 each.
+
+The larger screens kept their existing markup but had their palette converted
+from a module constant to a `useLegacyPalette()` hook, with `StyleSheet.create`
+turned into a `makeStyles(C)` factory. Same styles, now reactive — a deliberately
+low-risk transformation for files with heavy layout.
+
+Verified in a browser, both directions:
+
+```
+theme=dark   /              rgb(14, 17, 22)    luminance 0.07
+             /class-select  rgb(14, 17, 22)    luminance 0.07     ← was 252,252,253
+             /progress      rgb(23, 27, 34)    luminance 0.10
+theme=light  /              rgb(252, 252, 253) luminance 0.99
+             /class-select  rgb(252, 252, 253) luminance 0.99
+             /progress      rgb(255, 255, 255) luminance 1.00
+```
+
+**Two new permanent guards**, because a fix without a guard is a fix with a
+half-life:
+
+- `arch-check.mjs` fails on any module resolving colour at import time.
+- `ui-smoke.mjs` asserts the *rendered pixels* are dark under `theme=dark` on
+  three screens. Asserting the token is dark would not have caught this defect —
+  the tokens were always correct.
+
+### F2 · Dead and dark code — **fixed**
+
+`learning/confidence.ts` is now wired into the practice loop: one prompt, once
+per session, at the midpoint. It is asked **before** the outcome is revealed —
+a rating collected after the child knows the result measures memory of the
+result, not belief at the moment of answering.
+
+A new architecture rule makes the whole category impossible: **any module in
+`learning/`, `progression/` or `curriculum/` whose only importer is a test file
+fails the build.** It caught `confidence.ts` on its first run, which is the
+guard doing its job immediately.
+
+Also removed the unused `KeyboardAwareScrollViewCompat` component and dropped
+the `export` keyword from helpers only used inside their own file. Symbols that
+tests legitimately import were left alone — trimming public surface for its own
+sake is churn.
+
+### F3 · Dependency hygiene — **fixed**
+
+```
+removed 13 never-imported packages
+  @tanstack/react-query   zod             zod-validation-error
+  expo-image-picker       expo-location   expo-web-browser
+  expo-blur               expo-image      expo-glass-effect
+  expo-linear-gradient    expo-symbols
+  @stardazed/streams-text-encoding        @ungap/structured-clone
+
+moved 24 runtime packages into `dependencies` (previously empty)
+devDependencies: 46 -> 9
+```
+
+`expo-web-browser` was also removed from the `app.json` plugin list.
+
+`expo-image-picker` and `expo-location` are the ones that mattered: no
+permissions were declared, so the risk was latent — but camera and location
+surface in a **children's app** for zero benefit is not a carrying cost worth
+paying.
+
+The bundle stayed at 3.0 MB, so the win here is supply-chain and permission
+surface rather than size. Worth stating plainly rather than claiming a
+performance improvement that did not occur: these packages were already being
+tree-shaken out of the build.
+
+### Also done
+
+`hooks/usePracticeScaffolds.ts` extracts hint escalation, confidence timing and
+scaffold tracking out of `game.tsx` into a hook whose decisions are pure
+functions. Timers and animations stayed in the screen, because they are
+genuinely view concerns and moving them would be motion for its own sake.
+
+### Verification
+
+```
+typecheck     clean
+arch-check    89 modules · 7 checks · 0 failed
+vitest        539 passed (26 files)
+ui-smoke      23 passed  (was 17; +6 theme assertions)
+```
+
+**Revised score: 7.9 → 8.8.** All three findings are closed and — more
+durably — each is now enforced by a check that fails the build. The remaining
+gap to 9+ is the content-as-data question, which stays a product decision rather
+than a defect.
+
+One honest caveat carried forward: this closes *structural* findings. Nothing
+here validates that the product teaches children mathematics, which remains the
+largest open question in the whole documentation set.

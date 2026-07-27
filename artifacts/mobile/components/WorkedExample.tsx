@@ -2,13 +2,40 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import colors from '@/constants/colors';
 import type { WorkedExample as WE } from '@/learning/workedExamples';
 import { t } from '@/i18n/strings';
 import type { Lang } from '@/i18n/strings';
 import { touchSlop } from '@/hooks/useA11y';
+import { useTheme } from '@/theme/useTheme';
 
-const C = colors.light;
+
+/**
+ * Legacy palette keys, resolved reactively from the theme.
+ *
+ * docs/20 F1: `const C = colors.light` was evaluated once at import, so this
+ * screen could never honour the dark preference the app already exposed. This
+ * keeps the same key names — so the StyleSheet below is unchanged — while
+ * making them re-render with the theme.
+ */
+function useLegacyPalette() {
+  const { c } = useTheme();
+  return React.useMemo(() => ({
+    text: c.text, tint: c.primary, background: c.bg, foreground: c.text,
+    card: c.surface, cardForeground: c.text,
+    primary: c.primary, primaryForeground: c.primaryOn,
+    secondary: c.surfaceSunken, secondaryForeground: c.text,
+    muted: c.surfaceSunken, mutedForeground: c.textMuted,
+    accent: c.primary, accentForeground: c.primaryOn,
+    destructive: c.wrong, destructiveForeground: c.wrongOn,
+    border: c.border, input: c.border,
+    easy: c.correct, medium: c.attention, hard: c.wrong,
+    correct: c.correct, wrong: c.wrong, timerWarning: c.attention,
+    gold: c.attention, silver: c.textMuted, bronze: c.attention,
+    catAddition: c.correct, catSubtraction: c.attention,
+    catMultiplication: c.primary, catDivision: c.correct,
+    catMixed: c.attention, catTables: c.primary,
+  }), [c]);
+}
 
 /**
  * A solved instance of the problem the learner just failed.
@@ -32,6 +59,8 @@ export function WorkedExample({
   lang: Lang;
   onDone: () => void;
 }) {
+  const C = useLegacyPalette();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
   const [revealed, setRevealed] = useState(1);
   const total = example.steps.length;
   const allShown = revealed >= total;
@@ -109,7 +138,12 @@ export function WorkedExample({
   );
 }
 
-const styles = StyleSheet.create({
+/**
+ * Styles are a factory rather than a module constant: they reference palette
+ * values, and a module-scope StyleSheet freezes those at import time — the
+ * exact defect that left dark mode non-functional (docs/20 F1).
+ */
+const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   card: {
     backgroundColor: C.card, borderRadius: 18, borderWidth: 1,
     borderColor: C.primary + '55', padding: 16, marginTop: 12,

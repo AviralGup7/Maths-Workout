@@ -31,8 +31,8 @@ export function shuffleArr<T>(arr: T[]): T[] {
 
 // ─── Carry / borrow helpers ───────────────────────────────────────────────────
 
-export const hasCarryOnes  = (a: number, b: number) => (a % 10) + (b % 10) >= 10;
-export const hasBorrowOnes = (a: number, b: number) => (a % 10) < (b % 10);
+const hasCarryOnes  = (a: number, b: number) => (a % 10) + (b % 10) >= 10;
+const hasBorrowOnes = (a: number, b: number) => (a % 10) < (b % 10);
 
 export function addNoCarry(minA: number, maxA: number, minB: number, maxB: number): [number, number] {
   let a: number, b: number, t = 0;

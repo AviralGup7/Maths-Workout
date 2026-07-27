@@ -10,10 +10,37 @@ import type { Board } from '@/curriculum/boards';
 import { LANGUAGES, t, categoryLabel } from '@/i18n/strings';
 import type { Lang } from '@/i18n/strings';
 import type { TimerPreference } from '@/learning/timerPolicy';
-import colors from '@/constants/colors';
 import { touchSlop } from '@/hooks/useA11y';
+import { useTheme } from '@/theme/useTheme';
 
-const C = colors.light;
+
+/**
+ * Legacy palette keys, resolved reactively from the theme.
+ *
+ * docs/20 F1: `const C = colors.light` was evaluated once at import, so this
+ * screen could never honour the dark preference the app already exposed. This
+ * keeps the same key names — so the StyleSheet below is unchanged — while
+ * making them re-render with the theme.
+ */
+function useLegacyPalette() {
+  const { c } = useTheme();
+  return React.useMemo(() => ({
+    text: c.text, tint: c.primary, background: c.bg, foreground: c.text,
+    card: c.surface, cardForeground: c.text,
+    primary: c.primary, primaryForeground: c.primaryOn,
+    secondary: c.surfaceSunken, secondaryForeground: c.text,
+    muted: c.surfaceSunken, mutedForeground: c.textMuted,
+    accent: c.primary, accentForeground: c.primaryOn,
+    destructive: c.wrong, destructiveForeground: c.wrongOn,
+    border: c.border, input: c.border,
+    easy: c.correct, medium: c.attention, hard: c.wrong,
+    correct: c.correct, wrong: c.wrong, timerWarning: c.attention,
+    gold: c.attention, silver: c.textMuted, bronze: c.attention,
+    catAddition: c.correct, catSubtraction: c.attention,
+    catMultiplication: c.primary, catDivision: c.correct,
+    catMixed: c.attention, catTables: c.primary,
+  }), [c]);
+}
 
 /**
  * Board and language selection.
@@ -23,6 +50,8 @@ const C = colors.light;
  * numbers are, so the screen previews that rather than just naming the board.
  */
 export default function BoardSelectScreen() {
+  const C = useLegacyPalette();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { board, setBoard, lang, setLang, timerPref, setTimerPref } = useGame();
@@ -206,7 +235,12 @@ export default function BoardSelectScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+/**
+ * Styles are a factory rather than a module constant: they reference palette
+ * values, and a module-scope StyleSheet freezes those at import time — the
+ * exact defect that left dark mode non-functional (docs/20 F1).
+ */
+const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,

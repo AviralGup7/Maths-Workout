@@ -33,7 +33,7 @@ export interface Motion {
 }
 
 /** Standard easing — matches the platform feel rather than linear motion. */
-export const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
+const EASE_OUT = Easing.bezier(0.16, 1, 0.3, 1);
 export const EASE_IN_OUT = Easing.bezier(0.65, 0, 0.35, 1);
 
 export function useMotion(): Motion {

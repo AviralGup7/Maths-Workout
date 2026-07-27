@@ -1,192 +1,99 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
-  useGame, CLASS_CONFIGS, CATEGORY_META, CLASS_TOPICS,
-  Category, getAvailableCategories,
+  useGame, CATEGORY_META, Category, getAvailableCategories,
 } from '@/context/GameContext';
-import colors from '@/constants/colors';
-import { touchSlop } from '@/hooks/useA11y';
+import { useTheme } from '@/theme/useTheme';
+import { Screen, ScreenHeader, SectionLabel } from '@/components/ui/Screen';
+import { Card } from '@/components/ui/Card';
 import { CLASS_LABELS, CLASS_THEME } from '@/curriculum/boards';
 import { t, categoryLabel, categoryDesc } from '@/i18n/strings';
 
-const C = colors.light;
+const ARITHMETIC: Category[] = ['addition', 'subtraction', 'multiplication', 'division', 'mixed', 'tables'];
 
+/** Topic selection. Migrated off the legacy palette shim (docs/20 F1). */
 export default function CategorySelectScreen() {
-  const insets = useSafeAreaInsets();
-  const router  = useRouter();
-  const { selectedClass, setSelectedCategory, progressStats, getHighScore, board, lang } = useGame();
+  const router = useRouter();
+  const { selectedClass, setSelectedCategory, progressStats, board, lang } = useGame();
+  const { c, type, space, sizeClass } = useTheme();
 
-  const classConfig = CLASS_CONFIGS.find(c => c.key === selectedClass)!;
-  const available   = getAvailableCategories(selectedClass, board);
-  const theme       = CLASS_THEME[board][selectedClass][lang === 'hi' ? 'hi' : 'en'];
-
-  const top = Platform.OS === 'web' ? 67 : insets.top;
-  const bot = Platform.OS === 'web' ? 34 : insets.bottom;
+  const available = getAvailableCategories(selectedClass, board);
+  const theme = CLASS_THEME[board][selectedClass][lang === 'hi' ? 'hi' : 'en'];
 
   const handleSelect = (cat: Category) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSelectedCategory(cat);
-    if (cat === 'tables') router.push('/tables-mode');
-    else router.push('/difficulty-select');
+    router.push(cat === 'tables' ? '/tables-mode' : '/difficulty-select');
   };
 
-  const getCatAccuracy = (cat: Category): number => {
+  const accuracyFor = (cat: Category): number | null => {
     const entries = Object.entries(progressStats)
       .filter(([k]) => k.startsWith(`${selectedClass}_${cat}_`))
       .map(([, v]) => v);
     const att = entries.reduce((s, e) => s + e.attempted, 0);
     const cor = entries.reduce((s, e) => s + e.correct, 0);
-    return att > 0 ? Math.round((cor / att) * 100) : -1;
+    return att > 0 ? Math.round((cor / att) * 100) : null;
   };
 
-  const getCatBest = (cat: Category): number =>
-    (['easy', 'medium', 'hard'] as const)
-      .map(d => getHighScore(selectedClass, d, cat))
-      .reduce((s, v) => s + v, 0);
+  const arithmetic = available.filter(cat => ARITHMETIC.includes(cat));
+  const topics = available.filter(cat => !ARITHMETIC.includes(cat));
+  const wide = sizeClass !== 'compact';
 
-  // Group categories by row for visual structure
-  const coreCats: Category[]  = available.filter(c =>
-    ['addition','subtraction','multiplication','division','mixed','tables'].includes(c));
-  const topicCats: Category[] = available.filter(c =>
-    !['addition','subtraction','multiplication','division','mixed','tables'].includes(c));
-
-  const SectionHeader = ({ label }: { label: string }) => (
-    <Text style={styles.sectionLabel}>{label}</Text>
-  );
-
-  const CatCard = ({ cat }: { cat: Category }) => {
-    const meta  = CATEGORY_META[cat];
-    const acc   = getCatAccuracy(cat);
-    const best  = getCatBest(cat);
-    const isSpecial = cat === 'tables';
-
-    return (
-      <TouchableOpacity
-        style={[styles.card, { borderColor: meta.color + '44' }]}
-        onPress={() => handleSelect(cat)}
-        activeOpacity={0.8}
-        accessibilityRole="button"
-        accessibilityLabel={categoryLabel(cat, lang)}
-        accessibilityHint={categoryDesc(cat, lang)}
-      >
-        <View style={[styles.iconBox, { backgroundColor: meta.color + '22' }]}>
-          <Feather name={meta.icon as any} size={24} color={meta.color} />
-        </View>
-        <View style={styles.cardBody}>
-          <View style={styles.cardTop}>
-            <Text style={[styles.cardTitle, { color: meta.color }]}>{categoryLabel(cat, lang)}</Text>
-            {isSpecial && (
-              <View style={[styles.tagPill, { backgroundColor: C.catTables + '22' }]}>
-                <Text style={[styles.tagText, { color: C.catTables }]}>Drill</Text>
+  const renderGroup = (list: Category[]) => (
+    <View style={{ flexDirection: wide ? 'row' : 'column', flexWrap: 'wrap', gap: space.sm }}>
+      {list.map(cat => {
+        const meta = CATEGORY_META[cat];
+        const acc = accuracyFor(cat);
+        return (
+          <View key={cat} style={wide ? { width: '48.5%' } : undefined}>
+            <Card onPress={() => handleSelect(cat)} accessibilityLabel={categoryLabel(cat, lang)}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                <View style={{
+                  width: 40, height: 40, borderRadius: 10,
+                  backgroundColor: meta.color + '22',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={[type('label'), { color: meta.color }]}>{meta.symbol}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[type('heading'), { color: c.text }]}>{categoryLabel(cat, lang)}</Text>
+                  <Text style={[type('caption'), { color: c.textMuted }]} numberOfLines={1}>
+                    {categoryDesc(cat, lang)}
+                  </Text>
+                </View>
+                {acc !== null && (
+                  <Text style={[type('label'), { color: c.textMuted }]}>{acc}%</Text>
+                )}
+                <Feather name="chevron-right" size={18} color={c.textMuted} />
               </View>
-            )}
-            {acc >= 0 && !isSpecial && (
-              <View style={[styles.accBadge, {
-                backgroundColor: (acc >= 80 ? C.easy : acc >= 50 ? C.medium : C.hard) + '22',
-              }]}>
-                <Text style={[styles.accText, {
-                  color: acc >= 80 ? C.easy : acc >= 50 ? C.medium : C.hard,
-                }]}>{acc}%</Text>
-              </View>
-            )}
+            </Card>
           </View>
-          <Text style={styles.cardDesc} numberOfLines={2}>{categoryDesc(cat, lang)}</Text>
-          {best > 0 && !isSpecial && (
-            <View style={styles.bestRow}>
-              <Feather name="star" size={10} color={C.gold} />
-              <Text style={styles.bestText}>Best: {best} pts</Text>
-            </View>
-          )}
-        </View>
-        <Feather name="chevron-right" size={16} color={C.mutedForeground} />
-      </TouchableOpacity>
-    );
-  };
-
-  return (
-    <View style={[styles.container, { paddingTop: top }]}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}
-          hitSlop={touchSlop(40)} accessibilityRole="button" accessibilityLabel="Go back">
-          <Feather name="arrow-left" size={22} color={C.foreground} />
-        </TouchableOpacity>
-        <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle}>Choose Topic</Text>
-          <View style={styles.headerBadgeRow}>
-            <View style={[styles.clsBadge, { backgroundColor: classConfig.color + '22' }]}>
-              <Text style={[styles.clsBadgeText, { color: classConfig.color }]}>{CLASS_LABELS[selectedClass][lang === 'hi' ? 'hi' : 'en']}</Text>
-            </View>
-            <Text style={styles.themeTxt}>{theme}</Text>
-          </View>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: bot + 24 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {coreCats.length > 0 && (
-          <>
-            <SectionHeader label={t('arithmetic', lang)} />
-            {coreCats.map(cat => <CatCard key={cat} cat={cat} />)}
-          </>
-        )}
-
-        {topicCats.length > 0 && (
-          <>
-            <SectionHeader label={t('curriculumTopics', lang)} />
-            {topicCats.map(cat => <CatCard key={cat} cat={cat} />)}
-          </>
-        )}
-      </ScrollView>
+        );
+      })}
     </View>
   );
-}
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: C.border,
-  },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: C.card, alignItems: 'center', justifyContent: 'center',
-  },
-  headerCenter: { flex: 1, alignItems: 'center', gap: 5 },
-  headerTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.foreground },
-  headerBadgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  clsBadge: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
-  clsBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
-  themeTxt: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
-  scroll: { paddingHorizontal: 16, paddingTop: 12 },
-  sectionLabel: {
-    fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground,
-    letterSpacing: 1.5, marginTop: 12, marginBottom: 8,
-  },
-  card: {
-    backgroundColor: C.card, borderRadius: 14, borderWidth: 1,
-    flexDirection: 'row', alignItems: 'center',
-    padding: 14, gap: 12, marginBottom: 8,
-  },
-  iconBox: {
-    width: 46, height: 46, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  cardBody: { flex: 1, gap: 4 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' },
-  cardTitle: { fontSize: 15, fontFamily: 'Inter_700Bold' },
-  tagPill: { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
-  tagText: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
-  accBadge: { borderRadius: 8, paddingHorizontal: 7, paddingVertical: 2 },
-  accText: { fontSize: 11, fontFamily: 'Inter_700Bold' },
-  cardDesc: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
-  bestRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  bestText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.gold },
-});
+  return (
+    <Screen>
+      <ScreenHeader
+        title={t('setUpGame', lang)}
+        subtitle={`${CLASS_LABELS[selectedClass][lang === 'hi' ? 'hi' : 'en']} · ${theme}`}
+      />
+      {arithmetic.length > 0 && (
+        <>
+          <SectionLabel>{t('arithmetic', lang)}</SectionLabel>
+          {renderGroup(arithmetic)}
+        </>
+      )}
+      {topics.length > 0 && (
+        <>
+          <SectionLabel>{t('curriculumTopics', lang)}</SectionLabel>
+          {renderGroup(topics)}
+        </>
+      )}
+    </Screen>
+  );
+}

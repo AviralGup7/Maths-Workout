@@ -167,6 +167,50 @@ async function main() {
     await page.close();
   }
 
+  // ── Dark mode actually renders dark (docs/20 F1) ───────────────────────────
+  //
+  // The check that would have caught the shipped defect: the app advertised a
+  // dark preference while 10 of 12 screens resolved colour at import time and
+  // could never honour it. Asserting the *token* is dark is not enough — this
+  // asserts the rendered pixels are.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    page.on('pageerror', e => pageErrors.push(`theme: ${e.message}`));
+    await page.goto(base, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2200);
+
+    console.log('\n── theme ──');
+    const sample = async (route) => page.evaluate(() => {
+      // The app container is the deepest full-height div with a background;
+      // outside it sits the browser's own page background, which is not ours.
+      const candidates = [...document.querySelectorAll('div')]
+        .map(e => ({ c: getComputedStyle(e).backgroundColor, r: e.getBoundingClientRect() }))
+        .filter(x => x.c && x.c !== 'rgba(0, 0, 0, 0)' && x.r.height > 300);
+      return candidates.length ? candidates[candidates.length - 1].c : 'none';
+    });
+    const luminance = (rgb) => {
+      const m = rgb.match(/\d+/g);
+      return m ? (0.2126 * +m[0] + 0.7152 * +m[1] + 0.0722 * +m[2]) / 255 : 1;
+    };
+
+    for (const theme of ['dark', 'light']) {
+      await page.evaluate(t => {
+        localStorage.setItem('@maths_workout_seen_welcome', '1');
+        localStorage.setItem('@maths_workout_theme', t);
+      }, theme);
+      for (const route of ['/', '/class-select', '/progress']) {
+        await page.goto(base + route, { waitUntil: 'networkidle' });
+        await page.waitForTimeout(1800);
+        const bg = await sample(route);
+        const lum = luminance(bg);
+        const ok = theme === 'dark' ? lum < 0.3 : lum > 0.7;
+        check(ok, `theme=${theme} ${route}: background ${bg} (luminance ${lum.toFixed(2)})`);
+        console.log(`  ${theme.padEnd(5)} ${route.padEnd(15)} ${bg.padEnd(22)} ${ok ? 'ok' : 'WRONG'}`);
+      }
+    }
+    await page.close();
+  }
+
   // ── The practice loop, where correctness actually matters ──────────────────
   const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
   page.on('pageerror', e => pageErrors.push(`practice: ${e.message}`));

@@ -7,7 +7,6 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, ChoiceValue } from '@/context/GameContext';
-import colors from '@/constants/colors';
 import { MISCONCEPTIONS } from '@/learning/misconceptions';
 import { MISCONCEPTIONS_HI } from '@/i18n/misconceptions-hi';
 import { t, categoryLabel } from '@/i18n/strings';
@@ -20,6 +19,10 @@ import { praiseFor, praiseText } from '@/learning/feedback';
 import { BONUS_LABEL } from '@/progression/labels';
 import { QuestionVisual } from '@/components/visuals/QuestionVisual';
 import { hintLevelFor, hintText, hintsFor, needsDescentNotHints } from '@/learning/hints';
+import {
+  shouldAskConfidence, quadrant, CONFIDENCE_COPY,
+  type Confidence, type ConfidenceQuadrant,
+} from '@/learning/confidence';
 import type { HintLevel } from '@/learning/hints';
 import { decideAdaptation } from '@/learning/adaptation';
 import { shouldTeach, hasFaded, buildWorkedExample, canTeach } from '@/learning/workedExamples';
@@ -27,6 +30,7 @@ import type { WorkedExample as WEType } from '@/learning/workedExamples';
 import { WorkedExample } from '@/components/WorkedExample';
 import { extractOperands } from '@/learning/misconceptions';
 import type { Attempt } from '@/learning/attempts';
+import { useTheme } from '@/theme/useTheme';
 
 const PER_Q_SECS = 15;
 /**
@@ -41,7 +45,34 @@ function secondsFor(q?: { interaction?: { kind: string } }): number {
   return !kind || kind === 'choice' ? PER_Q_SECS : CONSTRUCTED_SECS;
 }
 const BLITZ_SECS = 60;
-const C = colors.light;
+
+/**
+ * Legacy palette keys, resolved reactively from the theme.
+ *
+ * docs/20 F1: `const C = colors.light` was evaluated once at import, so this
+ * screen could never honour the dark preference the app already exposed. This
+ * keeps the same key names — so the StyleSheet below is unchanged — while
+ * making them re-render with the theme.
+ */
+function useLegacyPalette() {
+  const { c } = useTheme();
+  return React.useMemo(() => ({
+    text: c.text, tint: c.primary, background: c.bg, foreground: c.text,
+    card: c.surface, cardForeground: c.text,
+    primary: c.primary, primaryForeground: c.primaryOn,
+    secondary: c.surfaceSunken, secondaryForeground: c.text,
+    muted: c.surfaceSunken, mutedForeground: c.textMuted,
+    accent: c.primary, accentForeground: c.primaryOn,
+    destructive: c.wrong, destructiveForeground: c.wrongOn,
+    border: c.border, input: c.border,
+    easy: c.correct, medium: c.attention, hard: c.wrong,
+    correct: c.correct, wrong: c.wrong, timerWarning: c.attention,
+    gold: c.attention, silver: c.textMuted, bronze: c.attention,
+    catAddition: c.correct, catSubtraction: c.attention,
+    catMultiplication: c.primary, catDivision: c.correct,
+    catMixed: c.attention, catTables: c.primary,
+  }), [c]);
+}
 
 type AnswerState = 'idle' | 'correct' | 'wrong';
 
@@ -54,6 +85,8 @@ function formatChoice(v: ChoiceValue): string {
 }
 
 export default function GameScreen() {
+  const C = useLegacyPalette();
+  const styles = React.useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const router  = useRouter();
   const {
@@ -115,6 +148,21 @@ export default function GameScreen() {
    * typechecker.
    */
   const hintLevelRef = useRef<HintLevel>(0);
+  /**
+   * Confidence prompt (docs/14 §5C).
+   *
+   * Asked ONCE per session on one mid-session item, never per question — that
+   * would double the interaction cost of the whole product for a signal only
+   * interesting in aggregate. The valuable cell is confident-and-wrong: a child
+   * who is unsure and wrong will accept correction, one who is certain and
+   * wrong has no reason to revise.
+   */
+  const [askConfidence, setAskConfidence] = useState(false);
+  /** Answer held while the confidence prompt is on screen. */
+  const pendingAnswerRef = useRef<string | null>(null);
+  const confidenceRef = useRef<Confidence | null>(null);
+  /** Quadrants observed this session, surfaced on the results screen. */
+  const confidenceLogRef = useRef<{ skill: string; quadrant: ConfidenceQuadrant }[]>([]);
   const shakeAnimRef  = useRef<Animated.Value | null>(null);
   const fadeAnimRef   = useRef<Animated.Value | null>(null);
   const scaleAnimRef  = useRef<Animated.Value | null>(null);
@@ -247,6 +295,15 @@ export default function GameScreen() {
    */
   const handleSubmit = (normalised: string) => {
     if (perQLocked || !currentQuestion) return;
+    // Ask before revealing the outcome: a confidence rating collected after the
+    // child already knows whether they were right measures memory of the
+    // result, not their belief at the moment of answering.
+    if (!isBlitz && confidenceRef.current === null
+        && shouldAskConfidence(currentIndex, totalQuestions)) {
+      pendingAnswerRef.current = normalised;
+      setAskConfidence(true);
+      return;
+    }
     if (!isBlitz && timerRef.current) clearInterval(timerRef.current);
     setPerQLocked(true);
     setSelectedChoice(normalised);
@@ -278,6 +335,13 @@ export default function GameScreen() {
     // debounced and async; in-session adaptation must react to the answer that
     // was just given, not the one that has finished persisting.
     const skillNow = sessionSkillFor(currentIndex);
+    if (skillNow && confidenceRef.current) {
+      confidenceLogRef.current.push({
+        skill: skillNow,
+        quadrant: quadrant(confidenceRef.current, correct),
+      });
+      confidenceRef.current = null;
+    }
     if (skillNow) {
       sessionLogRef.current = [...sessionLogRef.current, {
         skill: skillNow, correct, answeredAt: Date.now(), latencyMs,
@@ -558,6 +622,38 @@ export default function GameScreen() {
       </Animated.View>
 
       {/* Answer grid */}
+      {/* §5C — one prompt, one session, two taps. Shown BEFORE the outcome is
+          revealed, so it captures belief rather than recall of the result. */}
+      {askConfidence && (
+        <View style={styles.confidenceBox} accessibilityLiveRegion="polite">
+          <Text style={styles.confidencePrompt}>
+            {lang === 'hi' ? CONFIDENCE_COPY.prompt.hi : CONFIDENCE_COPY.prompt.en}
+          </Text>
+          <View style={styles.confidenceRow}>
+            {(['sure', 'unsure'] as const).map(level => (
+              <TouchableOpacity
+                key={level}
+                style={styles.confidenceBtn}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  confidenceRef.current = level;
+                  setAskConfidence(false);
+                  const held = pendingAnswerRef.current;
+                  pendingAnswerRef.current = null;
+                  if (held !== null) handleSubmit(held);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={lang === 'hi' ? CONFIDENCE_COPY[level].hi : CONFIDENCE_COPY[level].en}
+              >
+                <Text style={styles.confidenceBtnText}>
+                  {lang === 'hi' ? CONFIDENCE_COPY[level].hi : CONFIDENCE_COPY[level].en}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
       {/* §4 — a single calm line. No modal, no button, no interruption; the
           child may ignore it entirely. It never contains the answer: level 3
           stops exactly one step short, because a hint that finishes the problem
@@ -658,8 +754,24 @@ export default function GameScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+/**
+ * Styles are a factory rather than a module constant: they reference palette
+ * values, and a module-scope StyleSheet freezes those at import time — the
+ * exact defect that left dark mode non-functional (docs/20 F1).
+ */
+const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 18 },
+  confidenceBox: {
+    marginTop: 12, padding: 14, borderRadius: 14,
+    backgroundColor: C.primary + '12', gap: 10,
+  },
+  confidencePrompt: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.foreground, textAlign: 'center' },
+  confidenceRow: { flexDirection: 'row', gap: 10 },
+  confidenceBtn: {
+    flex: 1, minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
+  },
+  confidenceBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
   hintBox: {
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     marginBottom: 12, paddingVertical: 10, paddingHorizontal: 12,
