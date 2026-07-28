@@ -39,6 +39,7 @@ import { pickOpenTask } from '../learning/openTaskPolicy';
 import { genMethodCompare, genReasonSelect } from '../generators/metacognition';
 import { genErrorHunt } from '../generators/reasoning';
 import { pickReasoning } from '../learning/reasoningPolicy';
+import { migrateLog } from '../learning/skillSplit';
 
 // ─── Learning engine (Directions C & D) ─────────────────────────────────────
 import type { Attempt } from '../learning/attempts';
@@ -470,6 +471,27 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       }
       localAT = ensureIds(localAT);
       seedAttemptIds(localAT);
+
+      // docs/27 P2-04. Re-label attempts stored against the three skills that
+      // were split (geometry.basic, measurement.basic, data.basic) onto the
+      // concept they actually exercised, using the SAME classifier the router
+      // uses so the two can never disagree.
+      //
+      // Runs on every load rather than behind a manifest bump, and is
+      // idempotent because a migrated row no longer names a retired parent.
+      // A row whose text cannot be classified KEEPS its parent skill — history
+      // is never discarded, and the parents remain in the graph so their
+      // mastery stays readable even though nothing schedules them.
+      {
+        const { log: migrated, report } = migrateLog(localAT);
+        if (report.migrated > 0) {
+          localAT = migrated;
+          console.log(
+            `[GameContext] split-skill migration: ${report.migrated}/${report.total} attempts re-labelled`
+            + `, ${report.unclassified} kept on the parent`,
+          );
+        }
+      }
 
       // docs/23 S5. Fold the live log into the permanent per-day archive before
       // anything can evict it. `mergeSummaries` is idempotent, so running this

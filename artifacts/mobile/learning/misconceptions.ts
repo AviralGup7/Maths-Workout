@@ -227,7 +227,27 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
       'The sides have been added when they should be multiplied, or the other way round.',
     remediation:
       'Perimeter is the walk around the edge; area is the number of squares that fill it.',
-    skills: ['geometry.basic'],
+    skills: ['geometry.basic', 'geometry.area', 'geometry.perimeter'],
+  },
+  // docs/27 P2-01. The split makes a NEW error visible that the broad node
+  // could not express: using a formula correctly but on the wrong dimension.
+  'geometry.wrong-dimension': {
+    id: 'geometry.wrong-dimension',
+    label: 'Using one side where two are needed',
+    explanation:
+      'Only one measurement was used, so a rectangle was treated as if it were a square.',
+    remediation:
+      'Label both the length and the width before choosing what to multiply or add.',
+    skills: ['geometry.area', 'geometry.perimeter'],
+  },
+  'geometry.angle-sum-wrong': {
+    id: 'geometry.angle-sum-wrong',
+    label: 'Using the wrong angle total',
+    explanation:
+      'The angles were subtracted from the wrong total — 180° used where 360° was needed, or the reverse.',
+    remediation:
+      'Name the shape first: a straight line is 180°, a triangle 180°, a quadrilateral 360°, a full turn 360°.',
+    skills: ['geometry.angles', 'geometry.basic'],
   },
   'measurement.unit-conversion': {
     id: 'measurement.unit-conversion',
@@ -236,7 +256,10 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
       'The answer is out by a factor of ten, a hundred or a thousand — the conversion went the wrong direction.',
     remediation:
       'Ask whether the answer should be a bigger or smaller number before converting.',
-    skills: ['measurement.basic'],
+    skills: [
+      'measurement.basic',
+      'measurement.length', 'measurement.mass', 'measurement.capacity',
+    ],
   },
   'data.mean-vs-median': {
     id: 'data.mean-vs-median',
@@ -245,7 +268,7 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
       'The middle value has been given where the mean was asked for, or the other way round.',
     remediation:
       'Mean is add-then-divide. Median is the middle value once the numbers are in order.',
-    skills: ['data.basic'],
+    skills: ['data.basic', 'data.mean', 'data.median'],
   },
   'data.forgot-divide': {
     id: 'data.forgot-divide',
@@ -254,7 +277,37 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
       'The values were totalled correctly but never divided by how many there are.',
     remediation:
       'After adding, count how many numbers there were and divide by that.',
-    skills: ['data.basic'],
+    skills: ['data.basic', 'data.mean'],
+  },
+  // docs/27 P2-03. Only expressible once median has its own node: the child
+  // takes the middle of the list AS WRITTEN, which is the single most common
+  // median error and is invisible when median shares a skill with mean.
+  'data.median-unsorted': {
+    id: 'data.median-unsorted',
+    label: 'Taking the middle without sorting',
+    explanation:
+      'The middle value of the list as written was given, but the numbers were not in order first.',
+    remediation:
+      'Rewrite the numbers smallest to largest, then point to the middle one.',
+    skills: ['data.median'],
+  },
+  'data.mode-counted-not-named': {
+    id: 'data.mode-counted-not-named',
+    label: 'Giving how often instead of which value',
+    explanation:
+      'The count of the most frequent value was given rather than the value itself.',
+    remediation:
+      'The mode is the number that repeats, not the number of times it repeats.',
+    skills: ['data.mode'],
+  },
+  'data.range-gave-extreme': {
+    id: 'data.range-gave-extreme',
+    label: 'Giving the largest value as the range',
+    explanation:
+      'The biggest number in the set was given instead of the gap between biggest and smallest.',
+    remediation:
+      'Range is a subtraction: largest − smallest.',
+    skills: ['data.range'],
   },
   'algebra.inverse-not-applied': {
     id: 'algebra.inverse-not-applied',
@@ -517,14 +570,29 @@ export function diagnose(input: DiagnosisInput): string | null {
   }
 
   // ── Geometry ───────────────────────────────────────────────────────────────
-  if (skill === 'geometry.basic' && operands.length >= 2 && numeric) {
+  if (skill.startsWith('geometry.') && operands.length >= 2 && numeric) {
     const [a, b] = operands;
     if (got === 2 * (a + b) && exp === a * b) return 'geometry.area-perimeter-swap';
     if (got === a * b && exp === 2 * (a + b)) return 'geometry.area-perimeter-swap';
+    // docs/27 P2-01. Squaring one side of a rectangle, or perimeter as 4×one
+    // side — both are "the formula for a square, applied to a rectangle".
+    if (a !== b && (got === a * a || got === b * b) && exp === a * b) {
+      return 'geometry.wrong-dimension';
+    }
+    if (a !== b && (got === 4 * a || got === 4 * b) && exp === 2 * (a + b)) {
+      return 'geometry.wrong-dimension';
+    }
+  }
+  if (skill === 'geometry.angles' && numeric && exp !== 0) {
+    // Subtracted from the wrong total: the error is exactly the difference
+    // between two of the standard angle sums.
+    for (const [wrong, right] of [[180, 90], [90, 180], [360, 180], [180, 360]]) {
+      if (Math.abs(got - (exp + wrong - right)) < 1e-9) return 'geometry.angle-sum-wrong';
+    }
   }
 
   // ── Measurement ────────────────────────────────────────────────────────────
-  if (skill === 'measurement.basic' && numeric && exp !== 0 && got !== 0) {
+  if (skill.startsWith('measurement.') && numeric && exp !== 0 && got !== 0) {
     const ratio = got / exp;
     for (const f of [10, 100, 1000, 0.1, 0.01, 0.001]) {
       if (Math.abs(ratio - f) < 1e-9) return 'measurement.unit-conversion';
@@ -532,13 +600,31 @@ export function diagnose(input: DiagnosisInput): string | null {
   }
 
   // ── Data and averages ──────────────────────────────────────────────────────
-  if (skill === 'data.basic' && operands.length >= 2 && numeric) {
+  if (skill.startsWith('data.') && operands.length >= 2 && numeric) {
     const sum = operands.reduce((x, y) => x + y, 0);
     if (got === sum && exp !== sum) return 'data.forgot-divide';
     const sorted = [...operands].sort((x, y) => x - y);
-    const median = sorted.length % 2
-      ? sorted[(sorted.length - 1) / 2]
-      : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+    const mid = (xs: number[]) => xs.length % 2
+      ? xs[(xs.length - 1) / 2]
+      : (xs[xs.length / 2 - 1] + xs[xs.length / 2]) / 2;
+    const median = mid(sorted);
+
+    // Checked BEFORE mean-vs-median: the middle of the unsorted list is a
+    // more specific claim, and when both match the specific one is the truer
+    // description of what the child did.
+    if (skill === 'data.median') {
+      const unsorted = mid(operands);
+      if (got === unsorted && got !== exp) return 'data.median-unsorted';
+    }
+    if (skill === 'data.range') {
+      if (got === Math.max(...operands) && got !== exp) return 'data.range-gave-extreme';
+    }
+    if (skill === 'data.mode') {
+      const counts = new Map<number, number>();
+      for (const v of operands) counts.set(v, (counts.get(v) ?? 0) + 1);
+      const best = Math.max(...counts.values());
+      if (got === best && got !== exp) return 'data.mode-counted-not-named';
+    }
     if (got === median && exp !== median) return 'data.mean-vs-median';
   }
 

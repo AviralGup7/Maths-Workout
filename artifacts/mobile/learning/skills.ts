@@ -97,9 +97,36 @@ export const SKILLS: Record<SkillId, Skill> = {
   'percent.basic':       { id: 'percent.basic',       label: 'Percentages',                   prerequisites: ['frac.equivalence', 'dec.tenths'], introducedIn: '5th', category: 'percentages' },
   'ratio.basic':         { id: 'ratio.basic',         label: 'Ratio',                         prerequisites: ['frac.equivalence'],   introducedIn: '5th', category: 'ratio' },
   'factors.basic':       { id: 'factors.basic',       label: 'Factors, primes, HCF and LCM',  prerequisites: ['mul.tables.full'],    introducedIn: '4th', category: 'factors' },
+  // ── Geometry (docs/27 P2-01) ───────────────────────────────────────────────
+  // `geometry.basic` carried area, perimeter AND angles on one node, so a
+  // child who was perfect at perimeter and swapped it for area every time read
+  // as ~50% — which the scheduler treats as "keep mixing", the worst possible
+  // response. Retained as a retired parent so historical mastery stays
+  // readable; see learning/skillSplit.ts.
   'geometry.basic':      { id: 'geometry.basic',      label: 'Area, perimeter and angles',    prerequisites: ['mul.tables.mid'],     introducedIn: '3rd', category: 'geometry' },
+  'geometry.area':       { id: 'geometry.area',       label: 'Area',                          prerequisites: ['mul.tables.mid'],     introducedIn: '3rd', category: 'geometry' },
+  // Taught by contrast with area, not before it (docs/26 A10, variation
+  // theory): the pair is what makes either one meaningful.
+  'geometry.perimeter':  { id: 'geometry.perimeter',  label: 'Perimeter',                     prerequisites: ['add.2digit.carry'],   introducedIn: '3rd', category: 'geometry' },
+  'geometry.angles':     { id: 'geometry.angles',     label: 'Angles',                        prerequisites: ['sub.2digit.borrow'],  introducedIn: '4th', category: 'geometry' },
+
+  // ── Measurement (docs/27 P2-02) ────────────────────────────────────────────
   'measurement.basic':   { id: 'measurement.basic',   label: 'Measurement and units',         prerequisites: ['placevalue'],         introducedIn: '2nd', category: 'measurement' },
+  // All measurement content is unit conversion (measured: 12 of 12 forms), so
+  // the split is by QUANTITY. Each depends on tables as well as place value,
+  // because every one of them is a ×1000 or ×100 in disguise.
+  'measurement.length':  { id: 'measurement.length',  label: 'Length units',                  prerequisites: ['placevalue', 'mul.tables.easy'], introducedIn: '2nd', category: 'measurement' },
+  'measurement.mass':    { id: 'measurement.mass',    label: 'Mass units',                    prerequisites: ['placevalue', 'mul.tables.easy'], introducedIn: '2nd', category: 'measurement' },
+  'measurement.capacity':{ id: 'measurement.capacity',label: 'Capacity units',                prerequisites: ['placevalue', 'mul.tables.easy'], introducedIn: '3rd', category: 'measurement' },
+
+  // ── Data (docs/27 P2-03) ───────────────────────────────────────────────────
   'data.basic':          { id: 'data.basic',          label: 'Mean, median, mode and range',  prerequisites: ['div.tables'],         introducedIn: '5th', category: 'data' },
+  'data.mean':           { id: 'data.mean',           label: 'Mean',                          prerequisites: ['div.tables'],         introducedIn: '5th', category: 'data' },
+  // Median needs ordering, not division — a genuinely different prerequisite,
+  // and the reason `data.mean-vs-median` is a named misconception.
+  'data.median':         { id: 'data.median',         label: 'Median',                        prerequisites: ['numsense.compare'],   introducedIn: '5th', category: 'data' },
+  'data.mode':           { id: 'data.mode',           label: 'Mode',                          prerequisites: ['count.objects'],      introducedIn: '5th', category: 'data' },
+  'data.range':          { id: 'data.range',          label: 'Range',                         prerequisites: ['sub.2digit.borrow'],  introducedIn: '5th', category: 'data' },
   'integers.basic':      { id: 'integers.basic',      label: 'Positive and negative numbers', prerequisites: ['sub.3digit'],         introducedIn: '6th', category: 'integers' },
   'algebra.basic':       { id: 'algebra.basic',       label: 'Find the unknown value',        prerequisites: ['mul.tables.full', 'patterns.basic'], introducedIn: '6th', category: 'algebra' },
   'wordproblems':        { id: 'wordproblems',        label: 'Word problems',                 prerequisites: ['add.2digit.carry', 'mul.tables.mid', 'numsense.reasonable'], introducedIn: '3rd', category: 'word_problems' },
@@ -160,9 +187,23 @@ export function resolveSkill(cls: SchoolClass, cat: Category, diff: Difficulty):
     case 'percentages':   return 'percent.basic';
     case 'ratio':         return 'ratio.basic';
     case 'factors':       return 'factors.basic';
-    case 'geometry':      return 'geometry.basic';
-    case 'measurement':   return 'measurement.basic';
-    case 'data':          return 'data.basic';
+    // docs/27 P2-01/02/03. These categories used to map to one broad node each.
+    // Difficulty now selects the strand, exactly as `number_sense` already did,
+    // so a child practising "Geometry" from the menu still meets all three but
+    // each attempt is logged against the concept it actually exercised.
+    case 'geometry':
+      if (diff === 'easy') return 'geometry.perimeter';
+      return diff === 'hard' ? 'geometry.angles' : 'geometry.area';
+    case 'measurement':
+      if (diff === 'easy') return 'measurement.length';
+      return diff === 'hard' ? 'measurement.capacity' : 'measurement.mass';
+    case 'data':
+      // Four sub-skills, three difficulty slots — so class carries the fourth.
+      // A guard test asserts every sub-skill is reachable from SOME cell:
+      // `data.mode` was orphaned by the first version of this mapping, which
+      // is a node the child can never be scheduled onto.
+      if (diff === 'easy') return cls === '6th' ? 'data.mode' : 'data.range';
+      return diff === 'hard' ? 'data.mean' : 'data.median';
     case 'integers':      return 'integers.basic';
     case 'algebra':       return 'algebra.basic';
     case 'word_problems': return 'wordproblems';

@@ -5,11 +5,11 @@
 Supersedes `18-outstanding-work.md` (all 22 items complete). Tick items here as they land; do not maintain a second list anywhere else.
 
 ```
-Progress    20 of 93 complete · PHASE 1 COMPLETE
+Progress    25 of 93 complete · Phase 1 complete · Phase 2 §2.1 done
 Baseline    a81e9e5
 Verify      cd artifacts/mobile && npm run verify     # typecheck + arch-check 7/7 + 675 tests
 UI check    npm run ui:smoke                          # 23 browser assertions
-Current     43 skills · 28 worked-example solvers · 45 hinted · 35 misconceptions
+Current     55 skills · 28 worked-example solvers · 45 hinted · 40 misconceptions
             18 chapters · 15 achievements · 6 interaction kinds
             error analysis 8.43% of planned questions (was 0.00% adaptive)
 ```
@@ -72,10 +72,10 @@ Current     43 skills · 28 worked-example solvers · 45 hinted · 35 misconcept
 
 ### 2.1 Split over-broad skills
 
-- [ ] **P2-01 · Split `geometry.basic`** → area / perimeter / angles, taught by contrast (docs/26 A10 — variation theory)
-- [ ] **P2-02 · Split `measurement.basic`** → length / mass / capacity / conversion
-- [ ] **P2-03 · Split `data.basic`** → mean / median / mode / range
-- [ ] **P2-04 · Migration: map existing attempts** onto split skills without losing history. **Depends on P2-01/02/03.**
+- [x] **P2-01 · Split `geometry.basic`** → area / perimeter / angles, taught by contrast (docs/26 A10 — variation theory)
+- [x] **P2-02 · Split `measurement.basic`** → length / mass / capacity *(conversion dropped: measured, all 12 generator forms ARE conversions, so the node would have shipped empty)*
+- [x] **P2-03 · Split `data.basic`** → mean / median / mode / range
+- [x] **P2-04 · Migration: map existing attempts** onto split skills without losing history. **Depends on P2-01/02/03.**
 
 ### 2.2 Missing high-value concepts
 
@@ -91,7 +91,7 @@ Current     43 skills · 28 worked-example solvers · 45 hinted · 35 misconcept
 - [ ] **P2-14 · Rounding as a decision**
 - [ ] **P2-15 · Probability and chance**
 - [ ] **P2-16 · 3D shapes, nets, volume** (spatial reasoning predicts STEM attainment)
-- [ ] **P2-17 · Misconceptions for every new skill** — hold the 45/45 property. **Depends on all of §2.**
+- [x] **P2-17 · Misconceptions for every new skill** — 55/55 held after the splits. *(Re-open if §2.2 adds skills.)*
 - [ ] **P2-18 · Curriculum review by a practising Indian teacher** — required before any "CBSE-aligned" marketing claim
 
 ---

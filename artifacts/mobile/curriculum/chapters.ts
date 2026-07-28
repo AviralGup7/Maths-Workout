@@ -63,7 +63,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'place-value',
     title: { en: 'Tens and Ones', hi: 'दहाई और इकाई' },
     kind: 'core', introducedIn: '2nd', prerequisites: ['counting'],
-    skills: ['placevalue', 'measurement.basic'],
+    skills: ['placevalue', 'measurement.length', 'measurement.mass', 'measurement.capacity'],
   },
   {
     id: 'carrying',
@@ -105,7 +105,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'geometry',
     title: { en: 'Shape and Space', hi: 'आकृति और स्थान' },
     kind: 'core', introducedIn: '3rd', prerequisites: ['shapes-time-money', 'tables'],
-    skills: ['geometry.basic', 'symmetry.basic'],
+    skills: ['geometry.area', 'geometry.perimeter', 'geometry.angles', 'symmetry.basic'],
   },
   {
     id: 'decimals',
@@ -141,7 +141,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'data',
     title: { en: 'Data and Averages', hi: 'आँकड़े और औसत' },
     kind: 'core', introducedIn: '5th', prerequisites: ['sharing'],
-    skills: ['data.basic'],
+    skills: ['data.mean', 'data.median', 'data.mode', 'data.range'],
   },
   {
     id: 'integers-algebra',

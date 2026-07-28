@@ -20,6 +20,7 @@ import { genShapes, genTime, genMoney, genPlaceValue, genMeasurement } from './t
 import { genFractions, genDecimals } from './fractions-decimals';
 import { genWordProblems, genFactors, genGeometry, genPercentages, genData, genRatio, genIntegers, genAlgebra } from './advanced';
 import { categoriesFor, DEFAULT_BOARD } from '../curriculum/boards';
+import { classifyQuestion } from '../learning/skillSplit';
 import type { Board } from '../curriculum/boards';
 
 export { generateTablesQuestions };
@@ -135,6 +136,26 @@ export function getAvailableCategories(cls: SchoolClass, board: Board = DEFAULT_
  * When the caller knows which skill it wants, it says so, and gets it.
  */
 const SKILL_GENERATORS: Record<string, (cls: SchoolClass, diff: Difficulty) => Question> = {
+  // docs/27 P2-01/02/03. The split sub-skills share one generator each, so
+  // they are served by REJECTION SAMPLING against the shared classifier
+  // rather than by three new generators.
+  //
+  // That choice is deliberate. Duplicating `genGeometry` into three would fork
+  // 60 lines of question bodies that must stay numerically correct, and the
+  // fork would drift; using the same classifier the migration uses guarantees
+  // that a question routed to `geometry.area` is one the migration would also
+  // have filed there. The two paths cannot disagree, because they are the same
+  // predicate.
+  'geometry.area':        (c, d) => forSubSkill('geometry.basic', 'geometry.area', dd => genGeometry(c, dd), d),
+  'geometry.perimeter':   (c, d) => forSubSkill('geometry.basic', 'geometry.perimeter', dd => genGeometry(c, dd), d),
+  'geometry.angles':      (c, d) => forSubSkill('geometry.basic', 'geometry.angles', dd => genGeometry(c, dd), d),
+  'measurement.length':   (c, d) => forSubSkill('measurement.basic', 'measurement.length', dd => genMeasurement(c, dd), d),
+  'measurement.mass':     (c, d) => forSubSkill('measurement.basic', 'measurement.mass', dd => genMeasurement(c, dd), d),
+  'measurement.capacity': (c, d) => forSubSkill('measurement.basic', 'measurement.capacity', dd => genMeasurement(c, dd), d),
+  'data.mean':            (c, d) => forSubSkill('data.basic', 'data.mean', dd => genData(c, dd), d),
+  'data.median':          (c, d) => forSubSkill('data.basic', 'data.median', dd => genData(c, dd), d),
+  'data.mode':            (c, d) => forSubSkill('data.basic', 'data.mode', dd => genData(c, dd), d),
+  'data.range':           (c, d) => forSubSkill('data.basic', 'data.range', dd => genData(c, dd), d),
   'patterns.basic':      (c, d) => genPattern(c, d),
   'numsense.compare':    (c, d) => genComparison(c, d),
   'numsense.estimate':   (c, d) => genEstimation(c, d),
@@ -149,6 +170,38 @@ const SKILL_GENERATORS: Record<string, (cls: SchoolClass, diff: Difficulty) => Q
  * This is what the adaptive scheduler should call: it guarantees the question
  * the learner sees exercises the skill the attempt will be logged against.
  */
+/**
+ * Draw from a broad generator until the question matches the wanted sub-skill.
+ *
+ * Bounded, and the bound matters: some sub-skills are rare in their parent's
+ * mix (mode is one of six `genData` forms at some difficulties), and an
+ * unbounded loop would hang a session rather than degrade it. On exhaustion we
+ * return the last draw — a slightly off-target question is a far better
+ * failure than a frozen screen, and the attempt is still logged against a
+ * skill in the same family.
+ */
+function forSubSkill(
+  parent: string,
+  wanted: string,
+  draw: (d: Difficulty) => Question,
+  diff: Difficulty,
+): Question {
+  // Sweep the requested difficulty first, then the others. Measured: `range`
+  // is generated ONLY at easy and `mode` only at medium, so a fixed-difficulty
+  // loop returned 0/320 on-target for `data.range` — it was not a tuning
+  // problem, the question simply does not exist in that band.
+  const order: Difficulty[] = [diff, ...(['easy', 'medium', 'hard'] as Difficulty[]).filter(d => d !== diff)];
+  let last = draw(diff);
+  for (const d of order) {
+    for (let i = 0; i < 40; i++) {
+      const q = draw(d);
+      if (classifyQuestion(parent, q.questionText) === wanted) return q;
+      last = q;
+    }
+  }
+  return last;
+}
+
 export function generateForSkill(
   cls: SchoolClass,
   diff: Difficulty,

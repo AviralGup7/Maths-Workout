@@ -6,6 +6,7 @@ import {
   dueReviewChapters, orphanSkills, CHAPTER_UNLOCK_MASTERY, CHAPTER_COMPLETE_MASTERY,
 } from '../chapters';
 import { SKILLS, ALL_SKILL_IDS } from '../../learning/skills';
+import { isRetiredParent } from '../../learning/skillSplit';
 import { hasDevanagariDigits } from '../../i18n/strings';
 import type { SkillId } from '../../learning/skills';
 
@@ -22,7 +23,16 @@ describe('the chapter graph is well formed', () => {
   it('covers every skill in the curriculum', () => {
     // A skill with no chapter is unreachable from the map, which would make it
     // invisible to a learner browsing by topic.
-    expect(orphanSkills(), 'skills with no chapter').toEqual([]);
+    //
+    // The three retired split parents (docs/27 P2-01/02/03) are the sole
+    // exemption, and it is deliberate: they exist only so historical mastery
+    // stays readable after the migration re-labels attempts. Nothing schedules
+    // them and nothing should offer them to browse, so a chapter entry would
+    // be a lie. Asserted explicitly rather than filtered loosely, so a FOURTH
+    // orphan still fails.
+    expect(orphanSkills(), 'skills with no chapter')
+      .toEqual(['geometry.basic', 'measurement.basic', 'data.basic']);
+    for (const id of orphanSkills()) expect(isRetiredParent(id), id).toBe(true);
   });
 
   it('never names a skill in two chapters', () => {

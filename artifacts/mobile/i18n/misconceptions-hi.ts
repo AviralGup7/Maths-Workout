@@ -151,6 +151,43 @@ export const MISCONCEPTIONS_HI: Record<string, { label: string; explanation: str
     remediation:
       'पूछें "क्या यह संख्या को पूरा-पूरा बाँटता है?" गुणनखंड कभी संख्या से बड़ा नहीं होता।',
   },
+  // docs/27 P2-01/02/03 — misconceptions that only became expressible once
+  // geometry, measurement and data were split into separate skills.
+  'geometry.wrong-dimension': {
+    label: 'दो भुजाओं की जगह एक ही भुजा का प्रयोग',
+    explanation:
+      'केवल एक माप का प्रयोग हुआ, यानी आयत को वर्ग की तरह मान लिया गया।',
+    remediation:
+      'गुणा या जोड़ चुनने से पहले लंबाई और चौड़ाई दोनों लिख लें।',
+  },
+  'geometry.angle-sum-wrong': {
+    label: 'गलत कोण-योग का प्रयोग',
+    explanation:
+      'कोण गलत कुल में से घटाए गए — जहाँ 360° चाहिए था वहाँ 180° लिया गया, या उल्टा।',
+    remediation:
+      'पहले आकृति पहचानें: सरल रेखा 180°, त्रिभुज 180°, चतुर्भुज 360°, पूरा चक्कर 360°।',
+  },
+  'data.median-unsorted': {
+    label: 'क्रम में लगाए बिना बीच वाला लेना',
+    explanation:
+      'जैसी लिखी थी वैसी ही सूची का बीच वाला मान दिया गया, पहले क्रम में नहीं लगाया गया।',
+    remediation:
+      'संख्याओं को छोटे से बड़े क्रम में फिर से लिखें, फिर बीच वाली पर उँगली रखें।',
+  },
+  'data.mode-counted-not-named': {
+    label: 'मान की जगह उसकी गिनती देना',
+    explanation:
+      'जो मान सबसे ज़्यादा बार आया उसकी गिनती दी गई, स्वयं वह मान नहीं।',
+    remediation:
+      'बहुलक वह संख्या है जो दोहराई जाती है, न कि वह कितनी बार दोहराई गई।',
+  },
+  'data.range-gave-extreme': {
+    label: 'परिसर की जगह सबसे बड़ा मान देना',
+    explanation:
+      'सबसे बड़े और सबसे छोटे के अंतर की जगह सेट की सबसे बड़ी संख्या दी गई।',
+    remediation:
+      'परिसर एक घटाव है: सबसे बड़ा − सबसे छोटा।',
+  },
   'geometry.area-perimeter-swap': {
     label: 'क्षेत्रफल और परिमाप बदल जाना',
     explanation:

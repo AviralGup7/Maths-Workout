@@ -222,6 +222,92 @@ export const HINTS: Partial<Record<SkillId, HintTriple>> = {
     'For area multiply the sides; for perimeter add all the way round.',
     'क्षेत्रफल के लिए भुजाएँ गुणा करें; परिमाप के लिए सब जोड़ें।',
   ),
+  // ── Split sub-skills (docs/27 P2-01/02/03) ─────────────────────────────────
+  // Each gets its OWN ladder rather than inheriting the parent's via FAMILY.
+  // A family fallback here would defeat the split: the reason to separate area
+  // from perimeter is that a child confusing them needs to be told something
+  // DIFFERENT, and "are you covering the shape or walking around it?" is the
+  // question they have already answered wrongly.
+  'geometry.area': H(
+    'How much space is inside the shape?',
+    'आकृति के अंदर कितनी जगह है?',
+    'Think of covering the shape with unit squares — how many fit?',
+    'सोचें कि आकृति को इकाई वर्गों से भर रहे हैं — कितने आएँगे?',
+    'Area of a rectangle is length × width. The answer is in square units.',
+    'आयत का क्षेत्रफल = लंबाई × चौड़ाई। उत्तर वर्ग इकाई में आता है।',
+  ),
+  'geometry.perimeter': H(
+    'How far is it all the way round the edge?',
+    'किनारे के चारों ओर कुल कितनी दूरी है?',
+    'Trace the outside with your finger and add each side as you pass it.',
+    'उँगली से बाहरी किनारा घूमें और हर भुजा जोड़ते जाएँ।',
+    'Add every side. For a rectangle that is length + width + length + width.',
+    'हर भुजा जोड़ें। आयत के लिए लंबाई + चौड़ाई + लंबाई + चौड़ाई।',
+  ),
+  'geometry.angles': H(
+    'What do these angles add up to together?',
+    'ये कोण मिलकर कितने बनते हैं?',
+    'A right angle is 90°, a straight line 180°, a full turn 360°.',
+    'समकोण 90°, सरल रेखा 180°, पूरा चक्कर 360°।',
+    'Subtract the angle you know from the total for that shape or line.',
+    'उस आकृति या रेखा के कुल में से ज्ञात कोण घटाएँ।',
+  ),
+  'measurement.length': H(
+    'Are you going to a bigger unit or a smaller one?',
+    'बड़ी इकाई की ओर जा रहे हैं या छोटी की ओर?',
+    'There are a thousand metres in a kilometre, and a hundred centimetres in a metre.',
+    'एक किलोमीटर में हज़ार मीटर होते हैं, और एक मीटर में सौ सेंटीमीटर।',
+    'To a smaller unit, multiply. To a bigger unit, divide.',
+    'छोटी इकाई में जाएँ तो गुणा; बड़ी इकाई में जाएँ तो भाग।',
+  ),
+  'measurement.mass': H(
+    'Are you going to a bigger unit or a smaller one?',
+    'बड़ी इकाई की ओर जा रहे हैं या छोटी की ओर?',
+    'There are a thousand grams in a kilogram.',
+    'एक किलोग्राम में हज़ार ग्राम होते हैं।',
+    'kg to g multiplies by 1000; g to kg divides by 1000.',
+    'kg से g में ×1000; g से kg में ÷1000।',
+  ),
+  'measurement.capacity': H(
+    'Are you going to a bigger unit or a smaller one?',
+    'बड़ी इकाई की ओर जा रहे हैं या छोटी की ओर?',
+    'There are a thousand millilitres in a litre.',
+    'एक लीटर में हज़ार मिलीलीटर होते हैं।',
+    'L to mL multiplies by 1000; mL to L divides by 1000.',
+    'L से mL में ×1000; mL से L में ÷1000।',
+  ),
+  'data.mean': H(
+    'If everyone got the same share, how much would each get?',
+    'अगर सबको बराबर हिस्सा मिले, तो हर एक को कितना मिलेगा?',
+    'Add every value first, then count how many there are.',
+    'पहले सब मान जोड़ें, फिर गिनें कि कितने हैं।',
+    'Mean = total ÷ how many. Do not forget the dividing step.',
+    'माध्य = कुल ÷ संख्या। भाग वाला कदम न भूलें।',
+  ),
+  'data.median': H(
+    'The median is the middle one — but middle of WHAT order?',
+    'माध्यिका बीच वाली है — पर किस क्रम के बीच?',
+    'Put the numbers in order from smallest to largest first.',
+    'पहले संख्याओं को छोटे से बड़े क्रम में रखें।',
+    'Once sorted, the median is the value in the middle position.',
+    'क्रम में रखने के बाद बीच की स्थिति वाला मान माध्यिका है।',
+  ),
+  'data.mode': H(
+    'Which value turns up most often?',
+    'कौन-सा मान सबसे ज़्यादा बार आया है?',
+    'Count how many times each different value appears.',
+    'गिनें कि हर मान कितनी बार आया है।',
+    'The mode is the value itself, not how many times it appeared.',
+    'बहुलक वह मान है, न कि वह कितनी बार आया।',
+  ),
+  'data.range': H(
+    'How far apart are the biggest and smallest?',
+    'सबसे बड़ा और सबसे छोटा कितनी दूर हैं?',
+    'Find the largest value and the smallest value first.',
+    'पहले सबसे बड़ा और सबसे छोटा मान खोजें।',
+    'Range = largest − smallest. It is one number, not a pair.',
+    'परिसर = सबसे बड़ा − सबसे छोटा। यह एक संख्या है, जोड़ी नहीं।',
+  ),
   'wordproblems': H(
     'What is the story actually asking?', 'कहानी असल में क्या पूछ रही है?',
     'Decide whether things are being combined, taken away, grouped or shared.',

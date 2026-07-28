@@ -46,6 +46,12 @@ const ALLOWED_UPWARD = new Set([
   'generators/reasoning.ts -> learning/misconceptions.ts',
   'curriculum/chapters.ts -> learning/skills.ts',
   'lib/progressApi.ts -> generators/index.ts',
+  // docs/27 P2-01/02/03. The sub-skill classifier is shared by the router and
+  // the migration ON PURPOSE — two copies would drift, and a migration that
+  // disagreed with the router would move a child's history onto skills they
+  // are never served again. Same category as the edges above: shared
+  // vocabulary, not behavioural coupling.
+  'generators/index.ts -> learning/skillSplit.ts',
 ]);
 
 /** Layers that must never touch React or React Native. */
