@@ -48,5 +48,10 @@ export interface ClassConfig {
   key: SchoolClass;
   label: string;
   ageRange: string;
+  /** Fill colour — chips, washes, accents. Not safe as text. */
   color: string;
+  /** Same hue, darkened until it clears WCAG AA as text on a light surface. */
+  textColor: string;
+  /** Same hue, lightened for a dark surface. One tone cannot serve both. */
+  textColorDark: string;
 }

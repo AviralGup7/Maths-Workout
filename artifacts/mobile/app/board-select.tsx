@@ -57,6 +57,12 @@ export default function BoardSelectScreen() {
   const router = useRouter();
   const { board, setBoard, lang, setLang, timerPref, setTimerPref } = useGame();
   const [soundOn, setSoundOn] = React.useState(isSoundEnabled());
+  // docs/28: a single mid-tone accent cannot clear AA on BOTH a light and a
+  // dark wash of itself — darkening these for light mode pushed dark mode from
+  // 6 failures to 15. Each board therefore carries two tones of the same hue.
+  const { name: themeName } = useTheme();
+  const accent = (b: { colour: string; colourDark: string }) =>
+    themeName === 'dark' ? b.colourDark : b.colour;
 
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -119,14 +125,14 @@ export default function BoardSelectScreen() {
           return (
             <TouchableOpacity
               key={b.key}
-              style={[styles.card, { borderColor: sel ? b.colour : C.border }, sel && { borderWidth: 2 }]}
+              style={[styles.card, { borderColor: sel ? accent(b) : C.border }, sel && { borderWidth: 2 }]}
               onPress={() => chooseBoard(b.key)}
               activeOpacity={0.85}
               accessibilityRole="radio"
               accessibilityState={{ selected: sel }}
             >
-              <View style={[styles.badge, { backgroundColor: b.colour + '22' }]}>
-                <Text style={[styles.badgeText, { color: b.colour }]}>
+              <View style={[styles.badge, { backgroundColor: accent(b) + '22' }]}>
+                <Text style={[styles.badgeText, { color: accent(b) }]}>
                   {lang === 'hi' ? b.labelHi : b.label}
                 </Text>
               </View>
@@ -137,7 +143,7 @@ export default function BoardSelectScreen() {
                   {CLASS_LABELS['5th'][lang === 'hi' ? 'hi' : 'en']} · {sample} {t('topicsAvailable', lang)}
                 </Text>
               </View>
-              {sel && <Feather name="check-circle" size={20} color={b.colour} />}
+              {sel && <Feather name="check-circle" size={20} color={accent(b)} />}
             </TouchableOpacity>
           );
         })}
@@ -247,7 +253,7 @@ export default function BoardSelectScreen() {
                 <Text style={styles.diffCat}>{categoryLabel(cat, lang)}</Text>
                 {cbse.map(({ b, from }) => (
                   <View key={b.key} style={styles.diffCell}>
-                    <Text style={[styles.diffCellLabel, { color: b.colour }]}>{b.label}</Text>
+                    <Text style={[styles.diffCellLabel, { color: accent(b) }]}>{b.label}</Text>
                     <Text style={styles.diffCellValue}>
                       {from ? `${lang === 'hi' ? 'कक्षा' : 'Cl'} ${from}` : '—'}
                     </Text>

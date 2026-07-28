@@ -23,6 +23,8 @@ export interface BoardConfig {
   note: string;
   noteHi: string;
   colour: string;
+  /** Same hue, lightened so the acronym clears AA on a dark wash. */
+  colourDark: string;
 }
 
 export const BOARD_CONFIGS: BoardConfig[] = [
@@ -35,6 +37,7 @@ export const BOARD_CONFIGS: BoardConfig[] = [
     note: 'Follows NCERT. Balanced pace, concept-first.',
     noteHi: 'एनसीईआरटी पर आधारित। संतुलित गति, अवधारणा पर ज़ोर।',
     colour: '#0B5FA5',
+    colourDark: '#7CC0F5',
   },
   {
     key: 'icse',
@@ -45,6 +48,7 @@ export const BOARD_CONFIGS: BoardConfig[] = [
     note: 'Broader syllabus. Several topics start a year earlier.',
     noteHi: 'व्यापक पाठ्यक्रम। कई विषय एक वर्ष पहले शुरू होते हैं।',
     colour: '#7B2A8A',
+    colourDark: '#E29BF0',
   },
   {
     key: 'state',
@@ -55,6 +59,7 @@ export const BOARD_CONFIGS: BoardConfig[] = [
     note: 'NCERT-aligned with a gentler pace on abstract topics.',
     noteHi: 'एनसीईआरटी के अनुरूप, कठिन विषयों में धीमी गति।',
     colour: '#2E6B32',
+    colourDark: '#8FD69A',
   },
 ];
 

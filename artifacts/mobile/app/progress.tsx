@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import { Mascot } from '@/components/Mascot';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, SchoolClass, Category } from '@/context/GameContext';
+import { classTextTone } from '@/generators';
 import { touchSlop } from '@/hooks/useA11y';
 import { MISCONCEPTIONS_HI } from '@/i18n/misconceptions-hi';
 import { t, categoryLabel } from '@/i18n/strings';
@@ -72,6 +73,7 @@ export default function ProgressScreen() {
           selectedClass, level, masteryIdx, masteryLabel, totalXp } = useGame();
 
   const [filterClass, setFilterClass] = useState<SchoolClass | 'all'>('all');
+  const { name: themeName } = useTheme();
 
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -399,7 +401,7 @@ export default function ProgressScreen() {
               style={[styles.filterChip, filterClass === cls.key && { borderColor: cls.color, backgroundColor: cls.color + '18' }]}
               onPress={() => { Haptics.selectionAsync(); setFilterClass(cls.key); }}
             >
-              <Text style={[styles.filterChipText, filterClass === cls.key && { color: cls.color }]}>{cls.label}</Text>
+              <Text style={[styles.filterChipText, filterClass === cls.key && { color: classTextTone(cls, themeName) }]}>{cls.label}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -447,7 +449,7 @@ export default function ProgressScreen() {
             return (
               <View key={cls.key} style={[styles.classBox, { borderColor: cls.color + '44' }]}>
                 <View style={[styles.classBoxNum, { backgroundColor: cls.color + '22' }]}>
-                  <Text style={[styles.classBoxNumText, { color: cls.color }]}>{CLASS_CONFIGS.indexOf(cls) + 1}</Text>
+                  <Text style={[styles.classBoxNumText, { color: classTextTone(cls, themeName) }]}>{CLASS_CONFIGS.indexOf(cls) + 1}</Text>
                 </View>
                 <Text style={styles.classBoxLabel}>{cls.label}</Text>
                 <Text style={[styles.classBoxPct, {

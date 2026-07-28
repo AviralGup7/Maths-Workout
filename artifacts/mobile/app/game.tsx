@@ -24,6 +24,7 @@ import { SKILLS } from '@/learning/skills';
 import { useSpeech, readAloudDefault } from '@/hooks/useSpeech';
 import { playSound } from '@/hooks/useFeedbackSound';
 import { Mascot } from '@/components/Mascot';
+import { classTextTone } from '@/generators';
 import { hintLevelFor, hintText, hintsFor, needsDescentNotHints } from '@/learning/hints';
 import {
   shouldAskConfidence, quadrant, CONFIDENCE_COPY,
@@ -96,6 +97,7 @@ function formatChoice(v: ChoiceValue): string {
 
 export default function GameScreen() {
   const C = useLegacyPalette();
+  const { name: themeName } = useTheme();
   const styles = React.useMemo(() => makeStyles(C), [C]);
   const insets = useSafeAreaInsets();
   const router  = useRouter();
@@ -222,6 +224,8 @@ export default function GameScreen() {
   }, [currentIndex, questions, readAloud, speak, stopSpeech]);
   const classConfig     = CLASS_CONFIGS.find(c => c.key === selectedClass);
   const classColor      = classConfig?.color ?? C.primary;
+  // Fill vs text: the pastel is only safe as a wash (docs/28).
+  const classTextColor  = classConfig ? classTextTone(classConfig, themeName) : C.primary;
   // In adaptive and Mixed sessions the topic changes per question, so label the
   // question actually on screen rather than the session's nominal category.
   const activeCategory  = currentQuestion?.resolvedCategory ?? selectedCategory;
@@ -678,7 +682,7 @@ export default function GameScreen() {
         </TouchableOpacity>
         <View style={styles.topMid}>
           <View style={[styles.pill, { backgroundColor: classColor + '22' }]}>
-            <Text style={[styles.pillText, { color: classColor }]}>{classConfig ? CLASS_LABELS[classConfig.key][lang === 'hi' ? 'hi' : 'en'] : ''}</Text>
+            <Text style={[styles.pillText, { color: classTextColor }]}>{classConfig ? CLASS_LABELS[classConfig.key][lang === 'hi' ? 'hi' : 'en'] : ''}</Text>
           </View>
           <View style={[styles.pill, { backgroundColor: catMeta.color + '22' }]}>
             <Text style={[styles.pillText, { color: catMeta.color }]}>{isTablesMode ? t('timesTables', lang).replace('\n', ' ') : categoryLabel(activeCategory, lang)}</Text>

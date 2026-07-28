@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, SchoolClass, getAvailableCategories } from '@/context/GameContext';
+import { classTextTone } from '@/generators';
 import { useTheme } from '@/theme/useTheme';
 import { Screen, ScreenHeader } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -20,7 +21,7 @@ import { t } from '@/i18n/strings';
 export default function ClassSelectScreen() {
   const router = useRouter();
   const { setSelectedClass, getHighScore, progressStats, board, lang } = useGame();
-  const { c, type, space, touch } = useTheme();
+  const { c, type, space, touch, name } = useTheme();
 
   const handleSelect = (cls: SchoolClass) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -59,7 +60,7 @@ export default function ClassSelectScreen() {
                 backgroundColor: cls.color + '22',
                 alignItems: 'center', justifyContent: 'center',
               }}>
-                <Text style={[type('heading'), { color: cls.color }]}>
+                <Text style={[type('heading'), { color: classTextTone(cls, name) }]}>
                   {CLASS_LABELS[cls.key].en.replace('Class ', '')}
                 </Text>
               </View>

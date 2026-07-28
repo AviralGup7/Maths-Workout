@@ -35,14 +35,32 @@ export { generateTablesQuestions };
 
 // ─── Class metadata ──────────────────────────────────────────────────────────
 
+/**
+ * Class identity colours.
+ *
+ * `color` is a FILL — chips, washes, accents. `textColor` is the same hue
+ * darkened until it clears WCAG AA as text.
+ *
+ * docs/28 measured 9 AA failures on the progress screen, worst 1.40, all of
+ * them these pastels used as label text on a tint of themselves. #FDD835 on
+ * #FDD83518 is unreadable and always was; it looked fine because it was only
+ * ever eyeballed as a fill. Splitting the two uses means a designer can keep
+ * a bright, childlike palette without it becoming an accessibility failure the
+ * moment someone renders a word in it.
+ */
 export const CLASS_CONFIGS: ClassConfig[] = [
-  { key: '1st', label: 'Class 1', ageRange: 'Age 6–7',  color: '#FF6B6B' },
-  { key: '2nd', label: 'Class 2', ageRange: 'Age 7–8',  color: '#FF9F43' },
-  { key: '3rd', label: 'Class 3', ageRange: 'Age 8–9',  color: '#FDD835' },
-  { key: '4th', label: 'Class 4', ageRange: 'Age 9–10', color: '#26C6DA' },
-  { key: '5th', label: 'Class 5', ageRange: 'Age 10–11',color: '#42A5F5' },
-  { key: '6th', label: 'Class 6', ageRange: 'Age 11–12',color: '#AB47BC' },
+  { key: '1st', label: 'Class 1', ageRange: 'Age 6–7',  color: '#FF6B6B', textColor: '#B3221F', textColorDark: '#FFA8A6' },
+  { key: '2nd', label: 'Class 2', ageRange: 'Age 7–8',  color: '#FF9F43', textColor: '#9A4B00', textColorDark: '#FFC489' },
+  { key: '3rd', label: 'Class 3', ageRange: 'Age 8–9',  color: '#FDD835', textColor: '#6B5300', textColorDark: '#F3D24E' },
+  { key: '4th', label: 'Class 4', ageRange: 'Age 9–10', color: '#26C6DA', textColor: '#046C7A', textColorDark: '#7BDCEB' },
+  { key: '5th', label: 'Class 5', ageRange: 'Age 10–11',color: '#42A5F5', textColor: '#0B5FA5', textColorDark: '#8FC9FA' },
+  { key: '6th', label: 'Class 6', ageRange: 'Age 11–12',color: '#AB47BC', textColor: '#7B2A8A', textColorDark: '#DFA3EC' },
 ];
+
+/** The accessible text tone for a class, for the active theme. */
+export function classTextTone(cfg: ClassConfig, theme: 'light' | 'dark'): string {
+  return theme === 'dark' ? cfg.textColorDark : cfg.textColor;
+}
 
 // ─── Category metadata ───────────────────────────────────────────────────────
 
