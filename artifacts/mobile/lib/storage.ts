@@ -27,6 +27,8 @@ export const KEYS = {
   pendingAttempts: '@maths_workout_pending_attempts',
   /** Per-day aggregates retained beyond the attempt cap — docs/23 S5. */
   dailySummary:  '@maths_workout_daily_summary',
+  /** Set once placement has run or been declined — docs/27 P1-01. */
+  placementDone: '@maths_workout_placement_done',
   xpLedger:      '@maths_workout_xp_ledger',
   totalXp:       '@maths_workout_total_xp',
   highScores:    '@maths_workout_v2_high_scores',
@@ -59,8 +61,12 @@ export type StorageKey = keyof typeof KEYS;
  * `dailySummary` (lifetime aggregates beyond the attempt cap), and every
  * durable value gained a checksummed envelope with a backup slot. Both
  * additions are read-optional, so a v4 install upgrades with no migration.
+ *
+ * v6 (docs/27 P1-01): added `placementDone`. Absent means "never offered",
+ * which is the correct default for every existing install — they already have
+ * a history, and `needsPlacement` additionally requires an empty log.
  */
-export const MANIFEST_VERSION = 5;
+export const MANIFEST_VERSION = 6;
 
 /** Recorded so a future migration knows what it is migrating from. */
 export interface Manifest {

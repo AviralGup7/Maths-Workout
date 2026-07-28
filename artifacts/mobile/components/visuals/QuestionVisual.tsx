@@ -66,8 +66,27 @@ export function QuestionVisual({
   if (model === 'numberLine') {
     const nums = operands.filter(Number.isFinite);
     if (nums.length === 0) return null;
-    const lo = Math.min(0, ...nums);
-    const hi = Math.max(...nums);
+    // docs/27 P1-01. The line must span whatever the child is being asked to
+    // locate, not merely the operands. Scaling to the operands alone drew a
+    // 0–40 line beneath "About how much is 38 + 23?", so the visual
+    // contradicted the question and every offered band sat off the end of it.
+    //
+    // Estimation answers are BANDS ("82-120"), not numbers, which is why a
+    // first fix that only read `Number(question.answer)` changed nothing —
+    // caught by re-rendering rather than by re-reading the code.
+    const reach = [...nums];
+    const answerNum = Number(question.answer);
+    if (Number.isFinite(answerNum)) reach.push(answerNum);
+    const bands = question.interaction?.kind === 'estimate'
+      ? question.interaction.bands
+      : null;
+    if (bands) for (const [lo2, hi2] of bands) reach.push(lo2, hi2);
+    else if (typeof question.answer === 'string') {
+      // "82-120" — take both ends.
+      for (const m of question.answer.matchAll(/-?\d+(?:\.\d+)?/g)) reach.push(Number(m[0]));
+    }
+    const lo = Math.min(0, ...reach);
+    const hi = Math.max(...reach);
     if (!Number.isFinite(lo) || !Number.isFinite(hi) || hi === lo) return null;
     const span = hi - lo;
     const step = niceStep(span);

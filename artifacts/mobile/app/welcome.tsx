@@ -72,7 +72,9 @@ export default function WelcomeScreen() {
   const finish = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     try { await AsyncStorage.setItem(SEEN_WELCOME_KEY, '1'); } catch { /* not fatal */ }
-    router.replace('/');
+    // docs/27 P1-01: straight into placement, so the very first practice
+    // session is already pitched at the right level.
+    router.replace('/placement');
   };
 
   const go = (next: number) => {

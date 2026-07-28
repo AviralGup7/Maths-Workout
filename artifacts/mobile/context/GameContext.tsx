@@ -50,6 +50,7 @@ import { resolveSkill, SKILLS } from '../learning/skills';
 import { buildSession, categoryForSkill, difficultyFor } from '../learning/scheduler';
 import { diagnose, summariseMisconceptions } from '../learning/misconceptions';
 import { buildSessionReport, type SessionReport } from '../learning/sessionReport';
+import { seedAttempts as buildPlacementSeed, type PlacementState } from '../learning/placement';
 import { awardXp, type XpLedger, type Award } from '../progression/award';
 import { recordAnswer, rebuildProgression } from '../progression/recordAnswer';
 import {
@@ -79,6 +80,8 @@ const PENDING_ATTEMPTS_KEY = '@maths_workout_pending_attempts';
  * of the capped attempt log (docs/23 S5).
  */
 const DAILY_SUMMARY_KEY = '@maths_workout_daily_summary';
+/** Set once placement has run or been declined, so it is never re-offered. */
+const PLACEMENT_DONE_KEY = '@maths_workout_placement_done';
 const BOARD_KEY          = '@maths_workout_board';
 const TIMER_PREF_KEY     = '@maths_workout_timer_pref';
 const LANG_KEY           = '@maths_workout_lang';
@@ -192,6 +195,16 @@ interface GameContextType {
   /** XP earned during the session just finished. */
   xpEarnedThisSession: number;
   /**
+   * True when the learner has neither taken nor declined placement
+   * (docs/27 P1-01). Null while still loading, so the router does not flash
+   * the probe at a returning learner.
+   */
+  needsPlacement:   boolean | null;
+  /** Seed the log from a completed placement probe. */
+  applyPlacement:   (state: PlacementState) => Promise<void>;
+  /** Record that placement was declined; never offer it again. */
+  skipPlacement:    () => Promise<void>;
+  /**
    * Distinct practice days over the learner's whole history (docs/23 S5).
    * Survives eviction of the capped attempt log, unlike counting the log alone.
    */
@@ -298,6 +311,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    */
   const [storageFailing,   setStorageFailing]   = useState(false);
   const [dailySummary,     setDailySummary]     = useState<DailySummary[]>([]);
+  const [needsPlacement,   setNeedsPlacement]   = useState<boolean | null>(null);
   const summaryRef = useRef<DailySummary[]>([]);
   /**
    * Mirrors of `attempts` and `totalXp` for the award path.
@@ -541,6 +555,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       attemptsRef.current = localAT;
       setStorageFailing(storageHealth().failing);
       loadedRef.current = true;
+      // docs/27 P1-01. Offer placement only to a learner with no history: a
+      // returning child already has evidence, and a probe would be both
+      // redundant and alarming.
+      try {
+        const seen = await AsyncStorage.getItem(PLACEMENT_DONE_KEY);
+        setNeedsPlacement(!seen && localAT.length === 0);
+      } catch { setNeedsPlacement(false); }
       // A session already in flight when the load landed now has a trustworthy
       // baseline: adopt it rather than leaving the fallback engaged forever.
       if (!sessionStartResolvedRef.current) {
@@ -871,6 +892,33 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, 1500);
   }, [flushAttempts]);
 
+  /**
+   * Seed the attempt log from a completed placement probe (docs/27 P1-01).
+   *
+   * Seeds the LOG rather than writing mastery, because the log is the single
+   * source of truth (docs/23) — a value written straight into the estimate
+   * would be erased by the next recomputation, and would not decay or be
+   * overridden by real practice the way a placement guess should be.
+   */
+  const applyPlacement = useCallback(async (placement: PlacementState) => {
+    const seeds = buildPlacementSeed(placement, selectedClass, Date.now(),
+      deviceIdRef.current ?? 'local');
+    if (seeds.length > 0) {
+      const next = mergeAttempts(attemptsRef.current, seeds);
+      attemptsRef.current = next;
+      setAttempts(next);
+      setProgressStats(deriveLegacyStats(next));
+      await writeDurable(ATTEMPTS_KEY, next);
+    }
+    try { await AsyncStorage.setItem(PLACEMENT_DONE_KEY, '1'); } catch { /* not fatal */ }
+    setNeedsPlacement(false);
+  }, [selectedClass]);
+
+  const skipPlacement = useCallback(async () => {
+    try { await AsyncStorage.setItem(PLACEMENT_DONE_KEY, '1'); } catch { /* not fatal */ }
+    setNeedsPlacement(false);
+  }, []);
+
   // Never lose progress to a backgrounded or killed app.
   React.useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
@@ -1162,6 +1210,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       saveScore, saveProgressStats, clearMistake, loadAll, getHighScore,
       attempts, mastery, streak, answeredToday,
       sessionReport, xpEarnedThisSession,
+      needsPlacement, applyPlacement, skipPlacement,
       totalXp, level, masteryIdx, masteryLabel, lastAward,
       startAdaptiveSession, isAdaptive, recordAttempt, rootGapFor, sessionSkillFor, retargetNext, topMisconceptions,
       board, setBoard, lang, setLang, prefsLoaded,

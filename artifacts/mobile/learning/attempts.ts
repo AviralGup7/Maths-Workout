@@ -70,6 +70,16 @@ export interface Attempt {
    * mastery, so support never inflates the estimate.
    */
   scaffolded?: boolean;
+  /**
+   * True for rows synthesised by the placement probe (docs/27 P1-01).
+   *
+   * Placement seeds the log rather than writing mastery directly, because the
+   * log is the single source of truth and a value written into the estimate
+   * would be erased by the next recomputation. Marking the rows keeps them out
+   * of statistics that should reflect genuine practice — a child has not
+   * "answered 40 questions" because they took a placement test.
+   */
+  placement?: boolean;
   cls: SchoolClass;
   category: Category;
   difficulty: Difficulty;

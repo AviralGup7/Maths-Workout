@@ -40,7 +40,7 @@ export default function HomeScreen() {
   const {
     loadAll, savedMistakes, streak, answeredToday, startAdaptiveSession,
     selectedClass, lang, prefsLoaded, mastery, level, masteryLabel, attempts,
-    storageFailing,
+    storageFailing, needsPlacement,
   } = useGame();
   const { c, type, space, sizeClass, contentMaxWidth } = useTheme();
 
@@ -50,10 +50,17 @@ export default function HomeScreen() {
     if (!prefsLoaded) return;
     let alive = true;
     AsyncStorage.getItem(SEEN_WELCOME_KEY)
-      .then(seen => { if (alive && !seen) router.replace('/welcome'); })
+      .then(seen => {
+        if (!alive) return;
+        if (!seen) { router.replace('/welcome'); return; }
+        // docs/27 P1-01. A learner who has seen the intro but has no history
+        // yet is offered placement once. `needsPlacement` is null while the
+        // log is still loading, so a returning child never sees this flash.
+        if (needsPlacement === true) router.replace('/placement');
+      })
       .catch(() => {});
     return () => { alive = false; };
-  }, [prefsLoaded]); // eslint-disable-line
+  }, [prefsLoaded, needsPlacement]); // eslint-disable-line
 
   /**
    * At most TWO weak skills.

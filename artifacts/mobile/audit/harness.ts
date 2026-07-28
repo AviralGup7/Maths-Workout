@@ -63,6 +63,8 @@ export interface Profile {
   attend?: (day: number) => number;
   /** Restrict practice to a single category (one-chapter learner). */
   onlyCategory?: Category;
+  /** Pre-existing log (e.g. placement seeds) present before day 0. */
+  seedLog?: Attempt[];
   cls: SchoolClass;
 }
 
@@ -189,7 +191,7 @@ export interface RunResult {
 
 export function runLearner(profile: Profile, days: number, startAt = Date.UTC(2026, 0, 1, 9, 0, 0)): RunResult {
   const learner = new Learner(profile);
-  let state: AnswerState = { log: [], ledger: {}, totalXp: 0 };
+  let state: AnswerState = { log: profile.seedLog ?? [], ledger: {}, totalXp: 0 };
   const dayRecs: DayRecord[] = [];
   const skillCounts: Record<SkillId, number> = {};
   const questionTexts: string[] = [];

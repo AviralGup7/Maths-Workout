@@ -128,7 +128,13 @@ async function main() {
 
     await page.goto(base, { waitUntil: 'networkidle' });
     await page.waitForTimeout(2500);
-    await page.evaluate(() => localStorage.setItem('@maths_workout_seen_welcome', '1'));
+    await page.evaluate(() => {
+      localStorage.setItem('@maths_workout_seen_welcome', '1');
+      // docs/27 P1-01: a returning learner has already been placed. Without
+      // this the app correctly redirects to the placement probe and every
+      // practice-loop assertion measures the wrong screen.
+      localStorage.setItem('@maths_workout_placement_done', '1');
+    });
     await page.goto(base, { waitUntil: 'networkidle' });
     await page.waitForTimeout(3000);
 
@@ -196,6 +202,7 @@ async function main() {
     for (const theme of ['dark', 'light']) {
       await page.evaluate(t => {
         localStorage.setItem('@maths_workout_seen_welcome', '1');
+        localStorage.setItem('@maths_workout_placement_done', '1');
         localStorage.setItem('@maths_workout_theme', t);
       }, theme);
       for (const route of ['/', '/class-select', '/progress']) {
@@ -216,7 +223,10 @@ async function main() {
   page.on('pageerror', e => pageErrors.push(`practice: ${e.message}`));
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.waitForTimeout(2500);
-  await page.evaluate(() => localStorage.setItem('@maths_workout_seen_welcome', '1'));
+  await page.evaluate(() => {
+    localStorage.setItem('@maths_workout_seen_welcome', '1');
+    localStorage.setItem('@maths_workout_placement_done', '1');
+  });
   await page.goto(base, { waitUntil: 'networkidle' });
   await page.waitForTimeout(3000);
 
