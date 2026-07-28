@@ -350,3 +350,52 @@ Probes are read-only. `npm run verify` (typecheck + arch-check 7/7 + 650 tests) 
 ### Method note
 
 Two claims in this report I initially assumed and then checked, because they seemed too stark to be true: that the results screen shows no progression (`grep -c` → 0 matches) and that no forward hook exists anywhere (`grep -rn "tomorrow|comeBack|nextSession|dueTomorrow"` → 0 matches across the codebase). Both held. The reward-gradient finding was the reverse — I expected the struggling learner to be under-served and found the gap larger than predicted (0 mastery celebrations, not "few").
+
+---
+
+## Addendum · Tier 1 implemented
+
+All eight Tier 1 items shipped in `a8b33c2`. Measured before and after, using
+the same simulated learners as the audit:
+
+| Finding | Before | After |
+|---|---|---|
+| Progression values on the results screen | **0** | XP, level bar, per-skill movement |
+| Sessions ending with something true to say | **0%** | **100%** |
+| Sessions with a forward hook | **0%** | **94%** |
+| Struggling learner celebrations per year | **0** | **40** (18% of sessions) |
+| Average learner celebrations per year | 49 | 117 |
+
+Two design corrections were made during implementation, both to avoid
+overcorrecting:
+
+**Celebration rarity.** The first cut fired a full-screen celebration in 82% of
+sessions, because mastery decays and skills re-cross thresholds repeatedly.
+That is precisely the *"celebrating everything means nothing"* failure
+`celebrationRules.ts` warns about. Gating on the XP ledger's high-water mark —
+state that already exists — means each threshold pays once per skill. Now 17%.
+
+**Praise honesty.** 100% headline coverage is deliberate and is *not* the same
+as 100% celebration: 83% of sessions get a quiet "Add within 10 1% → 15%" bar,
+which is a true statement of what happened, while the loud moment stays rare.
+A session where genuinely nothing moved reports nothing.
+
+### Three defects found only by rendering it
+
+Worth recording because all three passed typecheck and unit tests:
+
+1. **Duplicated headline** — the headline picks the most impressive movement and
+   the bar list picks the largest deltas, so the same skill was stated twice.
+2. **"+0 XP"** — reads as a verdict on the child rather than an accurate
+   statement that a consolidation session earned little. Shows the running
+   total instead.
+3. **Cold-start race** — `loadAll` is async, so a child tapping straight into
+   practice began answering before the stored XP resolved, leaving the session
+   baseline stale. A first session displaying "+0 XP" had actually earned 183.
+   A warm profile showed "+37 XP" correctly, which is exactly why no test
+   caught it.
+
+The third is the one worth generalising: **the results screen is the only place
+in this app where several async systems are read together at a single instant**,
+and it was the last screen anyone looked at. Tier 2 work should be rendered and
+photographed, not just tested.
