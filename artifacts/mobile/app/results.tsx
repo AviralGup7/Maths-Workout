@@ -7,6 +7,9 @@ import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META } from '@/context/GameContext';
 import { GrowthBar } from '@/components/ui/GrowthBar';
 import { CountUp } from '@/components/ui/CountUp';
+import { Certificate } from '@/components/Certificate';
+import { SKILLS } from '@/learning/skills';
+import { skillLabel } from '@/i18n/skills-hi';
 import {
   headline, returnSentence, completionSentence, movementSentence,
 } from '@/learning/sessionReport';
@@ -245,6 +248,23 @@ export default function ResultsScreen() {
           )}
         </View>
       </View>
+
+      {/* docs/28 item 51: the product had no artefact — nothing a child could
+          keep or show. A chapter needs EVERY skill secure, so this is rare
+          enough to mean something, and it certifies understanding rather than
+          attendance. Designed to be screenshotted. */}
+      {!!sessionReport?.chaptersCompleted.length && (
+        <View style={{ alignSelf: 'stretch', marginBottom: 18 }}>
+          <Certificate
+            chapterId={sessionReport.chaptersCompleted[0].id}
+            chapterTitle={sessionReport.chaptersCompleted[0].title[lang === 'hi' ? 'hi' : 'en']}
+            skills={sessionReport.chaptersCompleted[0].skills
+              .map(id => SKILLS[id] && skillLabel(id, SKILLS[id].label, lang))
+              .filter(Boolean) as string[]}
+            lang={lang}
+          />
+        </View>
+      )}
 
       {/* Score circle */}
       {/* docs/25 item 7, completed.

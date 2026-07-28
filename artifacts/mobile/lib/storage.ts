@@ -44,6 +44,8 @@ export const KEYS = {
   dyslexicFont:  '@maths_workout_dyslexic_font',
   /** Animation speed multiplier — docs/28 item 60. */
   motionSpeed:   '@maths_workout_motion_speed',
+  /** Child-chosen daily goal — docs/28 item 52. */
+  dailyGoal:     '@maths_workout_daily_goal',
   deviceId:      '@maths_workout_device_id',
   seenWelcome:   '@maths_workout_seen_welcome',
   /** Single manifest version covering every key above. */

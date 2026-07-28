@@ -106,7 +106,9 @@ const TIMER_PREF_KEY     = '@maths_workout_timer_pref';
 const LANG_KEY           = '@maths_workout_lang';
 const CURRENT_SCHEMA     = 3;
 /** Daily practice target used for the streak/goal display. */
-export const DAILY_GOAL  = 10;
+// docs/28 item 52: these live in learning/goals.ts so they can be unit tested
+// without importing a .tsx module. Re-exported for existing call sites.
+export { DAILY_GOAL, GOAL_CHOICES, GOAL_KEY, normaliseGoal } from '../learning/goals';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 

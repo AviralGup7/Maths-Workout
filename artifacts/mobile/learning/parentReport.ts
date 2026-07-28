@@ -36,6 +36,9 @@ export interface ParentReport {
   /** The one thing that would help most, in plain English. */
   focus: {
     misconceptionId: string;
+    /** A short NAME for the error, usable mid-sentence. */
+    label: string;
+    /** A full explanation sentence. Not usable mid-sentence. */
     what: string;
     tryThis: string;
   } | null;
@@ -124,6 +127,12 @@ export function buildParentReport(args: {
     const activity = ACTIVITY[top.id];
     focus = {
       misconceptionId: top.id,
+      // docs/28: the dinner-table prompt interpolates this into "ask your
+      // child to explain X", so it needs a NAME, not the explanation
+      // paragraph. Rendered without it the prompt read: 'explain "Answers are
+      // arriving faster than the problem can reasonably be solved, which
+      // usually means guessing." to you'. Caught by rendering the screen.
+      label: info.label,
       what: info.explanation,
       tryThis: activity ? (lang === 'hi' ? activity.hi : activity.en) : info.remediation,
     };

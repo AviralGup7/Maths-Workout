@@ -14,7 +14,7 @@ import { Chip } from '@/components/ui/Chip';
 import { Mascot } from '@/components/Mascot';
 import { seasonFor } from '@/theme/seasons';
 import { SEEN_WELCOME_KEY } from './welcome';
-import { DAILY_GOAL } from '@/context/GameContext';
+import { DAILY_GOAL, GOAL_CHOICES, GOAL_KEY, normaliseGoal } from '@/learning/goals';
 import { t } from '@/i18n/strings';
 import { SKILLS } from '@/learning/skills';
 import { skillLabel } from '@/i18n/skills-hi';
@@ -47,6 +47,16 @@ export default function HomeScreen() {
   } = useGame();
   const { c, type, space, sizeClass, contentMaxWidth } = useTheme();
   const season = React.useMemo(() => seasonFor(new Date()), []);
+  // docs/28 item 52. A goal the child sets is a commitment; one handed to them
+  // is a demand. Read once on mount; every option is achievable by design.
+  const [goal, setGoal] = React.useState<number>(DAILY_GOAL);
+  React.useEffect(() => {
+    AsyncStorage.getItem(GOAL_KEY).then(v => setGoal(normaliseGoal(v))).catch(() => {});
+  }, []);
+  const chooseGoal = (n: number) => {
+    setGoal(n);
+    AsyncStorage.setItem(GOAL_KEY, String(n)).catch(() => {});
+  };
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line
 
@@ -226,10 +236,10 @@ export default function HomeScreen() {
           </Text>
           <View style={{ marginTop: space.md }}>
             <ProgressBar
-              value={Math.min(answeredToday, DAILY_GOAL)}
-              max={DAILY_GOAL}
+              value={Math.min(answeredToday, goal)}
+              max={goal}
               label={t('todaysGoal', lang)}
-              tint={answeredToday >= DAILY_GOAL ? c.correct : c.primary}
+              tint={answeredToday >= goal ? c.correct : c.primary}
             />
           </View>
           <View style={{ marginTop: space.base }}>
@@ -245,6 +255,37 @@ export default function HomeScreen() {
             <Text style={[type('caption'), { color: c.textMuted, textAlign: 'center', marginTop: space.sm }]}>
               {lang === 'hi' ? '10 सवाल · लगभग 3 मिनट' : '10 questions · about 3 minutes'}
             </Text>
+
+            {/* The child picks their own target. Shown only once the goal is
+                met, so it never reads as "you chose too little" mid-effort. */}
+            {answeredToday >= goal && (
+              <View style={{ marginTop: space.md, alignItems: 'center', gap: space.xs }}>
+                <Text style={[type('caption'), { color: c.textMuted }]}>
+                  {lang === 'hi' ? 'कल के लिए लक्ष्य' : "Tomorrow's goal"}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: space.sm }}>
+                  {GOAL_CHOICES.map(n => (
+                    <Pressable
+                      key={n}
+                      onPress={() => chooseGoal(n)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: goal === n }}
+                      accessibilityLabel={
+                        lang === 'hi' ? `${n} सवाल रोज़` : `${n} questions a day`
+                      }
+                      style={{
+                        minWidth: 56, minHeight: 44, alignItems: 'center', justifyContent: 'center',
+                        borderRadius: 12, borderWidth: 2,
+                        borderColor: goal === n ? c.primary : c.border,
+                        backgroundColor: goal === n ? c.primarySoft : 'transparent',
+                      }}
+                    >
+                      <Text style={[type('heading'), { color: goal === n ? c.primary : c.text }]}>{n}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
         </Card>
 

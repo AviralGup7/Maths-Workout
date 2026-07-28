@@ -8,6 +8,7 @@ import { useTheme } from '@/theme/useTheme';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { WeekStrip } from '@/components/WeekStrip';
 import { buildParentReport } from '@/learning/parentReport';
 import { t } from '@/i18n/strings';
 
@@ -76,6 +77,12 @@ export default function ParentScreen() {
               <Text style={[type('body'), { color: c.textMuted, marginTop: space.xs }]}>
                 {report.questions} {lang === 'hi' ? 'प्रश्न' : 'questions'} · {report.minutes} {lang === 'hi' ? 'मिनट' : 'minutes'}
               </Text>
+              {/* docs/28 item 50: the sentence above is precise and
+                  forgettable. The strip is scannable in under a second, which
+                  is the real constraint on this screen. */}
+              <View style={{ marginTop: space.md }}>
+                <WeekStrip days={attempts.map(a => a.answeredAt)} lang={lang} />
+              </View>
             </Card>
 
             {(report.strongest || report.needsWork) && (
@@ -141,8 +148,8 @@ export default function ParentScreen() {
           <Text style={[type('body'), { color: c.text }]}>
             {report.focus
               ? (lang === 'hi'
-                  ? `"${report.focus.what}" — इसे अपने बच्चे से समझाने को कहें।`
-                  : `Ask your child to explain "${report.focus.what}" to you.`)
+                  ? `अपने बच्चे से पूछें कि "${report.focus.label}" का क्या मतलब है — और वे इसे कैसे ठीक करेंगे।`
+                  : `Ask your child what "${report.focus.label}" means, and how they would fix it.`)
               : (lang === 'hi'
                   ? 'आज आपने कौन-सी गलती पकड़ी, और अगली बार क्या अलग करेंगे?'
                   : 'What mistake did you catch today, and what will you do differently next time?')}
