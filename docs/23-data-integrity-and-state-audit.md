@@ -16,6 +16,19 @@ No product code was modified during this audit.
 
 ---
 
+---
+
+> **STATUS — remediated.** All 20 findings are closed. Overall score **6.1 → 9.4**.
+> See **`24-data-integrity-remediation.md`** for before/after measurements, the
+> 20 permanent guards (each verified to fail against its own reverted fix), and
+> the two cases where a guard had to be rewritten because it passed against a
+> broken implementation.
+>
+> Findings below are preserved as written, including the three hypotheses the
+> audit disproved by execution.
+
+---
+
 ## 1 · Executive Summary
 
 **The data model's foundation is right, and it is the single most valuable property this codebase has.** The append-only attempt log is genuinely authoritative, and everything expensive — mastery, statistics, achievements, scheduler input, parent reports — is *derived* from it rather than stored. I verified this empirically rather than taking it on trust: replaying the entire log through `recordAnswer` reproduces mastery **exactly**, achievements **exactly**, and even `totalXp` to a drift of **0.0**. That means almost every derived value in the product is self-healing by construction. Very few applications of this kind can say that.
