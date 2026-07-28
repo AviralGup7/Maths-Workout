@@ -26,6 +26,10 @@ import {
 import type { HintLevel } from '@/learning/hints';
 import { decideAdaptation } from '@/learning/adaptation';
 import { shouldTeach, hasFaded, buildWorkedExample, canTeach } from '@/learning/workedExamples';
+import {
+  shouldAskWhy, buildWhyPrompt, whyFeedback,
+  type SelfExplanationPrompt, type SelfExplanationOption,
+} from '@/learning/selfExplanation';
 import type { WorkedExample as WEType } from '@/learning/workedExamples';
 import { WorkedExample } from '@/components/WorkedExample';
 import { extractOperands } from '@/learning/misconceptions';
@@ -119,6 +123,16 @@ export default function GameScreen() {
    * thing that can close a same-tick window.
    */
   const submitLockRef = useRef(false);
+  /**
+   * Self-explanation (docs/27 P1-13).
+   *
+   * Shown after a DIAGNOSED error and before the explanation is revealed:
+   * retrieving the reason yourself produces more learning than being told it,
+   * and the app previously only ever told.
+   */
+  const [whyPrompt, setWhyPrompt] = useState<SelfExplanationPrompt | null>(null);
+  const [whyAnswer, setWhyAnswer] = useState<string | null>(null);
+  const whyShownRef = useRef(0);
   const [perQTime,       setPerQTime]       = useState(PER_Q_SECS);
   const [perQBudget,     setPerQBudget]     = useState(PER_Q_SECS);
   const [blitzTime,      setBlitzTime]      = useState(BLITZ_SECS);
@@ -279,6 +293,8 @@ export default function GameScreen() {
       setAnswerState('idle');
       setSelectedChoice(null);
       submitLockRef.current = false;
+      setWhyPrompt(null);
+      setWhyAnswer(null);
       setPerQLocked(false);
       setPerQTime(secondsFor(questions[currentIndex + 1]));
       setPerQBudget(secondsFor(questions[currentIndex + 1]));
@@ -345,6 +361,20 @@ export default function GameScreen() {
     });
     setDiagnosis(correct ? null : found);
     setAnswerState(correct ? 'correct' : 'wrong');
+
+    // docs/27 P1-13. Ask the child to name the cause before showing it.
+    const skillForWhy = sessionSkillFor(currentIndex);
+    if (!correct && skillForWhy && shouldAskWhy({
+      misconception: found, skill: skillForWhy,
+      sessionLog: sessionLogRef.current, shownThisSession: whyShownRef.current,
+    })) {
+      const prompt = buildWhyPrompt({ skill: skillForWhy, misconception: found! });
+      if (prompt) {
+        whyShownRef.current += 1;
+        setWhyAnswer(null);
+        setWhyPrompt(prompt);
+      }
+    }
 
     // Mirror the attempt into a session-local log. The context log is
     // debounced and async; in-session adaptation must react to the answer that
@@ -533,15 +563,28 @@ export default function GameScreen() {
   const hasStringChoices = currentQuestion.choices.some(c => typeof c === 'string');
   const choiceFontSize = hasStringChoices ? 16 : currentQuestion.choices.some(c => Math.abs(c as number) > 999) ? 22 : 28;
 
+  /**
+   * Is the outcome revealed yet?
+   *
+   * docs/27 P1-13. While a self-explanation prompt is open, nothing may show
+   * which answer was right — highlighting the correct tile turns retrieval
+   * into reading, and the child has nothing left to work out. Caught by
+   * looking at a render: the prompt was correct and the screen defeated it.
+   */
+  const revealing = !whyPrompt || whyAnswer !== null;
+
   const choiceStyle = (choice: ChoiceValue) => {
     const base = [styles.choiceBtn, hasStringChoices && styles.choiceBtnText];
     if (!perQLocked) return base;
+    if (!revealing) return base;
     if (String(choice) === String(currentQuestion.answer)) return [...base, styles.choiceCorrect];
-    if (String(choice) === String(selectedChoice) && answerState === 'wrong') return [...base, styles.choiceWrong];
+    if (String(choice) === String(selectedChoice) && answerState === 'wrong') {
+      return [...base, styles.choiceWrong];
+    }
     return [...base, styles.choiceDim];
   };
   const choiceTextColor = (choice: ChoiceValue) => {
-    if (!perQLocked) return C.foreground;
+    if (!perQLocked || !revealing) return C.foreground;
     if (String(choice) === String(currentQuestion.answer)) return C.correct;
     if (String(choice) === String(selectedChoice)) return C.wrong;
     return C.mutedForeground;
@@ -715,8 +758,17 @@ export default function GameScreen() {
       ) : (
         <AnswerSurface
           question={currentQuestion}
-          locked={perQLocked}
-          wasCorrect={answerState === 'idle' ? null : answerState === 'correct'}
+          // `locked` is what drives AnswerSurface's tile states — correct,
+          // revealed, wrong — so holding it back is what actually withholds
+          // the reveal during self-explanation (docs/27 P1-13). Interaction is
+          // still blocked by `submitLockRef`, so this cannot double-submit.
+          locked={perQLocked && revealing}
+          // docs/27 P1-13. Hold the reveal while the child is naming the cause.
+          // Marking the right answer first turns self-explanation into reading
+          // — the child can see what they should have put, so there is nothing
+          // left to retrieve. Caught by looking at a render: the prompt was
+          // correct and the screen around it defeated it.
+          wasCorrect={answerState === 'idle' || !revealing ? null : answerState === 'correct'}
           selectedChoice={selectedChoice}
           onSubmit={handleSubmit}
         />
@@ -749,9 +801,52 @@ export default function GameScreen() {
         </View>
       )}
 
+      {/* docs/27 P1-13 · self-explanation.
+          Retrieving the reason for your own error produces more learning than
+          being handed it, and the diagnosis below is exactly what the app used
+          to hand over unasked. Options are real misconceptions for this skill,
+          so choosing between them is a genuine discrimination rather than a
+          reading exercise. */}
+      {whyPrompt && !worked && (
+        <View style={styles.whyBox} accessibilityLiveRegion="polite">
+          <Text style={styles.whyPrompt}>
+            {lang === 'hi' ? whyPrompt.question.hi : whyPrompt.question.en}
+          </Text>
+          {whyPrompt.options.map((o: SelfExplanationOption) => {
+            const picked = whyAnswer === o.id;
+            return (
+              <TouchableOpacity
+                key={o.id}
+                style={[styles.whyOption, picked && styles.whyOptionPicked]}
+                disabled={whyAnswer !== null}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  setWhyAnswer(o.id);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={lang === 'hi' ? o.text.hi : o.text.en}
+              >
+                <Text style={styles.whyOptionText}>
+                  {lang === 'hi' ? o.text.hi : o.text.en}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          {whyAnswer !== null && (
+            <Text style={styles.whyFeedback}>
+              {whyFeedback(
+                whyPrompt.options.find(o => o.id === whyAnswer) ?? null,
+                whyPrompt, lang,
+              )}
+            </Text>
+          )}
+        </View>
+      )}
+
       {/* Direction D — explain *why* the answer was wrong, not merely that it was.
-          Shown only when a specific misconception was identified. */}
-      {diagnosis && !worked && MISCONCEPTIONS[diagnosis] && (() => {
+          Shown only when a specific misconception was identified. Held back
+          while the child is still working out the cause themselves. */}
+      {diagnosis && !worked && (!whyPrompt || whyAnswer !== null) && MISCONCEPTIONS[diagnosis] && (() => {
         // Feedback must be in the learner's language, not just the questions.
         const hi = MISCONCEPTIONS_HI[diagnosis];
         const info = lang === 'hi' && hi ? hi : MISCONCEPTIONS[diagnosis];
@@ -776,6 +871,18 @@ export default function GameScreen() {
  */
 const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 18 },
+  whyBox: {
+    marginTop: 12, padding: 14, borderRadius: 14,
+    backgroundColor: C.card, borderWidth: 1, borderColor: C.border, gap: 8,
+  },
+  whyPrompt: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.foreground, marginBottom: 2 },
+  whyOption: {
+    minHeight: 48, justifyContent: 'center', paddingHorizontal: 12, paddingVertical: 10,
+    borderRadius: 10, borderWidth: 1, borderColor: C.border, backgroundColor: C.background,
+  },
+  whyOptionPicked: { borderColor: C.primary, backgroundColor: C.primary + '14' },
+  whyOptionText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.foreground },
+  whyFeedback: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.easy, marginTop: 4 },
   confidenceBox: {
     marginTop: 12, padding: 14, borderRadius: 14,
     backgroundColor: C.primary + '12', gap: 10,
