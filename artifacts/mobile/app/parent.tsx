@@ -54,7 +54,7 @@ export default function ParentScreen() {
 
         {report.insufficientData ? (
           <EmptyState
-            icon="clock"
+            mascot="encouraging"
             title={t('notEnoughYet', lang)}
             body={lang === 'hi'
               ? 'कुछ और अभ्यास सत्रों के बाद यहाँ उपयोगी जानकारी दिखेगी।'
@@ -128,6 +128,31 @@ export default function ParentScreen() {
             )}
           </>
         )}
+
+        {/* docs/28: "parents do not lack data, they lack a next action" is the
+            screen's own stated principle, and the one thing a parent can do
+            without a screen is talk. A concrete question at the kitchen table
+            is the highest-value thing this surface can offer, and it works
+            even when there is not yet enough data for a full report. */}
+        <Card>
+          <Text style={[type('label'), { color: c.primary, marginBottom: space.sm }]}>
+            {lang === 'hi' ? 'खाने की मेज़ पर पूछें' : 'ASK AT THE DINNER TABLE'}
+          </Text>
+          <Text style={[type('body'), { color: c.text }]}>
+            {report.focus
+              ? (lang === 'hi'
+                  ? `"${report.focus.what}" — इसे अपने बच्चे से समझाने को कहें।`
+                  : `Ask your child to explain "${report.focus.what}" to you.`)
+              : (lang === 'hi'
+                  ? 'आज आपने कौन-सी गलती पकड़ी, और अगली बार क्या अलग करेंगे?'
+                  : 'What mistake did you catch today, and what will you do differently next time?')}
+          </Text>
+          <Text style={[type('caption'), { color: c.textMuted, marginTop: space.sm }]}>
+            {lang === 'hi'
+              ? 'बच्चे से समझाने को कहना, खुद बताने से ज़्यादा असरदार है।'
+              : 'Explaining it aloud teaches more than being told — the same reason the app asks before it reveals.'}
+          </Text>
+        </Card>
 
         {/* Settings live behind the grown-up door, not in the child's tab bar. */}
         <Card>

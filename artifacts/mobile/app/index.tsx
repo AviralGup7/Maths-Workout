@@ -229,6 +229,12 @@ export default function HomeScreen() {
               icon="play"
               accessibilityHint={lang === 'hi' ? 'आपके लिए चुने गए 10 प्रश्न' : '10 questions chosen for you'}
             />
+            {/* docs/28: a child (and a parent deciding whether there is time
+                before school) should know what they are committing to before
+                they tap, not discover it at question 7. */}
+            <Text style={[type('caption'), { color: c.textMuted, textAlign: 'center', marginTop: space.sm }]}>
+              {lang === 'hi' ? '10 सवाल · लगभग 3 मिनट' : '10 questions · about 3 minutes'}
+            </Text>
           </View>
         </Card>
 

@@ -6,6 +6,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { Mascot } from '@/components/Mascot';
 import * as Haptics from 'expo-haptics';
 import { useGame } from '@/context/GameContext';
 import type { WrongAnswer } from '@/context/GameContext';
@@ -341,7 +342,7 @@ export default function MistakeReviewScreen() {
       {allMistakes.length === 0 ? (
         <View style={styles.emptyState}>
           <View style={styles.emptyIcon}>
-            <Feather name="check-circle" size={40} color={C.easy} />
+            <Mascot mood="celebrate" size={96} />
           </View>
           <Text style={styles.emptyTitle}>No Mistakes!</Text>
           <Text style={styles.emptySub}>

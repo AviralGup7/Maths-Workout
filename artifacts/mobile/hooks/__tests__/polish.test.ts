@@ -208,7 +208,33 @@ describe('celebration is earned, not constant', () => {
   it('does not fire on every correct answer', () => {
     // A celebration in the answer path would slow every question and devalue
     // the signal.
-    expect(read('app/game.tsx')).not.toContain('<Celebration');
+    //
+    // This asserted the ABSENCE of `<Celebration` from game.tsx, which was a
+    // proxy for the real property and stopped being a valid one when docs/28
+    // added the in-session mastery moment — the audit's "critical miss", since
+    // crossing a skill into secure is the single thing this app exists to do
+    // and it was only ever shown after the session had already ended.
+    //
+    // The property being protected is that a celebration is EARNED, not that
+    // the component is unreachable. So test the gate instead, which is a
+    // stronger check than the string was: the trigger must require a mastery
+    // crossing, must not repeat for the same skill, must exclude scaffolded
+    // answers, and must never fire in Blitz.
+    const src = read('app/game.tsx');
+    const gate = src.slice(src.indexOf('Mastery crossing'), src.indexOf('if (correct) {'));
+    expect(gate, 'mastery gate missing').not.toBe('');
+    expect(gate).toContain('MASTERED_THRESHOLD');
+    // Must both CHECK and RECORD, or it fires every time the skill recurs.
+    expect(gate).toContain('masteryShownRef.current.has');
+    expect(gate).toContain('masteryShownRef.current.add');
+    expect(gate).toContain('!scaffoldedRef');    // unaided answers only
+    expect(gate).toContain('!isBlitz');          // never mid-race
+
+    // And it must still be impossible to celebrate a bare correct answer:
+    // no celebration may be set outside that gate.
+    const setters = [...src.matchAll(/setMasteryWin\(/g)].length;
+    expect(setters, 'setMasteryWin should be set in exactly one place, and cleared in one')
+      .toBeLessThanOrEqual(2);
   });
 
   it('announces the achievement for screen-reader users', () => {
