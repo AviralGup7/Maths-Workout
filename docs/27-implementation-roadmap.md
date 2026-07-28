@@ -8,10 +8,12 @@ Supersedes `18-outstanding-work.md` (all 22 items complete). Tick items here as 
 Progress    32 of 93 complete · Phase 1 complete · Phase 2 §2.1 done, §2.2 in progress
 Baseline    a81e9e5
 Verify      cd artifacts/mobile && npm run test:fast  # the inner loop, ~35s
-CI          .github/workflows/ci.yml runs everything on push:
-              fast   typecheck + arch-check + unit tests  (gate, minutes)
-              audit  the docs/21 and docs/23 simulations  (~25 min, parallel)
-              ui     web export + ui-smoke + open-task render, screenshots uploaded
+CI          .github/workflows/ci.yml runs everything on push (all three green
+            on 4f56647, measured):
+              fast   typecheck + arch-check + 704 unit tests   0m43s  (gate)
+              audit  the docs/21 and docs/23 simulations      13m21s  (parallel)
+              ui     ui-smoke 23/23 + open-task render 8/8     3m46s  (parallel)
+                     screenshots uploaded as the ui-screenshots artifact
 Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconceptions
             18 chapters · 15 achievements · 6 interaction kinds
             error analysis 8.43% of planned questions (was 0.00% adaptive)
