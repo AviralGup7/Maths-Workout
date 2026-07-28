@@ -251,15 +251,55 @@ async function main() {
   console.log(`  answer tiles: ${tiles.length}, min height ${Math.min(...tiles.map(t => t.h))}pt`);
 
   if (tiles.length) {
-    await page.locator(`[aria-label="${tiles[0].label}"]`).first().click();
-    await page.waitForTimeout(400);
-
     // A1 · the outcome must be legible WITHOUT colour. This is the equity
     // defect: correct and wrong measured 1.07 separation under deuteranopia.
-    const outcome = await page.evaluate(() =>
-      [...document.querySelectorAll('[role="button"]')]
-        .map(e => e.getAttribute('aria-label') || '')
-        .filter(l => /correct|incorrect|सही|गलत/i.test(l)));
+    //
+    // Two things make this harder to observe than it looks, and both were
+    // found by instrumenting the page rather than by reading the code:
+    //
+    //  1. A correct answer advances after FEEDBACK_MS.correct (280 ms), so a
+    //     single fixed wait races it. The original `waitForTimeout(400)` was
+    //     a coin flip on whether tile[0] happened to be right — 22/23 on CI
+    //     and 23/23 locally from the same commit.
+    //  2. docs/27 P1-13 put the self-explanation prompt in front of the reveal
+    //     for WRONG answers: the tiles stay unlocked and carry no outcome at
+    //     all until the child says what they think went wrong. Measured as
+    //     "never appeared across 96 samples", which looks like a flake and is
+    //     not one.
+    //
+    // So: latch the first outcome seen from inside the page, keep the latch
+    // running across the whole interaction, and answer the prompt if it
+    // appears. The latch survives the advance to the next question.
+    await page.evaluate(() => {
+      window.__outcome = [];
+      const capture = () => {
+        if (window.__outcome.length) return;
+        const found = [...document.querySelectorAll('[role="button"]')]
+          .map(e => e.getAttribute('aria-label') || '')
+          .filter(l => /, correct$|, incorrect$|the correct answer|सही|गलत/i.test(l));
+        if (found.length) window.__outcome = found;
+      };
+      window.__outcomeTimer = setInterval(capture, 10);
+      new MutationObserver(capture).observe(document.body, {
+        subtree: true, childList: true, attributes: true, attributeFilter: ['aria-label'],
+      });
+    });
+
+    await page.locator(`[aria-label="${tiles[0].label}"]`).first().click();
+    await page.waitForTimeout(500);
+
+    // Wrong answers: commit to a reason so the reveal is allowed to happen.
+    const why = page.locator('[role="button"]')
+      .filter({ hasText: /I just slipped|मुझसे चूक/i }).first();
+    if (await why.count()) {
+      await why.click();
+      await page.waitForTimeout(900);
+    }
+
+    const outcome = await page.evaluate(() => {
+      clearInterval(window.__outcomeTimer);
+      return window.__outcome;
+    });
     check(outcome.length > 0,
       'answer outcome is exposed in words, not colour alone' +
       (outcome.length ? ` — ${JSON.stringify(outcome.slice(0, 2))}` : ''));
