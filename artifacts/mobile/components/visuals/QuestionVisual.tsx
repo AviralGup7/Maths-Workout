@@ -9,6 +9,8 @@ import { extractOperands, extractFractions } from '@/learning/misconceptions';
 import type { Question } from '@/generators/types';
 import type { SkillId } from '@/learning/skills';
 import { TenFrame } from './TenFrame';
+import { BarModel } from './BarModel';
+import { barModelFor, shouldShowBarModel } from '@/learning/barModelPolicy';
 
 /**
  * Chooses and renders the right visual for a question, or nothing.
@@ -34,6 +36,24 @@ export function QuestionVisual({
   showState?: 'idle' | 'correct' | 'wrong';
 }) {
   if (!skill) return null;
+
+  // docs/27 P3-05. `wordproblems` is deliberately excluded from
+  // MODEL_FOR_SKILL because building the model from text IS the skill. The bar
+  // model is the one exception worth making: it shows the STRUCTURE of the
+  // sentence without computing anything, which is precisely the step that
+  // fails.
+  //
+  // This MUST sit above the `visualMode` early-out below. `visualFor` returns
+  // null for wordproblems by design, so visualMode returns 'none' and exits —
+  // placing the branch after it made the component unreachable for the one
+  // skill it was written for. Unit tests passed and 14 browser sessions
+  // rendered nothing; only the render found it.
+  if (skill === 'wordproblems') {
+    if (!shouldShowBarModel(mastery)) return null;
+    const spec = barModelFor(question.questionText);
+    if (!spec) return null;
+    return <BarModel structure={spec.structure} a={spec.a} b={spec.b} />;
+  }
 
   const mode = visualMode(skill, mastery);
   if (mode === 'none') return null;
