@@ -5,6 +5,7 @@
 Supersedes `18-outstanding-work.md` (all 22 items complete). Tick items here as they land; do not maintain a second list anywhere else.
 
 ```
+Progress    13 of 93 complete · Phase 1 §1.1, §1.2 and P1-13 done
 Baseline    a81e9e5
 Verify      cd artifacts/mobile && npm run verify     # typecheck + arch-check 7/7 + 675 tests
 UI check    npm run ui:smoke                          # 23 browser assertions
@@ -30,27 +31,27 @@ Current     43 skills · 19 worked-example solvers · 15 hinted · 35 misconcept
 
 ### 1.1 Placement & entry
 
-- [ ] **P1-01 · Adaptive placement probe** — ~20 questions, binary search over the prerequisite DAG, run once on first launch. *Fixes: able Class 6 learner spends 53% of two months on Class 1–2 material and reaches algebra on day 43.* (docs/26 A1)
-- [ ] **P1-02 · Re-placement after long absence** — re-probe rather than assume decay is accurate after 60+ days away. (docs/26 A1, docs/21 long-breaks profile)
-- [ ] **P1-03 · Placement result explained to the parent** — "we started Aarav at 2-digit carrying because…". Builds trust in the adaptive claim. (docs/26 §8)
+- [x] **P1-01 · Adaptive placement probe** — ~20 questions, binary search over the prerequisite DAG, run once on first launch. *Fixes: able Class 6 learner spends 53% of two months on Class 1–2 material and reaches algebra on day 43.* (docs/26 A1)
+- [x] **P1-02 · Re-placement after long absence** — re-probe rather than assume decay is accurate after 60+ days away. (docs/26 A1, docs/21 long-breaks profile)
+- [x] **P1-03 · Placement result explained to the parent** — "we started Aarav at 2-digit carrying because…". Builds trust in the adaptive claim. (docs/26 §8)
 
 ### 1.2 Teaching the 12 unsupported skills
 *`shapes.basic`, `time.basic`, `money.basic`, `count.objects`, `count.skip`, `numsense.reasonable`, `symmetry.basic`, `measurement.basic`, `ratio.basic`, `data.basic`, `algebra.basic`, `mul.large` — all four Class 1 topics among them.*
 
-- [ ] **P1-04 · Hints for the 4 Class 1 skills** (shapes, time, money, counting) — youngest learners, currently zero support
-- [ ] **P1-05 · Hints for the remaining 8 unsupported skills**
-- [ ] **P1-06 · Worked-example solver: fractions** (`frac.ofAmount`, `frac.equivalence`, `frac.addSameDenom`)
-- [ ] **P1-07 · Worked-example solver: decimals** (`dec.tenths`, `dec.hundredths`)
-- [ ] **P1-08 · Worked-example solver: percentages** (`percent.basic`)
-- [ ] **P1-09 · Worked-example solver: ratio** (`ratio.basic`)
-- [ ] **P1-10 · Worked-example solver: geometry** (area / perimeter / angles)
-- [ ] **P1-11 · Worked-example solver: algebra** (`algebra.basic`)
-- [ ] **P1-12 · Coverage guard in CI** — fail the build when a skill has no worked example, hint *or* visual. Prevents silent regression to 12 orphans.
+- [x] **P1-04 · Hints for the 4 Class 1 skills** (shapes, time, money, counting) — youngest learners, currently zero support
+- [x] **P1-05 · Hints for the remaining 8 unsupported skills**
+- [x] **P1-06 · Worked-example solver: fractions** (`frac.ofAmount`, `frac.equivalence`, `frac.addSameDenom`)
+- [x] **P1-07 · Worked-example solver: decimals** (`dec.tenths`, `dec.hundredths`)
+- [x] **P1-08 · Worked-example solver: percentages** (`percent.basic`)
+- [x] **P1-09 · Worked-example solver: ratio** (`ratio.basic`)
+- [x] **P1-10 · Worked-example solver: geometry** (area / perimeter / angles)
+- [x] **P1-11 · Worked-example solver: algebra** (`algebra.basic`)
+- [x] **P1-12 · Coverage guard in CI** — fail the build when a skill has no worked example, hint *or* visual. Prevents silent regression to 12 orphans.
 
 ### 1.3 Self-explanation & reasoning
 *0 of 126,000 sampled questions ask a child to explain anything.*
 
-- [ ] **P1-13 · Self-explanation prompt after errors** — "what do you think went wrong?" with selectable reasons, *before* revealing the diagnosis. Set-valued, so gradeable offline. (docs/26 A2 — Chi et al.)
+- [x] **P1-13 · Self-explanation prompt after errors** — "what do you think went wrong?" with selectable reasons, *before* revealing the diagnosis. Set-valued, so gradeable offline. (docs/26 A2 — Chi et al.)
 - [ ] **P1-14 · Method-comparison items** — "Priya did it this way, Rohan this way — which is quicker?" (docs/26 A12 — Rittle-Johnson & Star)
 - [ ] **P1-15 · Reasoning-selection items** — pick the justification, not the answer
 - [ ] **P1-16 · Raise error-analysis share from 1.1% → ~8%** (docs/26 B24)
