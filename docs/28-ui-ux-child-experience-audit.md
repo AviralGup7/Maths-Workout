@@ -8,11 +8,55 @@ below was produced by an executed command, not by reading source.
 **Build audited:** `d369285` · 14 routes · light + dark · English + Hindi
 **Artefacts:** `docs/audit-28-screens/` (28 screenshots)
 
-> **Implementation status — updated at `d5a9912`.** Four passes have landed
+> **Implementation status — updated at `21a2202`.** Seven passes have landed
 > against this report. Measured after, on the same harness:
 >
 > | Metric | Audited | Now |
 > |---|---:|---:|
+> | Undersized tap targets | 7 | **0** |
+> | Sub-13px strings | 55 | **0** |
+> | WCAG AA failures on text | 24 | **0** *(7 remain on icon glyphs, no readable text)* |
+> | Image/character assets | 2 | mascot (5 moods), ten-frame, chapter map, certificate |
+> | Audio | none | read-aloud + 3 feedback tones, muteable |
+> | Skills with a visual model | 16 / 63 | 23 / 63 |
+> | Themes | light, dark | light, dark, **high contrast (AAA)** |
+> | Results layout at 320pt | 3 overlaps | **0** |
+> | Tests | 712 | **751** |
+>
+> **Tier 1 — all 15 done.** Tap targets, contrast, font floors, the 320pt
+> overlap, the "0 questions answered" bug, 0% → "Not started", tab renaming,
+> streak prominence, dinner-table prompt, warmer results copy, skill colour.
+>
+> **Tier 2 — all 25 done.** Mascot and its reactions, read-aloud, feedback
+> sounds, mastery celebration, ten-frame, emoji replaced, achievement
+> medallions, segmented progress, XP count-up, board moved to a grown-up step,
+> Class 1–2 copy, animated icons on every row, chapter colour, streak
+> milestones, empty states, session length, skill named in-session.
+>
+> **Tier 3 — 17 of 20 done.** Seasonal themes, illustrated chapter map,
+> character voice for hints, interactive manipulative (the manipulation IS the
+> answer), weekly parent strip, printable certificate, child-chosen goal,
+> dyslexia typeface, high-contrast theme, landscape, offline reassurance,
+> adjustable animation speed.
+>
+> **Deliberately not done, with reasons:**
+>
+> - **#42 chapter-completion theme unlocks** — colour themes exist, but gating
+>   them behind completion makes appearance a reward for compliance. The same
+>   objection the report itself raises against purchasable unlocks.
+> - **#45 animated worked examples** — the worked example is read at the
+>   child's pace; animating it imposes the app's pace on the one screen that
+>   exists for thinking. Would need user testing before it is an improvement.
+> - **#48 a "maths world" that grows** — the largest remaining item and the
+>   one most likely to become decoration. Worth doing only with a design that
+>   ties growth to mastery rather than to time spent.
+> - **#55 full screen-reader walkthrough** — needs testing with an actual
+>   screen-reader user, not a simulation. Claiming it without that would be
+>   the kind of unverified assertion this project avoids.
+> - **#49, #56** — personal-best replay and left-handed layout: low return
+>   against the remaining Tier 4 polish.
+
+---|---:|---:|
 > | Undersized tap targets | 7 | **0** |
 > | Sub-13px strings | 55 | **0** |
 > | WCAG AA failures on text | 24 | **0** *(7 remain on icon glyphs, no readable text)* |

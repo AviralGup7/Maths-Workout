@@ -161,6 +161,23 @@ export default function ParentScreen() {
           </Text>
         </Card>
 
+        {/* docs/28 item 58. Stated once, on the parent screen, and framed as
+            reassurance rather than a warning: this app works offline BY
+            DESIGN, so a connectivity banner on the child's home screen would
+            be an anxiety with no action attached. A parent choosing between
+            apps for a patchy connection wants to know this; a child does not
+            need to think about it at all. */}
+        <Card>
+          <View style={{ flexDirection: 'row', gap: space.md, alignItems: 'center' }}>
+            <Feather name="wifi-off" size={18} color={c.correct} />
+            <Text style={[type('body'), { color: c.text, flex: 1 }]}>
+              {lang === 'hi'
+                ? 'यह ऐप बिना इंटरनेट के भी पूरा चलता है। सारी प्रगति डिवाइस पर सहेजी जाती है।'
+                : 'This app works fully offline. All progress is saved on this device.'}
+            </Text>
+          </View>
+        </Card>
+
         {/* Settings live behind the grown-up door, not in the child's tab bar. */}
         <Card>
           <Text style={[type('label'), { color: c.textMuted, marginBottom: space.sm }]}>
