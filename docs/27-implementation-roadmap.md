@@ -5,7 +5,7 @@
 Tick items here as they land. Do not maintain a second list anywhere else.
 
 ```
-Progress    70 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
+Progress    71 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
 Verify      cd artifacts/mobile && npm run test:fast   # 751 tests, ~40s
 CI          .github/workflows/ci.yml, three parallel jobs on every push:
               fast   typecheck + arch-check + 751 unit tests    ~45s  (gate)
@@ -172,7 +172,7 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
 
 ## Phase 6 · Platform & Durability
 
-- [ ] **P6-01 · Verify sync end-to-end against the real `/api/progress`** — docs/24 F3 is fixed client-side, but `server/serve.js` is static-only and there is no endpoint in this repo. **Restore is unproven until this is done.** (docs/24 §7)
+- [x] **P6-01 · Verify sync end-to-end against the real `/api/progress`** — **DONE.** The endpoint now exists (`server/progressStore.js`, zero dependencies, wired into `serve.js`) and `scripts/sync-e2e.mjs` drives it over real HTTP in CI: 16 assertions covering restore-after-reinstall, idempotent repeat pushes, two-device merge, commutativity, path traversal, malformed JSON, the 4,000-row cap, and device isolation. Verified to fail against the original docs/23 F3 defect — reintroducing it restores 0 attempts, exactly as measured then.
 - [ ] **P6-02 · Decide the content architecture** — `QuestionTemplate` schema + interpreter vs. keeping ~3,045 LOC of generator code. Blocks non-programmer authoring and AI-assisted content. Strategic; should be a product decision. (docs/21)
 - [ ] **P6-03 · Extract a `statistics/` domain** — aggregations currently spread across `attempts.ts`, `feedback.ts`, `parentReport.ts` and inline in screens
 - [ ] **P6-04 · Decompose `game.tsx`** — 859 lines, no tests
@@ -257,28 +257,27 @@ deliberately declined.*
 | 3 · Representation | 7 | Ten-frames and manipulatives shipped; other models remain |
 | 4 · Engagement | 20 | Tier 1–2 shipped via Phase 8; long-tail polish remains |
 | 5 · Parent & teacher | 4 | Weekly digest and conversation starters shipped |
-| 6 · Platform | 5 | **P6-01 is the urgent one** |
+| 6 · Platform | 4 | P6-01 closed; the rest are strategic |
 | 7 · Validation | 4 | Cannot be faked or deferred indefinitely |
 | 8 · UI/UX | 4 | Tiers 1–3 shipped |
-| **Total open** | **50** | of 120 |
+| **Total open** | **49** | of 120 |
 
 ### Do these next
 
 If only five things happen, these five — in this order:
 
-1. **P6-01 · Verify sync end-to-end against a real `/api/progress`.** Restore is
-   still **unproven**: `server/serve.js` is static-only and no endpoint exists in
-   the repo. Everything else on this list is an improvement; this one is a
-   correctness risk to a child's entire history.
-2. **P7-01 · Usability test with 5–8 children aged 6–12.** Every UI claim in
+1. **P7-01 · Usability test with 5–8 children aged 6–12.** Every UI claim in
    docs/28 was measured against a rendered screen, not against a child. That is
-   the honest limit of what rendering can tell us.
+   the honest limit of what rendering can tell us, and no further engineering
+   moves it.
+2. **P6-04/05 · Decompose `game.tsx` and `GameContext.tsx`** — now the two
+   largest files in the app and the two where a regression is most likely to
+   hide, having grown through every phase.
 3. **P2-18 · Curriculum review by a practising Indian teacher.** The board
    mapping is researched (docs/11) but has never been checked by someone who
    teaches it.
-4. **P6-04/05 · Decompose `game.tsx` and `GameContext.tsx`** — now 1,100 and
-   1,300 lines. Both grew during Phases 1–8 and are the two files where a
-   regression is most likely to hide.
+4. **P3-05 · Bar-model / tape diagram for word problems.** The single highest
+   value representation still missing, and the one Singapore maths is built on.
 5. **P7-03 · A small learning-gain study.** The only item on this list that can
    move the "no learning-gain evidence" verdict, which no amount of further
    engineering will.

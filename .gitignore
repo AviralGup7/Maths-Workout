@@ -51,3 +51,6 @@ desktop/web/
 
 .cache/
 .local/
+
+# Server-side sync store (docs/27 P6-01) — per-device progress JSON.
+.progress-data/

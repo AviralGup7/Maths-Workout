@@ -17,7 +17,8 @@
     "test:fast": "vitest run --exclude '**/audit/**'",
     "test:audit": "vitest run audit",
     "ui:open": "expo export --platform web --output-dir .ui-build && node scripts/open-task-render.mjs .ui-build 8412 .ui-shots",
-    "ui:hindi": "expo export --platform web --output-dir .ui-build && node scripts/hindi-render.mjs .ui-build 8710 .ui-shots"
+    "ui:hindi": "expo export --platform web --output-dir .ui-build && node scripts/hindi-render.mjs .ui-build 8710 .ui-shots",
+    "test:sync": "node scripts/sync-e2e.mjs"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -56,6 +56,14 @@ jobs:
         working-directory: artifacts/mobile
         run: node scripts/arch-check.mjs
 
+      # docs/27 P6-01. The client's sync code has existed since docs/23 but no
+      # server did, so the restore path — whether a child keeps their history
+      # across a reinstall — had never run end to end. This starts the real
+      # endpoint and drives it over HTTP.
+      - name: Sync restore, end to end
+        working-directory: artifacts/mobile
+        run: node scripts/sync-e2e.mjs
+
       - name: Unit tests (everything except the audit simulations)
         working-directory: artifacts/mobile
         run: pnpm exec vitest run --exclude '**/audit/**'

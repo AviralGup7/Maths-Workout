@@ -12,6 +12,11 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+// docs/27 P6-01. The client has shipped fetchProgress/pushProgress since
+// docs/23, but no endpoint has ever existed in this repo — so the restore path
+// that decides whether a child keeps their history across a reinstall had
+// never been executed end to end.
+const { handleProgressRequest } = require('./progressStore');
 
 const STATIC_ROOT = path.resolve(__dirname, '..', 'static-build');
 const TEMPLATE_PATH = path.resolve(__dirname, 'templates', 'landing-page.html');
@@ -114,6 +119,9 @@ const server = http.createServer((req, res) => {
   if (basePath && pathname.startsWith(basePath)) {
     pathname = pathname.slice(basePath.length) || '/';
   }
+
+  // Sync endpoints come first: they must never be shadowed by a static file.
+  if (handleProgressRequest(req, res, pathname)) return;
 
   if (pathname === '/' || pathname === '/manifest') {
     const platform = req.headers['expo-platform'];
