@@ -6,6 +6,9 @@ export * from './interactions';
 export * from './topics-interactive';
 export * from './number-sense';
 export * from './reasoning';
+export * from './metacognition';
+export * from './openTasks';
+export * from './openResponse';
 
 import { SchoolClass, Difficulty, Category, Question, ClassConfig } from './types';
 import { pick } from './helpers';

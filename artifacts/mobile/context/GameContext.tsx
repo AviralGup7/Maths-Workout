@@ -36,6 +36,9 @@ import {
 } from '../generators/topics-interactive';
 import { genOpenEnded, genOpenMiddle, genReverse } from '../generators/openTasks';
 import { pickOpenTask } from '../learning/openTaskPolicy';
+import { genMethodCompare, genReasonSelect } from '../generators/metacognition';
+import { genErrorHunt } from '../generators/reasoning';
+import { pickReasoning } from '../learning/reasoningPolicy';
 
 // ─── Learning engine (Directions C & D) ─────────────────────────────────────
 import type { Attempt } from '../learning/attempts';
@@ -724,6 +727,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     // open task has no tiles to eliminate and no single value to type.
     // Gated by learning/openTaskPolicy so the rate, the mastery floor and the
     // per-skill eligibility are testable rather than inline constants.
+    // docs/27 P1-14/15/16. Reasoning formats are routed HERE rather than
+    // inside the category dispatcher: `generateForSkill` bypasses the
+    // `number_sense` branch that used to host error hunting, which is why the
+    // measured share in adaptive sessions was 0.00% of 12,000 questions and
+    // not the 1.1% docs/26 recorded for category play.
+    const reasoningKind = pickReasoning({
+      skill, mastery: level, cls, roll: Math.random(), kindRoll: Math.random(),
+    });
+    if (reasoningKind) {
+      const gen = reasoningKind === 'errorHunt' ? genErrorHunt
+                : reasoningKind === 'methodCompare' ? genMethodCompare
+                : genReasonSelect;
+      const q = gen(cls, diff, lang);
+      return { ...q, resolvedCategory: q.resolvedCategory ?? cat };
+    }
+
     const openKind = pickOpenTask({
       skill, mastery: level, cls, roll: Math.random(), kindRoll: Math.random(),
     });

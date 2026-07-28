@@ -5,12 +5,13 @@
 Supersedes `18-outstanding-work.md` (all 22 items complete). Tick items here as they land; do not maintain a second list anywhere else.
 
 ```
-Progress    13 of 93 complete · Phase 1 §1.1, §1.2 and P1-13 done
+Progress    20 of 93 complete · PHASE 1 COMPLETE
 Baseline    a81e9e5
 Verify      cd artifacts/mobile && npm run verify     # typecheck + arch-check 7/7 + 675 tests
 UI check    npm run ui:smoke                          # 23 browser assertions
-Current     43 skills · 19 worked-example solvers · 15 hinted · 35 misconceptions
-            18 chapters · 15 achievements · 675 tests
+Current     43 skills · 28 worked-example solvers · 45 hinted · 35 misconceptions
+            18 chapters · 15 achievements · 6 interaction kinds
+            error analysis 8.43% of planned questions (was 0.00% adaptive)
 ```
 
 **Sequencing principle:** ordered by *learning impact ÷ effort*, then by dependency. Where an audit item is blocked by another, the blocker sits above it. Sections are in execution order — work top to bottom.
@@ -52,17 +53,17 @@ Current     43 skills · 19 worked-example solvers · 15 hinted · 35 misconcept
 *0 of 126,000 sampled questions ask a child to explain anything.*
 
 - [x] **P1-13 · Self-explanation prompt after errors** — "what do you think went wrong?" with selectable reasons, *before* revealing the diagnosis. Set-valued, so gradeable offline. (docs/26 A2 — Chi et al.)
-- [ ] **P1-14 · Method-comparison items** — "Priya did it this way, Rohan this way — which is quicker?" (docs/26 A12 — Rittle-Johnson & Star)
-- [ ] **P1-15 · Reasoning-selection items** — pick the justification, not the answer
-- [ ] **P1-16 · Raise error-analysis share from 1.1% → ~8%** (docs/26 B24)
+- [x] **P1-14 · Method-comparison items** — "Priya did it this way, Rohan this way — which is quicker?" (docs/26 A12 — Rittle-Johnson & Star)
+- [x] **P1-15 · Reasoning-selection items** — pick the justification, not the answer
+- [x] **P1-16 · Raise error-analysis share from 1.1% → ~8%** (docs/26 B24)
 
 ### 1.4 Open-ended tasks
 *0 of 126,000 questions have more than one valid answer.*
 
-- [ ] **P1-17 · Set-valued grading path** — accept any member of a valid answer set. `multiSelect` already models half of this. **Blocks P1-18/19/20.**
-- [ ] **P1-18 · Open-ended generators** — "find two numbers that add to 50", "a fraction between 1/2 and 3/4" (docs/26 A3)
-- [ ] **P1-19 · Open Middle problems** — fixed start and end, multiple routes (docs/26 A4)
-- [ ] **P1-20 · Reverse problems** — "the answer is 24, what was the question?" (docs/26 D97)
+- [x] **P1-17 · Set-valued grading path** — accept any member of a valid answer set. `multiSelect` already models half of this. **Blocks P1-18/19/20.**
+- [x] **P1-18 · Open-ended generators** — "find two numbers that add to 50", "a fraction between 1/2 and 3/4" (docs/26 A3)
+- [x] **P1-19 · Open Middle problems** — fixed start and end, multiple routes (docs/26 A4)
+- [x] **P1-20 · Reverse problems** — "the answer is 24, what was the question?" (docs/26 D97)
 
 ---
 
