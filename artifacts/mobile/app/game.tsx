@@ -22,6 +22,7 @@ import { Celebration } from '@/components/Celebration';
 import { MASTERED_THRESHOLD } from '@/learning/mastery';
 import { SKILLS } from '@/learning/skills';
 import { useSpeech, readAloudDefault } from '@/hooks/useSpeech';
+import { playSound } from '@/hooks/useFeedbackSound';
 import { Mascot } from '@/components/Mascot';
 import { hintLevelFor, hintText, hintsFor, needsDescentNotHints } from '@/learning/hints';
 import {
@@ -438,6 +439,7 @@ export default function GameScreen() {
       if (before < MASTERED_THRESHOLD && after >= MASTERED_THRESHOLD && hits >= 3) {
         masteryShownRef.current.add(skillNow);
         const label = SKILLS[skillNow]?.label ?? skillNow;
+        playSound('celebrate');
         setMasteryWin(lang === 'hi' ? `${label} पक्का हुआ!` : `${label} is secure!`);
       }
     }
@@ -459,6 +461,7 @@ export default function GameScreen() {
       const worthShowing = kind !== 'plain' && !isBlitz;
       setPraise(worthShowing ? line : null);
       lastWrongRef.current = false;
+      playSound('correct');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       a11yAnnounce(line);
       // 280 ms is right for a bare tick, but too short to read a sentence —
@@ -471,6 +474,7 @@ export default function GameScreen() {
       motion.pulse(scaleAnim, 1.03).start(() => setTimeout(advanceQuestion, pause));
     } else {
       lastWrongRef.current = true;
+      playSound('wrong');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       a11yAnnounce(
         (lang === 'hi' ? 'गलत। सही उत्तर ' : 'Incorrect. The answer is ')
@@ -689,11 +693,26 @@ export default function GameScreen() {
       {/* Progress bar (non-blitz) */}
       {!isBlitz && (
         <View style={styles.progressRow}>
+          {/* docs/28: a 4px continuous bar gave no sense of "how many left".
+              Segments are countable — a child can SEE three done and seven to
+              go without reading "3/10", which is the same reason Duolingo and
+              Khan use discrete steps. Caps at 20 so a 60q Blitz-length session
+              never renders slivers. */}
           <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, {
-              width: `${(currentIndex / totalQuestions) * 100}%` as unknown as number,
-              backgroundColor: classColor,
-            }]} />
+            {Array.from({ length: Math.min(totalQuestions, 20) }).map((_, i) => {
+              const scale = totalQuestions / Math.min(totalQuestions, 20);
+              const done = i < Math.floor(currentIndex / scale);
+              const active = i === Math.floor(currentIndex / scale);
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.progressSeg,
+                    { backgroundColor: done ? classColor : active ? classColor + '66' : C.border },
+                  ]}
+                />
+              );
+            })}
           </View>
           <Text style={styles.progressLabel}>{currentIndex + 1}/{totalQuestions}</Text>
         </View>
@@ -1001,8 +1020,8 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   scorePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.gold + '22', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 18 },
   scoreText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.gold },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  progressTrack: { flex: 1, height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: 4, borderRadius: 2 },
+  progressTrack: { flex: 1, flexDirection: 'row', gap: 3, alignItems: 'center' },
+  progressSeg: { flex: 1, height: 6, borderRadius: 3 },
   progressLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, minWidth: 30, textAlign: 'right' },
   timerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   timerTrack: { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },

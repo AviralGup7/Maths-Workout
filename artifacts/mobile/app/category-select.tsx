@@ -51,12 +51,16 @@ export default function CategorySelectScreen() {
           <View key={cat} style={wide ? { width: '48.5%' } : undefined}>
             <Card onPress={() => handleSelect(cat)} accessibilityLabel={categoryLabel(cat, lang)}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                {/* docs/28: the symbol tile is the only thing on this row a
+                    pre-reader can use to tell Addition from Counting. Sized up
+                    from 40 to 52 with a larger glyph so it leads the row
+                    rather than decorating it. */}
                 <View style={{
-                  width: 40, height: 40, borderRadius: 10,
+                  width: 52, height: 52, borderRadius: 14,
                   backgroundColor: meta.color + '22',
                   alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <Text style={[type('label'), { color: meta.color }]}>{meta.symbol}</Text>
+                  <Text style={[type('heading'), { color: meta.color, fontSize: 22 }]}>{meta.symbol}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[type('heading'), { color: c.text }]}>{categoryLabel(cat, lang)}</Text>

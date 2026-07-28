@@ -14,7 +14,7 @@ import { SKILLS } from '@/learning/skills';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from '@/learning/mastery';
 import { biggestGain, growthSentence } from '@/learning/feedback';
 import { evaluateAchievements } from '@/progression/achievements';
-import { CHAPTERS, chapterStatus, chapterProgress } from '@/curriculum/chapters';
+import { CHAPTERS, chapterStatus, chapterProgress, chapterStyle } from '@/curriculum/chapters';
 import { useTheme } from '@/theme/useTheme';
 
 
@@ -188,11 +188,20 @@ export default function ProgressScreen() {
             <View style={styles.insightCard}>
               {journey.slice(0, 6).map(({ ch, status, pct }) => (
                 <View key={ch.id} style={styles.journeyRow}>
-                  <Feather
-                    name={status === 'complete' ? 'check-circle' : status === 'inProgress' ? 'circle' : 'plus-circle'}
-                    size={15}
-                    color={status === 'complete' ? C.easy : status === 'inProgress' ? C.primary : C.mutedForeground}
-                  />
+                  {/* docs/28: every chapter rendered as the same grey row with
+                      the same glyph, so a child who cannot read the titles had
+                      nothing to navigate by. Colour and icon give each chapter
+                      an identity that survives not reading. */}
+                  <View style={[styles.chapterTile, {
+                    backgroundColor: chapterStyle(ch.id).colour + '1A',
+                    borderColor: status === 'complete' ? chapterStyle(ch.id).colour : 'transparent',
+                  }]}>
+                    <Feather
+                      name={(status === 'complete' ? 'check' : chapterStyle(ch.id).icon) as never}
+                      size={16}
+                      color={chapterStyle(ch.id).colour}
+                    />
+                  </View>
                   <Text style={styles.journeyTitle}>{lang === 'hi' ? ch.title.hi : ch.title.en}</Text>
                   <Text style={styles.journeyPct}>{pctLabel(pct, lang)}</Text>
                 </View>
@@ -496,6 +505,10 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   statLbl: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.mutedForeground, marginTop: 2 },
   journeyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   journeyTitle: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.foreground },
+  chapterTile: {
+    width: 34, height: 34, borderRadius: 10, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center',
+  },
   badgeRing: {
     width: 34, height: 34, borderRadius: 17, borderWidth: 2,
     alignItems: 'center', justifyContent: 'center',

@@ -103,12 +103,18 @@ export function QuestionVisual({
   }
 
   if (model === 'tenFrame') {
-    // The FIRST operand only, and only when it fits a frame. Showing both sides
-    // of "7 + 5" pre-computes the answer; showing the 7 makes the starting
-    // quantity concrete and leaves the adding to the child.
+    // Counting questions ("How many ■?") carry no digits at all — the quantity
+    // IS the row of glyphs — so the count is taken from the glyph run when
+    // there is no operand to read. Without this the frame never rendered on
+    // exactly the questions it was added for.
+    const glyphs = (question.questionText.match(/[●▲■◆★]/g) ?? []).length;
     const [a] = operands;
-    if (!Number.isFinite(a) || a < 1 || a > 20) return null;
-    return <TenFrame count={a} max={a > 10 ? 20 : 10} />;
+    const n = glyphs > 1 ? glyphs : a;
+    // The FIRST operand only. Showing both sides of "7 + 5" pre-computes the
+    // answer; showing the 7 makes the starting quantity concrete and leaves
+    // the adding to the child.
+    if (!Number.isFinite(n) || n < 1 || n > 20) return null;
+    return <TenFrame count={n} max={n > 10 ? 20 : 10} />;
   }
 
   if (model === 'arrayGrid') {

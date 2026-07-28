@@ -31,6 +31,34 @@ export interface Chapter {
   introducedIn: SchoolClass;
 }
 
+/**
+ * Per-chapter colour and icon.
+ *
+ * docs/28: every chapter looked identical — a grey row with a plus sign — so
+ * "Counting and Comparing" and "Carrying and Borrowing" were visually the same
+ * place. A child who cannot yet read the titles had nothing to navigate by.
+ * Colour and icon give each chapter an identity that survives not reading.
+ *
+ * Kept as data next to the chapter list so the two cannot drift, and free of
+ * React so it stays in the pure curriculum layer.
+ */
+export const CHAPTER_STYLE: Record<string, { colour: string; icon: string }> = {
+  'counting':          { colour: '#D6336C', icon: 'hash' },
+  'first-sums':        { colour: '#2B8A3E', icon: 'plus-circle' },
+  'shapes-time-money': { colour: '#5F3DC4', icon: 'triangle' },
+  'place-value':       { colour: '#E8590C', icon: 'align-right' },
+  'carrying':          { colour: '#1971C2', icon: 'repeat' },
+  'tables':            { colour: '#0B7285', icon: 'grid' },
+  'part-whole':        { colour: '#C2255C', icon: 'pie-chart' },
+  'number-sense':      { colour: '#6741D9', icon: 'eye' },
+  'sharing':           { colour: '#087F5B', icon: 'divide-circle' },
+};
+
+/** Colour and icon for a chapter, with a neutral fallback. */
+export function chapterStyle(id: string): { colour: string; icon: string } {
+  return CHAPTER_STYLE[id] ?? { colour: '#4338CA', icon: 'book-open' };
+}
+
 /** Mean mastery over prerequisite chapters required to unlock. */
 export const CHAPTER_UNLOCK_MASTERY = 0.70;
 /** Every skill must reach this for the chapter to count as complete. */

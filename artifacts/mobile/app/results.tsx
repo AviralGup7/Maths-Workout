@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META } from '@/context/GameContext';
 import { GrowthBar } from '@/components/ui/GrowthBar';
+import { CountUp } from '@/components/ui/CountUp';
 import {
   headline, returnSentence, completionSentence, movementSentence,
 } from '@/learning/sessionReport';
@@ -287,11 +288,13 @@ export default function ResultsScreen() {
                 nothing NEW was learned this session (XP is paid for movement
                 in the mastery model, so a consolidation session earns little
                 by design). Show the total instead — it never goes down. */}
-            <Text style={styles.xpText}>
-              {xpEarnedThisSession > 0
-                ? `+${xpEarnedThisSession} XP`
-                : `${Math.round(totalXp)} XP`}
-            </Text>
+            {/* docs/28: a number that climbs is a small reward; a number that
+                simply appears is a receipt. Respects reduced motion. */}
+            {xpEarnedThisSession > 0 ? (
+              <CountUp value={xpEarnedThisSession} style={styles.xpText} prefix="+" suffix=" XP" />
+            ) : (
+              <CountUp value={Math.round(totalXp)} style={styles.xpText} suffix=" XP" />
+            )}
             <View style={{ flex: 1 }} />
             <Text style={styles.levelText}>
               {lang === 'hi' ? 'स्तर' : 'Level'} {level.level}

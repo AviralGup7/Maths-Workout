@@ -163,7 +163,27 @@ export default function HomeScreen() {
         {/* A compact status strip replaces the 278px hero. Streak and level are
             information, not decoration, and they occupy one line. */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
-          <Chip label={`${streak} ${t(streak === 1 ? 'day' : 'days', lang)}`} icon="zap" tint={c.attention} />
+          {/* docs/28: the streak is the strongest retention signal in the
+              product and was rendered as the smallest element on screen. A
+              live streak now gets a filled, high-contrast treatment; a streak
+              of zero stays quiet rather than advertising a zero. */}
+          {streak > 0 ? (
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: 6,
+              backgroundColor: c.attention, borderRadius: 999,
+              paddingHorizontal: 14, paddingVertical: 8,
+            }}>
+              <Feather name="zap" size={16} color={c.primaryOn} />
+              <Text style={[type('heading'), { color: c.primaryOn }]}>
+                {streak}
+              </Text>
+              <Text style={[type('label'), { color: c.primaryOn }]}>
+                {t(streak === 1 ? 'day' : 'days', lang)}
+              </Text>
+            </View>
+          ) : (
+            <Chip label={t('days', lang)} icon="zap" />
+          )}
           <Chip label={`Lv ${level.level}`} icon="award" />
           <View style={{ flex: 1 }} />
           <Text style={[type('caption'), { color: c.textMuted }]}>{masteryLabel}</Text>

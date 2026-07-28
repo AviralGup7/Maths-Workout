@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { playSound, setSoundEnabled, isSoundEnabled } from '@/hooks/useFeedbackSound';
 import * as Haptics from 'expo-haptics';
 import { useGame } from '@/context/GameContext';
 import { BOARD_CONFIGS, categoriesFor, CLASS_LABELS } from '@/curriculum/boards';
@@ -55,6 +56,7 @@ export default function BoardSelectScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { board, setBoard, lang, setLang, timerPref, setTimerPref } = useGame();
+  const [soundOn, setSoundOn] = React.useState(isSoundEnabled());
 
   const top = Platform.OS === 'web' ? 67 : insets.top;
   const bot = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -172,6 +174,40 @@ export default function BoardSelectScreen() {
         <Text style={styles.timerNote}>
           {timerPref === 'auto' ? t('timerAutoNote', lang) : t('timerNote', lang)}
         </Text>
+
+        {/* docs/28: the product shipped with no audio at all. Sound is on by
+            default because it is how children of this age get feedback, and
+            muteable because a classroom, a bus and a sleeping sibling all
+            exist. Playing a tone on enable confirms it works. */}
+        <Text style={[styles.sectionLabel, { marginTop: 22 }]}>
+          {lang === 'hi' ? 'आवाज़ · SOUND' : 'SOUND'}
+        </Text>
+        <View style={styles.langRow}>
+          {([
+            { key: true,  label: lang === 'hi' ? 'चालू' : 'On' },
+            { key: false, label: lang === 'hi' ? 'बंद' : 'Off' },
+          ]).map(opt => {
+            const sel = soundOn === opt.key;
+            return (
+              <TouchableOpacity
+                key={String(opt.key)}
+                style={[styles.langChip, sel && styles.langChipOn]}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setSoundEnabled(opt.key);
+                  setSoundOn(opt.key);
+                  if (opt.key) playSound('correct');
+                }}
+                activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sel }}
+              >
+                <Text style={[styles.langText, sel && { color: C.primary }]}>{opt.label}</Text>
+                {sel && <Feather name="check" size={15} color={C.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         {/* Parents live here rather than in a tab: a child opening the app 300
             times should not see a door labelled "for grown-ups" 300 times. */}
