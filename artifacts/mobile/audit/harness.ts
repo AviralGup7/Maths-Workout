@@ -11,7 +11,7 @@ import type { SkillId } from '../learning/skills';
 import type { Attempt } from '../learning/attempts';
 import { recordAnswer, type AnswerState } from '../progression/recordAnswer';
 import { generateQuestion, generateForSkill } from '../generators';
-import { pickInteraction, toEntry } from '../generators/interactions';
+import { applyLadder } from '../learning/interactionLadder';
 import {
   genFactorSelect, genPrimeSelect, genMultipleSelect, genOrderNumbers,
   genOrderDecimals, genOrderFractions, genMissingNumber, genTableRecall, genDoubleHalve,
@@ -140,7 +140,7 @@ export function buildQuestion(cls: SchoolClass, diff: Difficulty, cat: Category,
   }
   let q: Question;
   try { q = generateForSkill(cls, diff, cat, skill); } catch { return null; }
-  const withLadder = pickInteraction(level, { entry: true }) === 'entry' ? toEntry(q) : q;
+  const withLadder = applyLadder(q, level, rnd(), { estimateRoll: rnd() });
   return { ...withLadder, resolvedCategory: withLadder.resolvedCategory ?? cat };
 }
 

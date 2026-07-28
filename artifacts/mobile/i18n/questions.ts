@@ -40,6 +40,12 @@ export const QP = {
   countBySeq:     { en: (s: number) => `Count by ${s}s:`,         hi: (s: number) => `${s} की छलांग में गिनें:` },
 
   // ── Number sense ───────────────────────────────────────────────────────────
+  /**
+   * The estimate-first rung of the interaction ladder (docs/27 P3-08).
+   * Wraps an existing question stem rather than replacing it, so the child
+   * meets the same mathematics with a different demand: roughly, not exactly.
+   */
+  roughlyHowMuch: { en: (stem: string) => `Roughly — ${stem}`,    hi: (stem: string) => `लगभग — ${stem}` },
   whichIsBigger:  { en: () => 'Which is bigger?',                 hi: () => 'कौन बड़ा है?' },
   orderSmallest:  { en: () => 'Put in order — SMALLEST first:',   hi: () => 'क्रम में रखें — सबसे छोटा पहले:' },
   orderWhatSmall: { en: () => 'Put in order. What is the SMALLEST?', hi: () => 'क्रम में रखें। सबसे छोटा कौन है?' },

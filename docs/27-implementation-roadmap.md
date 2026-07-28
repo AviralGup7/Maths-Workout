@@ -5,10 +5,10 @@
 Tick items here as they land. Do not maintain a second list anywhere else.
 
 ```
-Progress    74 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
-Verify      cd artifacts/mobile && npm run test:fast   # 751 tests, ~40s
+Progress    75 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
+Verify      cd artifacts/mobile && npm run test:fast   # 780 tests, ~39s
 CI          .github/workflows/ci.yml, three parallel jobs on every push:
-              fast   typecheck + arch-check + 751 unit tests    ~45s  (gate)
+              fast   typecheck + arch-check + 780 unit tests    ~45s  (gate)
               audit  the docs/21 and docs/23 simulations       ~13m  (parallel)
               ui     ui-smoke 23/23 · open-task 8/8 · Hindi 7/7 (parallel)
                      screenshots uploaded as the ui-screenshots artifact
@@ -18,6 +18,7 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
             3 themes: light, dark, high contrast (AAA)
             0 undersized tap targets · 0 sub-13px strings
             0 WCAG AA text failures · 0 English words in the Hindi stream
+            38.5% multiple choice (was 99.1%) · 7 interaction kinds live
 ```
 
 **Sequencing principle:** ordered by *learning impact ÷ effort*, then by dependency. Where an audit item is blocked by another, the blocker sits above it. Sections are in execution order — work top to bottom.
@@ -112,7 +113,18 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
 - [x] **P3-05 · Bar-model / tape diagram** for word problems (Singapore) — **DONE.** `components/visuals/BarModel.tsx` draws four structures (part-whole, difference, equal groups, sharing) chosen by `learning/barModelPolicy.ts` from the SENTENCE, not the arithmetic. Measured 46% coverage of the live stream in both languages; the remainder (speed, rate, percentage) is declined on purpose because a tape diagram would misrepresent it.
 - [x] **P3-06 · Interactive manipulatives** — regroupable base-ten, draggable fraction bars, where the manipulation *is* the answer (docs/26 A9 — DreamBox's differentiator). **Depends on P1-17.** *(shipped: `components/answer/ManipulativeFrame.tsx` — a new `manipulative` interaction kind where placing counters IS the answer)*
 - [ ] **P3-07 · Multi-representation items** — same quantity as fraction, decimal, percentage, number-line point
-- [ ] **P3-08 · Reduce multiple-choice share below 40%** by extending the interaction ladder earlier (docs/25 T3-23)
+- [x] **P3-08 · Reduce multiple-choice share below 40%** by extending the interaction ladder earlier (docs/25 T3-23) — **DONE. 99.1% → 38.5%.** `learning/interactionLadder.ts`, guard `learning/__tests__/interaction-share.test.ts`.
+
+  **Measured first, and the measurement changed the job.** docs/25 recorded 58.4% multiple choice from a year-long simulation. The raw supply is **99.1%** (26,752 of 27,000 questions drawn across all six classes × three difficulties × every category). The old `pickInteraction` was a *step*: tiles below mastery 0.80, typed entry at or above. Everyone between "no longer struggling" and "secure" — where children spend most of their time — never left the tiles. It also interlocked with the recognition ceiling: mastery is clamped at 0.80 without recall evidence (`mastery.ts` M4), and recall evidence was only served at 0.80. A learner had to reach the value the ladder gates on to be given the only question type that could carry them past it.
+
+  Three changes, each measured:
+  1. **Ramp, not step** — `entryChance` rises linearly from `ENTRY_FLOOR` 0.40 to `ENTRY_FULL` 0.80. 99.1% → 51.3%.
+  2. **Estimate-first rung** — the residual was not spread evenly: 84% at mastery 0.25–0.45, 17% above 0.80. Buying those points by lowering the floor would have stripped the scaffold from exactly the children it exists for. Instead the low band gets "Roughly — 47 + 38?", answered by choosing a band. A band resists elimination, and estimation-before-computation is the order the mathematics wants. 51.3% → 43.5%.
+  3. **Magnitude-aware floor** — 50.4% of the remaining low-mastery residual had an answer below 25. A child at 0.30 on "7 + 5" has a fallback (count); at 0.30 on "473 + 289" they have none. `ENTRY_FLOOR_COUNTABLE` 0.15 applies for answers ≤ 20. 43.5% → **38.5%**.
+
+  **Guard verified to fail against its own regression, twice.** Restoring the 0.80 step measured 68.8%. Dropping `ENTRY_FLOOR` to 0 — the cheap way to hit the number — measured 32.0% and *passed* the share assertion, but the companion "still scaffolds a struggling learner" assertion failed. The guard catches the bad fix as well as the missing one. Averaged over 5 passes: single-pass noise measured 37.9%–39.6% across 12 runs, which against a 40% bar would flake ~1 CI run in 20.
+
+  Final mix: entry 42.1% · choice 38.5% · estimate 9.6% · open 3.2% · ordering 2.6% · manipulative 2.0% · multiSelect 1.5%.
 - [ ] **P3-09 · Non-examples** — "which is NOT a rectangle, and why?"
 - [ ] **P3-10 · Systematic surface-feature variation** while holding structure constant (variation theory)
 
@@ -254,13 +266,13 @@ deliberately declined.*
 |---|---:|---|
 | 1 · Educational foundations | 0 | ✅ complete |
 | 2 · Curriculum structure | 6 | §2.1 and §2.2 done; breadth items remain |
-| 3 · Representation | 4 | Ten-frames, manipulatives, bar models, clock and money shipped |
+| 3 · Representation | 3 | Ten-frames, manipulatives, bar models, clock, money and the graded interaction ladder shipped |
 | 4 · Engagement | 20 | Tier 1–2 shipped via Phase 8; long-tail polish remains |
 | 5 · Parent & teacher | 4 | Weekly digest and conversation starters shipped |
 | 6 · Platform | 4 | P6-01 closed; the rest are strategic |
 | 7 · Validation | 4 | Cannot be faked or deferred indefinitely |
 | 8 · UI/UX | 4 | Tiers 1–3 shipped |
-| **Total open** | **46** | of 120 |
+| **Total open** | **45** | of 120 |
 
 ### Do these next
 
@@ -276,8 +288,9 @@ If only five things happen, these five — in this order:
 3. **P2-18 · Curriculum review by a practising Indian teacher.** The board
    mapping is researched (docs/11) but has never been checked by someone who
    teaches it.
-4. **P3-08 · Reduce the multiple-choice share below 40%** by extending the
-   interaction ladder to more skills — elimination transfers to nothing.
+4. **P3-07 · Multi-representation items** — the same quantity as a fraction, a
+   decimal, a percentage and a point on a number line. The remaining Phase 3
+   item with the clearest instructional case now that P3-08 has landed.
 5. **P7-03 · A small learning-gain study.** The only item on this list that can
    move the "no learning-gain evidence" verdict, which no amount of further
    engineering will.

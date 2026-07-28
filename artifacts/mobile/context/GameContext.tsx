@@ -21,7 +21,8 @@ import type {
   Question, WrongAnswer, ProgressStats,
 } from '../generators';
 import { generateQuestion, generateForSkill, generateTablesQuestions } from '../generators';
-import { expectedAnswer, pickInteraction, toEntry } from '../generators/interactions';
+import { expectedAnswer } from '../generators/interactions';
+import { applyLadder } from '../learning/interactionLadder';
 import type { Board } from '../curriculum/boards';
 import { DEFAULT_BOARD, categoriesFor, BOARD_CONFIGS } from '../curriculum/boards';
 import type { Lang } from '../i18n/strings';
@@ -818,8 +819,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     // dispatcher, which is why 51.6% of the stream reached a Hindi-medium
     // child in English.
     const q = generateForSkill(cls, diff, cat, skill, board, lang);
-    // The ladder: secure skills lose the multiple-choice scaffold.
-    const withLadder = pickInteraction(level, { entry: true }) === 'entry' ? toEntry(q) : q;
+    // The ladder: the multiple-choice scaffold thins out as the skill secures.
+    // docs/27 P3-08. Was a step at mastery 0.80 (`pickInteraction`), which
+    // measured 99.1% multiple choice over 27,000 drawn questions and stranded
+    // every learner between "no longer struggling" and "secure" on tiles.
+    // `applyLadder` ramps instead, and refuses questions whose answer a numeric
+    // keypad cannot express. See learning/interactionLadder.ts.
+    const withLadder = applyLadder(q, level, Math.random(), { estimateRoll: Math.random(), lang });
     return { ...withLadder, resolvedCategory: withLadder.resolvedCategory ?? cat };
   }, [INTERACTIVE_VARIANTS, board, lang]);
 
