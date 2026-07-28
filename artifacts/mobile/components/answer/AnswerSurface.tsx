@@ -10,6 +10,7 @@ import { NumericEntry } from './NumericEntry';
 import { MultiSelect } from './MultiSelect';
 import { OrderingTray } from './OrderingTray';
 import { OpenResponse } from './OpenResponse';
+import { ManipulativeFrame } from './ManipulativeFrame';
 import { normaliseOpen } from '@/generators/openResponse';
 
 
@@ -92,6 +93,18 @@ export function AnswerSurface({
         locked={locked}
         selectedChoice={selectedChoice}
         onSubmit={(lo, hi) => onSubmit(normaliseBand(lo, hi), `${lo}-${hi}`)}
+      />
+    );
+  }
+
+  if (it?.kind === 'manipulative') {
+    return (
+      <ManipulativeFrame
+        target={it.target}
+        max={it.max}
+        locked={locked}
+        wasCorrect={wasCorrect}
+        onSubmit={raw => onSubmit(raw, Number(raw))}
       />
     );
   }

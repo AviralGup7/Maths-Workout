@@ -44,6 +44,17 @@ const check = (ok, msg) => { if (ok) { pass++; console.log(`  PASS  ${msg}`); } 
 // Units, acronyms and signage that stay Latin in Hindi by policy.
 const ALLOWED = /\b(km|kg|cm|mm|mL|L|g|m|STOP|HCF|LCM|CBSE|ICSE)\b/g;
 
+/**
+ * Bilingual escape hatches, which are POLICY and not leakage.
+ *
+ * The user's semi-Hindi rule: navigation and escape controls stay recognisable
+ * in both scripts, so a child who has switched language by accident can still
+ * find their way back. "जाँचें · Check" and "पूरा · Done" are correct, and a
+ * guard that flags them is measuring the wrong thing — it would push someone
+ * to "fix" the accessibility feature. The `·` separator is the marker.
+ */
+const BILINGUAL_PAIR = /[\u0900-\u097F][^\n]*·\s*[A-Za-z][A-Za-z ]*/g;
+
 (async () => {
   let chromium;
   for (const spec of ['playwright', '/tmp/node_modules/playwright/index.js']) {
@@ -95,12 +106,28 @@ const ALLOWED = /\b(km|kg|cm|mm|mL|L|g|m|STOP|HCF|LCM|CBSE|ICSE)\b/g;
         .filter(e => /option \d+ of \d+/.test(e.getAttribute('aria-label') || ''));
       return { text: document.body.innerText, tiles: tiles.map(t => t.getAttribute('aria-label')) };
     });
-    if (q.tiles.length) seen.push(q.text);
+    // A manipulative screen is a painted question screen too; counting only
+    // tile screens under-reports the walk and made the threshold unreachable.
+    const isQuestion = q.tiles.length > 0 || /\/10|\/20/.test(q.text);
+    if (isQuestion) seen.push(q.text);
     if (i === 0) await page.screenshot({ path: join(SHOTS, 'hi-question.png') });
+    // Answer whatever surface is up, not only choice tiles. docs/28 added the
+    // manipulative ten-frame, which has checkbox cells and a Check button and
+    // no tiles at all — the walk previously stopped dead on one and collected
+    // a single screen instead of eight.
     const moved = await page.evaluate(() => {
+      const click = el => el?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       const t = [...document.querySelectorAll('[role="button"]')]
         .filter(e => /option \d+ of \d+/.test(e.getAttribute('aria-label') || ''));
-      if (t[0]) { t[0].dispatchEvent(new MouseEvent('click', { bubbles: true })); return true; }
+      if (t[0]) { click(t[0]); return true; }
+      const cell = document.querySelector('[role="checkbox"]');
+      const digit = [...document.querySelectorAll('[role="button"]')]
+        .find(e => /^Digit \d$/.test(e.getAttribute('aria-label') || ''));
+      const check = [...document.querySelectorAll('[role="button"]')]
+        .find(e => /check|जाँचें/i.test(e.getAttribute('aria-label') || ''));
+      if (cell) click(cell);
+      if (digit) click(digit);
+      if (check) { click(check); return true; }
       return false;
     });
     if (!moved) break;
@@ -121,6 +148,7 @@ const ALLOWED = /\b(km|kg|cm|mm|mL|L|g|m|STOP|HCF|LCM|CBSE|ICSE)\b/g;
       .split('\n')
       .filter(l => !/^(Class|कक्षा)/.test(l) && l.trim() !== '')
       .join(' ')
+      .replace(BILINGUAL_PAIR, '')
       .replace(ALLOWED, '');
     return /[A-Za-z]{4,}/.test(body);
   });

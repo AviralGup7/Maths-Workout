@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Chip } from '@/components/ui/Chip';
 import { Mascot } from '@/components/Mascot';
+import { seasonFor } from '@/theme/seasons';
 import { SEEN_WELCOME_KEY } from './welcome';
 import { DAILY_GOAL } from '@/context/GameContext';
 import { t } from '@/i18n/strings';
@@ -45,6 +46,7 @@ export default function HomeScreen() {
     storageFailing, needsPlacement,
   } = useGame();
   const { c, type, space, sizeClass, contentMaxWidth } = useTheme();
+  const season = React.useMemo(() => seasonFor(new Date()), []);
 
   useEffect(() => { loadAll(); }, []); // eslint-disable-line
 
@@ -149,10 +151,16 @@ export default function HomeScreen() {
             its mood reflects how practice is actually going, so the first thing
             on screen is a face rather than a metric. */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-          <Mascot mood={streak > 0 ? 'happy' : 'idle'} size={72} />
+          <Mascot mood={season ? 'celebrate' : streak > 0 ? 'happy' : 'idle'} size={72} />
           <View style={{ flex: 1 }}>
-            <Text style={[type('title'), { color: c.text }]}>
-              {lang === 'hi' ? 'नमस्ते!' : 'Hello!'}
+            {/* docs/28 item 41: a seasonal greeting is a small signal that the
+                app knows where it is. It replaces the greeting only — never a
+                colour that has been contrast-tested, and never the semantics
+                of correct/wrong. */}
+            <Text style={[type('title'), { color: c.text }]} numberOfLines={2}>
+              {season
+                ? season.greeting[lang === 'hi' ? 'hi' : 'en']
+                : (lang === 'hi' ? 'नमस्ते!' : 'Hello!')}
             </Text>
             <Text style={[type('body'), { color: c.textMuted }]}>
               {streak > 0

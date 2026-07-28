@@ -835,7 +835,12 @@ export default function GameScreen() {
           absent. Fades automatically with mastery: interactive below 0.55,
           illustrative to 0.80, gone above. Hidden while a worked example is on
           screen, which carries its own diagram. */}
-      {!worked && (
+      {/* A manipulative IS a ten-frame the child builds, so drawing the
+          illustrative frame above it renders the same model twice on one
+          screen — measured in a browser: two frames, one filled and one
+          empty, with the question between them. The interaction owns the
+          representation whenever it is a manipulative. */}
+      {!worked && currentQuestion.interaction?.kind !== 'manipulative' && (
         <QuestionVisual
           question={currentQuestion}
           skill={sessionSkillFor(currentIndex)}

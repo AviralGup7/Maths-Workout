@@ -62,7 +62,17 @@ export type Interaction =
    * declarative constraints in `spec` and returns a reason as well as a
    * verdict.
    */
-  | ({ kind: 'open' } & OpenSpec);
+  | ({ kind: 'open' } & OpenSpec)
+  /**
+   * Build the quantity on a ten-frame. docs/28 items 46/47.
+   *
+   * The one interaction where the MANIPULATION is the answer rather than a
+   * route to reporting it: placing seven counters IS answering "show 7". A
+   * child who cannot yet write a numeral can still demonstrate what seven is,
+   * and the shape of the building (one by one, versus a row of five and two
+   * more) is itself diagnostic.
+   */
+  | { kind: 'manipulative'; target: number; max: number };
 
 export type InteractionKind = Interaction['kind'];
 
@@ -99,6 +109,7 @@ export function expectedAnswer(q: Question): string {
   // An open task has no single expected answer; the exemplar is one of many
   // and is labelled as such wherever it is shown.
   if (it.kind === 'open') return it.exemplar;
+  if (it.kind === 'manipulative') return String(it.target);
   return normaliseSequence(it.correctOrder);
 }
 
@@ -246,6 +257,27 @@ export function orderingQuestion(
       correctOrder,
       direction: opts.direction ?? 'asc',
     },
+  };
+}
+
+/**
+ * A question answered by building the quantity on a ten-frame.
+ *
+ * Restricted to counts a frame can hold and a young child can subitise in
+ * chunks. Beyond 20 the frame stops being a model and becomes a chore.
+ */
+export function manipulativeQuestion(
+  questionText: string,
+  target: number,
+  opts: { resolvedCategory?: Question['resolvedCategory'] } = {},
+): Question {
+  const max = target > 10 ? 20 : 10;
+  return {
+    questionText,
+    answer: target,
+    choices: [],
+    resolvedCategory: opts.resolvedCategory,
+    interaction: { kind: 'manipulative', target, max },
   };
 }
 

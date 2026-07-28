@@ -121,6 +121,10 @@ export const INTERACTION_WEIGHT: Record<InteractionKind, number> = {
   // nothing to recall, and the child has to search a space rather than
   // evaluate a candidate. docs/27 P1-17.
   open: 1.40,
+  // Building a quantity rather than selecting or recalling one. Weighted with
+  // `entry` rather than higher: the cognitive demand is real but the range is
+  // small (0-20), so it should not out-earn a typed three-digit answer.
+  manipulative: 1.25,
 };
 
 /**

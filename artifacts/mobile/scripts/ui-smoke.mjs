@@ -241,11 +241,45 @@ async function main() {
   check(taps === 1, `taps to first question: ${taps} (expected 1)`);
   console.log(`  taps to first question: ${taps}`);
 
-  const tiles = await page.evaluate(() =>
-    [...document.querySelectorAll('[role="button"]')]
-      .filter(e => /option \d+ of \d+/.test(e.getAttribute('aria-label') || ''))
-      .map(e => ({ label: e.getAttribute('aria-label'),
-                   h: Math.round(e.getBoundingClientRect().height) })));
+  // The first question is not guaranteed to be multiple choice. Since docs/28
+  // added the manipulative ten-frame (30% of eligible early-skill questions),
+  // a run could legitimately open on a build-the-quantity task and this
+  // assertion failed on ~1 run in 3 — a flaky guard, which is worse than none
+  // because it trains people to re-run CI rather than read it.
+  //
+  // Advance until a choice question appears rather than assuming question 1
+  // is one. Bounded, so a genuine "no tiles ever render" regression still
+  // fails instead of hanging.
+  let tiles = [];
+  for (let attempt = 0; attempt < 8; attempt++) {
+    tiles = await page.evaluate(() =>
+      [...document.querySelectorAll('[role="button"]')]
+        .filter(e => /option \d+ of \d+/.test(e.getAttribute('aria-label') || ''))
+        .map(e => ({ label: e.getAttribute('aria-label'),
+                     h: Math.round(e.getBoundingClientRect().height) })));
+    if (tiles.length) break;
+    // Answer whatever non-choice surface is up, then look again.
+    await page.evaluate(() => {
+      const click = el => el?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      const cell = document.querySelector('[role="checkbox"]');
+      if (cell) click(cell);
+      const digit = [...document.querySelectorAll('[role="button"]')]
+        .find(e => /^Digit \d$/.test(e.getAttribute('aria-label') || ''));
+      if (digit) click(digit);
+      const check = [...document.querySelectorAll('[role="button"]')]
+        .find(e => /check/i.test(e.getAttribute('aria-label') || ''));
+      if (check) click(check);
+    });
+    await page.waitForTimeout(1100);
+    // Clear anything that holds the screen after a wrong answer.
+    await page.evaluate(() => {
+      const b = [...document.querySelectorAll('[role="button"]')]
+        .find(e => /slipped|Sure|Got it|Continue/i.test(
+          (e.getAttribute('aria-label') || e.textContent || '')));
+      b?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    await page.waitForTimeout(900);
+  }
   check(tiles.length > 0, `answer tiles rendered: ${tiles.length}`);
   check(tiles.every(t => t.h >= MIN_TOUCH), 'all answer tiles meet the touch minimum');
   console.log(`  answer tiles: ${tiles.length}, min height ${Math.min(...tiles.map(t => t.h))}pt`);

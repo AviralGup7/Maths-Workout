@@ -36,6 +36,19 @@ import {
 } from '../generators/topics-interactive';
 import { genOpenEnded, genOpenMiddle, genReverse } from '../generators/openTasks';
 import { pickOpenTask } from '../learning/openTaskPolicy';
+import { manipulativeQuestion } from '../generators/interactions';
+import { ri } from '../generators/helpers';
+
+/**
+ * Skills where building a quantity is a better question than selecting one.
+ *
+ * Kept small on purpose: the ten-frame models number to 20, so anything past
+ * early addition would be using the manipulative as decoration.
+ */
+const MANIPULATIVE_SKILLS = new Set([
+  'count.objects', 'count.skip', 'add.within10', 'add.within20',
+  'sub.within10', 'sub.within20', 'bonds.basic',
+]);
 import { genMethodCompare, genReasonSelect } from '../generators/metacognition';
 import { genErrorHunt } from '../generators/reasoning';
 import { pickReasoning } from '../learning/reasoningPolicy';
@@ -773,6 +786,20 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 : openKind === 'openMiddle' ? genOpenMiddle
                 : genReverse;
       const q = gen(cls, diff, lang);
+      return { ...q, resolvedCategory: q.resolvedCategory ?? cat };
+    }
+
+    // docs/28 items 46/47. Manipulatives go to the learners who need a
+    // concrete model most: early counting and addition skills, and only while
+    // mastery is still low. A secure child building seven counters is doing
+    // busywork, so this fades out exactly as the ten-frame visual does.
+    if (MANIPULATIVE_SKILLS.has(skill) && level < 0.55 && Math.random() < 0.3) {
+      const target = ri(3, level < 0.35 ? 10 : 20);
+      const q = manipulativeQuestion(
+        lang === 'hi' ? `${target} गिनकर दिखाएँ` : `Show ${target} counters`,
+        target,
+        { resolvedCategory: cat },
+      );
       return { ...q, resolvedCategory: q.resolvedCategory ?? cat };
     }
 
