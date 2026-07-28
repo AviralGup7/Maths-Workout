@@ -59,7 +59,17 @@ const check = (ok, msg) => { if (ok) { pass++; console.log(`  PASS  ${msg}`); } 
  */
 function seedScript() {
   const now = Date.now();
-  const skills = ['add.2digit.carry', 'add.3digit', 'mul.tables.full', 'add.within20'];
+  // Every addition/multiplication skill a default (Class 1) session can draw,
+  // not a hand-picked few. `add.within10` is what Class-1 EASY resolves to and
+  // it was missing from the original list, so whether an open task appeared
+  // depended on which skill the session happened to pick — 7/7 locally and
+  // 0/2 on CI, which looked like an environment difference and was not one.
+  const skills = [
+    'add.within10', 'add.within20', 'add.2digit.nocarry', 'add.2digit.carry',
+    'add.3digit', 'add.large',
+    'mul.tables.easy', 'mul.tables.mid', 'mul.tables.full',
+    'numsense.compare', 'numsense.estimate', 'patterns.basic', 'placevalue',
+  ];
   const rows = [];
   let id = 1;
   for (const skill of skills) {
@@ -169,6 +179,20 @@ function seedScript() {
     }
   }
 
+  if (!found) {
+    // Report WHY rather than only that it did not happen. The walk depends on
+    // the seeded log lifting mastery above OPEN_TASK_FLOOR, and a seed that
+    // silently failed to load looks identical to a run of bad luck.
+    const diag = await page.evaluate(() => ({
+      attempts: (() => {
+        try { return JSON.parse(localStorage.getItem('@maths_workout_v3_attempts') || '[]').length; }
+        catch { return 'unparseable'; }
+      })(),
+      screen: document.body.innerText.slice(0, 200),
+    }));
+    console.log(`  diagnostic: attempts in storage = ${diag.attempts}`);
+    console.log(`  screen: ${JSON.stringify(diag.screen)}`);
+  }
   check(found, 'an open-response task appears in a real session within 18 attempts');
 
   if (found) {
