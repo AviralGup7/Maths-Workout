@@ -237,6 +237,97 @@ export const HINTS: Partial<Record<SkillId, HintTriple>> = {
     'If the gaps are equal it is adding; if they grow, the rule is different.',
     'अगर अंतर बराबर हैं तो जोड़ है; अगर बढ़ते हैं तो नियम अलग है।',
   ),
+
+  // ── docs/27 P1-04/P1-05 ────────────────────────────────────────────────────
+  // The ten skills that resolved to NO hint even after family fallback. Four of
+  // them are Class 1 topics, so the youngest and most support-dependent
+  // learners previously had the least support: a six-year-old who could not
+  // tell the time simply received more time questions.
+  //
+  // These are facts and conventions rather than procedures, which is why they
+  // correctly have no worked example (see the note above SOLVERS). The hint
+  // ladder still applies: orient the child, name a strategy, then direct — the
+  // strategy tier is what turns "remember this" into "here is how to work it
+  // out", which is the difference between recall and reasoning.
+
+  'count.objects': H(
+    'How will you make sure you count each one only once?',
+    'आप कैसे पक्का करेंगे कि हर चीज़ एक ही बार गिनी जाए?',
+    'Touch or mark each one as you say the number.',
+    'हर चीज़ को छूते या निशान लगाते हुए संख्या बोलें।',
+    'Go left to right in order, saying one number for each object.',
+    'बाएँ से दाएँ क्रम से चलें, हर वस्तु के लिए एक संख्या बोलें।',
+  ),
+  'count.skip': H(
+    'How big is each jump?', 'हर छलांग कितनी बड़ी है?',
+    'Find the gap between two numbers, then keep making that same jump.',
+    'दो संख्याओं के बीच का अंतर देखें, फिर वही छलांग दोहराते रहें।',
+    'Add the jump size to the last number you said.',
+    'आपने जो आख़िरी संख्या बोली, उसमें छलांग जोड़ दें।',
+  ),
+  'shapes.basic': H(
+    'What can you count on this shape?',
+    'इस आकृति पर आप क्या गिन सकते हैं?',
+    'Count the straight sides, then the corners — they match on flat shapes.',
+    'सीधी भुजाएँ गिनें, फिर कोने — सपाट आकृतियों में ये बराबर होते हैं।',
+    'Trace round the edge with your finger and count each straight side.',
+    'उँगली से किनारे पर घूमें और हर सीधी भुजा गिनें।',
+  ),
+  'time.basic': H(
+    'Which hand are you reading?', 'आप कौन-सी सुई पढ़ रहे हैं?',
+    'The short hand gives the hour; the long hand counts minutes in fives.',
+    'छोटी सुई घंटा बताती है; बड़ी सुई पाँच-पाँच में मिनट गिनती है।',
+    'Read the hour first, then count the minutes round in fives from the top.',
+    'पहले घंटा पढ़ें, फिर ऊपर से पाँच-पाँच करके मिनट गिनें।',
+  ),
+  'money.basic': H(
+    'Are you putting money together, or finding what is left?',
+    'आप पैसे जोड़ रहे हैं या बचा हुआ निकाल रहे हैं?',
+    'Change is what is left after you take the cost away from what you paid.',
+    'दिए हुए पैसों में से क़ीमत घटाने पर जो बचे, वही बाक़ी है।',
+    'Count on from the price up to the amount you handed over.',
+    'क़ीमत से शुरू करके दिए हुए पैसों तक आगे गिनें।',
+  ),
+  'measurement.basic': H(
+    'Are you changing to a bigger unit or a smaller one?',
+    'आप बड़ी इकाई में बदल रहे हैं या छोटी में?',
+    'Smaller units mean more of them, so the number gets bigger.',
+    'छोटी इकाई में गिनती बढ़ जाती है, इसलिए संख्या बड़ी होगी।',
+    'Multiply when moving to a smaller unit, divide when moving to a bigger one.',
+    'छोटी इकाई में जाएँ तो गुणा करें, बड़ी इकाई में जाएँ तो भाग दें।',
+  ),
+  'factors.basic': H(
+    'What divides into this number exactly?',
+    'इस संख्या को कौन पूरा-पूरा बाँट देता है?',
+    'Try each number in turn and see if it divides with nothing left over.',
+    'हर संख्या से बारी-बारी बाँटकर देखें कि कुछ बचता तो नहीं।',
+    'Work up in pairs from 1 — each factor has a partner that multiplies to give the number.',
+    '1 से जोड़ों में ऊपर बढ़ें — हर गुणनखंड का एक साथी होता है जिससे गुणा करने पर वही संख्या मिलती है।',
+  ),
+  'ratio.basic': H(
+    'How many parts are there altogether?',
+    'कुल कितने भाग हैं?',
+    'A ratio splits the whole into equal parts — add the numbers to count them.',
+    'अनुपात पूरे को बराबर भागों में बाँटता है — संख्याएँ जोड़कर भाग गिनें।',
+    'Divide the total by the number of parts to find one part, then scale up.',
+    'कुल को भागों की संख्या से बाँटकर एक भाग निकालें, फिर बढ़ाएँ।',
+  ),
+  'data.basic': H(
+    'Which average is the question asking for?',
+    'प्रश्न कौन-सा औसत माँग रहा है?',
+    'Mean shares out evenly; median is the middle; mode is the most common.',
+    'माध्य बराबर बाँटता है; माध्यिका बीच वाली है; बहुलक सबसे अधिक बार आने वाली।',
+    'For the median, put the numbers in order first, then find the middle one.',
+    'माध्यिका के लिए पहले संख्याएँ क्रम में रखें, फिर बीच वाली चुनें।',
+  ),
+  'integers.basic': H(
+    'Which way along the number line does this move?',
+    'यह संख्या रेखा पर किस ओर जाता है?',
+    'Negative numbers sit left of zero — further left means smaller.',
+    'ऋणात्मक संख्याएँ शून्य के बाएँ होती हैं — जितना बाएँ, उतना छोटा।',
+    'Start at the first number and move right to add, left to subtract.',
+    'पहली संख्या से शुरू करें; जोड़ने पर दाएँ, घटाने पर बाएँ जाएँ।',
+  ),
 };
 
 /** Family fallbacks, so a skill without its own copy still gets sensible hints. */
