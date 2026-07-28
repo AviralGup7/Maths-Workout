@@ -49,6 +49,7 @@ import type { SkillId } from '../learning/skills';
 import { resolveSkill, SKILLS } from '../learning/skills';
 import { buildSession, categoryForSkill, difficultyFor } from '../learning/scheduler';
 import { diagnose, summariseMisconceptions } from '../learning/misconceptions';
+import { buildSessionReport, type SessionReport } from '../learning/sessionReport';
 import { awardXp, type XpLedger, type Award } from '../progression/award';
 import { recordAnswer, rebuildProgression } from '../progression/recordAnswer';
 import {
@@ -180,6 +181,16 @@ interface GameContextType {
   mastery:          Record<SkillId, MasteryEstimate>;
   /** Consecutive days practised. */
   streak:           number;
+  /**
+   * What changed during the session just finished (docs/25 Tier 1).
+   *
+   * Null until at least one question has been answered. Everything on it is
+   * derived from the attempt log, so it costs nothing to keep and cannot
+   * disagree with the rest of the engine.
+   */
+  sessionReport:    SessionReport | null;
+  /** XP earned during the session just finished. */
+  xpEarnedThisSession: number;
   /**
    * Distinct practice days over the learner's whole history (docs/23 S5).
    * Survives eviction of the capped attempt log, unlike counting the log alone.
@@ -318,6 +329,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [isAdaptive,       setIsAdaptive]       = useState(false);
   /** Skills chosen by the scheduler for the current session, index-aligned to `questions`. */
   const sessionSkillsRef = useRef<SkillId[]>([]);
+  /**
+   * The attempt log and XP total as they stood when this session began.
+   *
+   * docs/25 Tier 1. The results screen has to report a DELTA — "Fractions
+   * 62% → 71%" — not a snapshot, because a snapshot is a statistic while a
+   * delta is evidence of growth. Holding the opening state is the only way to
+   * compute one, and it costs a reference rather than a copy.
+   */
+  const sessionStartLogRef = useRef<Attempt[]>([]);
+  const sessionStartXpRef = useRef(0);
+  const sessionStartLedgerRef = useRef<XpLedger>({});
+  /** True when the session baseline was captured after `loadAll` settled. */
+  const sessionStartResolvedRef = useRef(false);
+  /** True once `loadAll` has settled, so a baseline taken now is trustworthy. */
+  const loadedRef = useRef(false);
+  /** XP awarded during this session, accumulated directly from each award. */
+  const sessionAwardedXpRef = useRef(0);
 
   // Stable ref so callbacks can access device ID without stale closure issues
   const deviceIdRef = useRef<string | null>(null);
@@ -512,6 +540,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setAttempts(localAT);
       attemptsRef.current = localAT;
       setStorageFailing(storageHealth().failing);
+      loadedRef.current = true;
+      // A session already in flight when the load landed now has a trustworthy
+      // baseline: adopt it rather than leaving the fallback engaged forever.
+      if (!sessionStartResolvedRef.current) {
+        sessionStartXpRef.current = totalXpRef.current - sessionAwardedXpRef.current;
+        sessionStartResolvedRef.current = true;
+      }
     } catch (e) { console.error('[GameContext] loadAll failed:', e); }
   }, [getOrCreateDeviceId, buildPayload]);
 
@@ -568,6 +603,46 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const answeredToday = useMemo(() => todayCount(attempts), [attempts]);
   const lifetimeDays = useMemo(
     () => lifetimePracticeDays(dailySummary, attempts), [dailySummary, attempts]);
+
+  /**
+   * What changed during the current session (docs/25 Tier 1).
+   *
+   * Recomputed only when the log changes, and only once a session has actually
+   * started — the results screen reads this rather than recomputing, so the
+   * numbers it shows are the same ones the engine believes.
+   */
+  const sessionReport = useMemo(() => {
+    const before = sessionStartLogRef.current;
+    if (attempts.length <= before.length) return null;
+    return buildSessionReport({
+      before, after: attempts, cls: selectedClass,
+      // The ledger as it stood BEFORE this session, so a crossing made during
+      // the session still reads as new.
+      ledger: sessionStartLedgerRef.current,
+    });
+  }, [attempts, selectedClass]);
+
+  /**
+   * XP earned during the current session.
+   *
+   * Guarded against a load/session race. On a cold start `loadAll` is async, so
+   * a child who taps straight into practice can begin answering BEFORE the
+   * stored XP total resolves — and when it does, `totalXp` jumps to the stored
+   * value while `sessionStartXpRef` still holds the pre-load 0. The subtraction
+   * then reports a nonsensical figure, which rendered as "+0 XP" on a session
+   * that genuinely earned 183. Caught in a browser on a cold profile; a warm
+   * profile showed "+37 XP" correctly, which is exactly why it survived the
+   * unit tests.
+   *
+   * `xpAtSessionStartResolved` marks whether the baseline was taken after the
+   * load settled. Until it is, fall back to summing the session's own awards,
+   * which is always correct because it never depends on the baseline at all.
+   */
+  const xpEarnedThisSession = useMemo(() => {
+    const byDelta = Math.round(totalXp - sessionStartXpRef.current);
+    if (sessionStartResolvedRef.current && byDelta >= 0) return byDelta;
+    return Math.round(sessionAwardedXpRef.current);
+  }, [totalXp, attempts]);
 
   // Derived progression. Level comes from XP (effort, never falls); the mastery
   // index comes from the mastery model (ability, can fall). Keeping them
@@ -645,6 +720,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // session ended after ~20 seconds.
       const count = sess === '20q' ? 20 : sess === 'timed60' ? 60 : 10;
       sessionSkillsRef.current = [];
+      sessionStartLogRef.current = attemptsRef.current;
+      sessionStartXpRef.current = totalXpRef.current;
+    sessionStartLedgerRef.current = ledgerRef.current;
+    sessionStartResolvedRef.current = loadedRef.current;
+    sessionAwardedXpRef.current = 0;
+      sessionStartLedgerRef.current = ledgerRef.current;
       setIsAdaptive(false);
       setIsTablesMode(false);
       setSelectedClass(cls);
@@ -696,6 +777,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
 
     sessionSkillsRef.current = skills;
+    sessionStartLogRef.current = attemptsRef.current;
+    sessionStartXpRef.current = totalXpRef.current;
+    sessionStartLedgerRef.current = ledgerRef.current;
+    sessionStartResolvedRef.current = loadedRef.current;
+    sessionAwardedXpRef.current = 0;
     setIsAdaptive(true);
     setIsTablesMode(false);
     setSelectedClass(cls);
@@ -834,6 +920,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     // Refs first, so a second answer arriving before React re-renders still
     // reads the up-to-date log rather than a stale closure.
+    sessionAwardedXpRef.current += result.award.total > 0 ? result.award.total : 0;
     attemptsRef.current = result.state.log;
     ledgerRef.current = result.state.ledger;
     totalXpRef.current = result.state.totalXp;
@@ -917,6 +1004,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const startTablesGame = useCallback((tableNum: number) => {
     sessionSkillsRef.current = [];
+    sessionStartLogRef.current = attemptsRef.current;
+    sessionStartXpRef.current = totalXpRef.current;
+    sessionStartLedgerRef.current = ledgerRef.current;
+    sessionStartResolvedRef.current = loadedRef.current;
+    sessionAwardedXpRef.current = 0;
     setIsAdaptive(false);
     setIsTablesMode(true);
     setSelectedTable(tableNum);
@@ -1069,6 +1161,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       lifetimeDays, storageFailing,
       saveScore, saveProgressStats, clearMistake, loadAll, getHighScore,
       attempts, mastery, streak, answeredToday,
+      sessionReport, xpEarnedThisSession,
       totalXp, level, masteryIdx, masteryLabel, lastAward,
       startAdaptiveSession, isAdaptive, recordAttempt, rootGapFor, sessionSkillFor, retargetNext, topMisconceptions,
       board, setBoard, lang, setLang, prefsLoaded,

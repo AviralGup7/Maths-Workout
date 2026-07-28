@@ -16,7 +16,8 @@ import { DAILY_GOAL } from '@/context/GameContext';
 import { t } from '@/i18n/strings';
 import { SKILLS } from '@/learning/skills';
 import { STRUGGLING_THRESHOLD } from '@/learning/mastery';
-import { dueReviewChapters } from '@/curriculum/chapters';
+import { dueReviewChapters, CHAPTERS, chapterStatus } from '@/curriculum/chapters';
+import { MASTERED_THRESHOLD } from '@/learning/mastery';
 
 /**
  * Home — rebuilt for docs/17 M4.
@@ -39,6 +40,7 @@ export default function HomeScreen() {
   const {
     loadAll, savedMistakes, streak, answeredToday, startAdaptiveSession,
     selectedClass, lang, prefsLoaded, mastery, level, masteryLabel, attempts,
+    storageFailing,
   } = useGame();
   const { c, type, space, sizeClass, contentMaxWidth } = useTheme();
 
@@ -66,6 +68,27 @@ export default function HomeScreen() {
       .sort((a, b) => a.value - b.value)
       .slice(0, 2),
     [mastery]);
+
+  /**
+   * The chapter closest to being finished (docs/25 Tier 1 item 8).
+   *
+   * Completion pull with no new mechanic: `chapterStatus` and the mastery map
+   * already know this, and it was surfaced nowhere. "2 skills to finish
+   * Fractions" is a goal a child can hold in their head; "18 chapters exist"
+   * is not.
+   */
+  const nearlyDone = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const [k, v] of Object.entries(mastery)) m[k] = v.value;
+    return CHAPTERS
+      .filter(ch => chapterStatus(ch, m, selectedClass) === 'inProgress')
+      .map(ch => ({
+        ch,
+        remaining: ch.skills.filter(s => (m[s] ?? 0) < MASTERED_THRESHOLD).length,
+      }))
+      .filter(x => x.remaining > 0 && x.remaining <= 2)
+      .sort((a, b) => a.remaining - b.remaining)[0] ?? null;
+  }, [mastery, selectedClass]);
 
   const reviewDue = useMemo(() => {
     const values: Record<string, number> = {};
@@ -119,6 +142,23 @@ export default function HomeScreen() {
           <View style={{ flex: 1 }} />
           <Text style={[type('caption'), { color: c.textMuted }]}>{masteryLabel}</Text>
         </View>
+
+        {/* docs/23 F5. Write failures were swallowed silently, so a full device
+            meant days of invisible data loss while the app looked fine. The
+            engine now tracks this; the child (and the parent reading over their
+            shoulder) deserve to be told. */}
+        {storageFailing && (
+          <Card padded>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <Feather name="alert-triangle" size={18} color={c.attention} />
+              <Text style={[type('caption'), { color: c.text, flex: 1 }]}>
+                {lang === 'hi'
+                  ? 'प्रगति सहेजी नहीं जा पा रही — डिवाइस में जगह बनाएँ'
+                  : "Couldn't save your progress — free up some space on this device"}
+              </Text>
+            </View>
+          </Card>
+        )}
 
         {/* THE primary action, first and largest, always above the fold. */}
         <Card elevation={2} padded>
@@ -178,6 +218,20 @@ export default function HomeScreen() {
                   <Feather name="rotate-ccw" size={18} color={c.primary} />
                   <Text style={[type('body'), { color: c.text, flex: 1 }]}>
                     {t('reviewDue', lang)} · {reviewDue.length}
+                  </Text>
+                </View>
+              </Card>
+            )}
+
+            {/* Completion pull: one concrete, reachable goal (docs/25 item 8). */}
+            {nearlyDone && (
+              <Card onPress={start} accessibilityLabel={nearlyDone.ch.title[lang === 'hi' ? 'hi' : 'en']}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+                  <Feather name="flag" size={18} color={c.attention} />
+                  <Text style={[type('body'), { color: c.text, flex: 1 }]}>
+                    {lang === 'hi'
+                      ? `${nearlyDone.ch.title.hi} पूरा करने के लिए ${nearlyDone.remaining} कौशल बाकी`
+                      : `${nearlyDone.remaining} skill${nearlyDone.remaining === 1 ? '' : 's'} to finish ${nearlyDone.ch.title.en}`}
                   </Text>
                 </View>
               </Card>

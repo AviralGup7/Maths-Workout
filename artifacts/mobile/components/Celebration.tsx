@@ -52,7 +52,17 @@ export type CelebrationReason =
   | 'streak'      // a streak milestone: persistence
   | 'recovery'    // a past mistake cleared: the most valuable moment in the app
   | 'mastery'     // a skill reached secure mastery: tied to learning, not score
-  | 'best';       // a new personal best
+  | 'best'        // a new personal best
+  // docs/25 Tier 1 item 5. Finishing a chapter pays the largest bonus in the
+  // economy (250 XP) and produced no celebration at all — the biggest
+  // achievement in the curriculum passed silently.
+  | 'chapter'
+  // docs/25 Tier 1 item 6, and the most important addition here. Every
+  // celebration was gated at or above MASTERED_THRESHOLD (0.85), so a
+  // struggling learner measured ZERO mastery celebrations across a full year
+  // of genuine improvement. Climbing out of "struggling" is the hardest move
+  // in the model and the one most worth marking for the child who makes it.
+  | 'breakthrough';
 
 const PARTICLE_COUNT = 14;
 
@@ -67,6 +77,8 @@ const makePalette = (C: ReturnType<typeof useLegacyPalette>): Record<Celebration
   recovery: [C.easy, '#81C784', '#A5D6A7'],
   mastery:  [C.primary, '#9575CD', '#B39DDB'],
   best:     [C.gold, C.primary, C.easy],
+  chapter:  [C.gold, C.primary, '#FFD54F'],
+  breakthrough: [C.easy, C.primary, '#80CBC4'],
 });
 
 export function Celebration({
