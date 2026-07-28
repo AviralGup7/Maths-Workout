@@ -222,6 +222,64 @@ export const HINTS: Partial<Record<SkillId, HintTriple>> = {
     'For area multiply the sides; for perimeter add all the way round.',
     'क्षेत्रफल के लिए भुजाएँ गुणा करें; परिमाप के लिए सब जोड़ें।',
   ),
+  // ── Structural concepts (docs/27 P2-05 … P2-14) ────────────────────────────
+  'bonds.basic': H(
+    'Which two parts live inside this number?',
+    'इस संख्या के अंदर कौन-से दो भाग हैं?',
+    'Think of the whole splitting into two groups.',
+    'सोचें कि पूरा दो समूहों में बँट रहा है।',
+    'Count on from the part you know until you reach the whole.',
+    'ज्ञात भाग से गिनते जाएँ जब तक पूरा न आ जाए।',
+  ),
+  'equality.balance': H(
+    'Does each side of the equals sign weigh the same?',
+    'बराबर के चिह्न के दोनों ओर बराबर है क्या?',
+    'The equals sign means "the same as", not "write the answer next".',
+    'बराबर का चिह्न कहता है "उतना ही", न कि "अब उत्तर लिखो"।',
+    'Work out the side you can, then find what the other side needs to match it.',
+    'जो ओर हल हो सकती है उसे हल करें, फिर देखें दूसरी ओर को बराबर होने के लिए क्या चाहिए।',
+  ),
+  'frac.numberline': H(
+    'Where would this fraction sit on the line?',
+    'यह भिन्न रेखा पर कहाँ बैठेगी?',
+    'The bottom number says how many equal steps the whole line is split into.',
+    'नीचे की संख्या बताती है कि पूरी रेखा कितने बराबर कदमों में बँटी है।',
+    'Count that many steps along, and stop at the top number.',
+    'उतने कदम गिनते जाएँ और ऊपर वाली संख्या पर रुकें।',
+  ),
+  'frac.compare': H(
+    'Are the pieces the same size in both fractions?',
+    'क्या दोनों भिन्नों में टुकड़े एक ही आकार के हैं?',
+    'A bigger bottom number means MORE pieces, so each piece is smaller.',
+    'नीचे बड़ी संख्या का मतलब ज़्यादा टुकड़े, यानी हर टुकड़ा छोटा।',
+    'With the same top number, the one with the smaller bottom number is bigger.',
+    'ऊपर की संख्या समान हो तो जिसकी नीचे की संख्या छोटी है वह बड़ी है।',
+  ),
+  'compare.multiplicative': H(
+    'Is this "so many more" or "so many times as many"?',
+    'यह "इतना ज़्यादा" है या "इतने गुना"?',
+    '"More than" means add on. "Times as many" means make copies.',
+    '"से ज़्यादा" का मतलब जोड़ना। "गुना" का मतलब प्रतियाँ बनाना।',
+    'For "times as many", multiply. For "more than", add.',
+    '"गुना" के लिए गुणा करें। "ज़्यादा" के लिए जोड़ें।',
+  ),
+  'inverse.basic': H(
+    'What undoes the operation you were given?',
+    'दी गई संक्रिया को कौन-सी संक्रिया उलटती है?',
+    'Multiplying and dividing undo each other, as do adding and subtracting.',
+    'गुणा और भाग एक-दूसरे को उलटते हैं, वैसे ही जोड़ और घटाव।',
+    'The fact you were given already holds the answer — read it backwards.',
+    'जो तथ्य दिया गया है उसी में उत्तर है — उसे उल्टा पढ़ें।',
+  ),
+  'rounding.decide': H(
+    'How exact does this answer really need to be?',
+    'इस उत्तर को असल में कितना सटीक होना चाहिए?',
+    'Rounding trades detail for something easier to hold in mind.',
+    'पूर्णांकन बारीकी छोड़कर संख्या को याद रखने लायक बनाता है।',
+    'Pick the place value that keeps the meaning without the extra detail.',
+    'वह स्थानीय मान चुनें जो अर्थ बनाए रखे पर अतिरिक्त बारीकी हटा दे।',
+  ),
+
   // ── Split sub-skills (docs/27 P2-01/02/03) ─────────────────────────────────
   // Each gets its OWN ladder rather than inheriting the parent's via FAMILY.
   // A family fallback here would defeat the split: the reason to separate area

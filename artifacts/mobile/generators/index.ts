@@ -7,6 +7,7 @@ export * from './topics-interactive';
 export * from './number-sense';
 export * from './reasoning';
 export * from './metacognition';
+export * from './structure';
 export * from './openTasks';
 export * from './openResponse';
 
@@ -16,6 +17,10 @@ import { genAddition, genSubtraction, genMultiplication, genDivision, generateTa
 import { genCounting, genNumberSense } from './early-years';
 import { genNumberSenseStrand, genEstimation, genComparison, genReasonableness } from './number-sense';
 import { genErrorHunt, genPattern, genSymmetry } from './reasoning';
+import {
+  genNumberBond, genBondFamily, genEquality, genFractionLine,
+  genCompareFractions, genMultiplicativeCompare, genInverse, genRounding,
+} from './structure';
 import { genShapes, genTime, genMoney, genPlaceValue, genMeasurement } from './topics-core';
 import { genFractions, genDecimals } from './fractions-decimals';
 import { genWordProblems, genFactors, genGeometry, genPercentages, genData, genRatio, genIntegers, genAlgebra } from './advanced';
@@ -156,6 +161,15 @@ const SKILL_GENERATORS: Record<string, (cls: SchoolClass, diff: Difficulty) => Q
   'data.median':          (c, d) => forSubSkill('data.basic', 'data.median', dd => genData(c, dd), d),
   'data.mode':            (c, d) => forSubSkill('data.basic', 'data.mode', dd => genData(c, dd), d),
   'data.range':           (c, d) => forSubSkill('data.basic', 'data.range', dd => genData(c, dd), d),
+  // docs/27 P2-05 … P2-14. Dedicated generators, so the attempt is logged
+  // against the concept the child actually met.
+  'bonds.basic':          (c, d) => Math.random() < 0.3 ? genBondFamily(c, d) : genNumberBond(c, d),
+  'equality.balance':     (c, d) => genEquality(c, d),
+  'frac.numberline':      (c, d) => genFractionLine(c, d),
+  'frac.compare':         (c, d) => genCompareFractions(c, d),
+  'compare.multiplicative': (c, d) => genMultiplicativeCompare(c, d),
+  'inverse.basic':        (c, d) => genInverse(c, d),
+  'rounding.decide':      (c, d) => genRounding(c, d),
   'patterns.basic':      (c, d) => genPattern(c, d),
   'numsense.compare':    (c, d) => genComparison(c, d),
   'numsense.estimate':   (c, d) => genEstimation(c, d),

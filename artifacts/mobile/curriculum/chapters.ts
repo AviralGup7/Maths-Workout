@@ -78,16 +78,26 @@ export const CHAPTERS: Chapter[] = [
     skills: ['mul.tables.easy', 'mul.tables.mid', 'mul.tables.full'],
   },
   {
+    // docs/27 P2-05/P2-06. The Singapore part-whole spine, and the meaning of
+    // `=`. Its own chapter rather than folded into addition because these are
+    // relationships to see, not sums to perform — and because a child who
+    // reads `=` as "write the answer" needs that named as a topic, not buried.
+    id: 'part-whole',
+    title: { en: 'Parts and Wholes', hi: 'भाग और पूर्ण' },
+    kind: 'core', introducedIn: '1st', prerequisites: ['counting'],
+    skills: ['bonds.basic', 'equality.balance'],
+  },
+  {
     id: 'number-sense',
     title: { en: 'Number Sense', hi: 'संख्या ज्ञान' },
     kind: 'core', introducedIn: '2nd', prerequisites: ['counting'],
-    skills: ['numsense.estimate', 'numsense.reasonable', 'patterns.basic'],
+    skills: ['numsense.estimate', 'numsense.reasonable', 'patterns.basic', 'rounding.decide'],
   },
   {
     id: 'sharing',
     title: { en: 'Sharing and Dividing', hi: 'बाँटना और भाग' },
     kind: 'core', introducedIn: '3rd', prerequisites: ['tables'],
-    skills: ['div.basic', 'div.tables'],
+    skills: ['div.basic', 'div.tables', 'inverse.basic'],
   },
   {
     id: 'bigger-numbers',
@@ -99,7 +109,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'fractions',
     title: { en: 'Fractions', hi: 'भिन्न' },
     kind: 'core', introducedIn: '3rd', prerequisites: ['sharing'],
-    skills: ['frac.ofAmount', 'frac.equivalence', 'frac.addSameDenom'],
+    skills: ['frac.ofAmount', 'frac.numberline', 'frac.compare', 'frac.equivalence', 'frac.addSameDenom'],
   },
   {
     id: 'geometry',
@@ -129,7 +139,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'word-problems',
     title: { en: 'Word Problems', hi: 'शब्द समस्याएँ' },
     kind: 'core', introducedIn: '3rd', prerequisites: ['carrying', 'tables', 'number-sense'],
-    skills: ['wordproblems'],
+    skills: ['wordproblems', 'compare.multiplicative'],
   },
   {
     id: 'proportion',

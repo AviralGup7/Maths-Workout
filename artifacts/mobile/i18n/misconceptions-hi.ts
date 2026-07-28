@@ -151,6 +151,50 @@ export const MISCONCEPTIONS_HI: Record<string, { label: string; explanation: str
     remediation:
       'पूछें "क्या यह संख्या को पूरा-पूरा बाँटता है?" गुणनखंड कभी संख्या से बड़ा नहीं होता।',
   },
+  // docs/27 P2-05 … P2-14 — the documented errors the structural skills exist
+  // to catch.
+  'equality.operational-reading': {
+    label: 'बराबर के चिह्न को "यहाँ उत्तर लिखो" समझना',
+    explanation:
+      'बाईं ओर का जोड़ लिख दिया गया, क्योंकि बराबर के चिह्न को हल करने का आदेश समझा जा रहा है, न कि यह कथन कि दोनों ओर बराबर हैं।',
+    remediation:
+      'वाक्य को "उतना ही" कहकर पढ़ें। एक ओर ढककर पूछें कि दूसरी ओर कितना होना चाहिए।',
+  },
+  'frac.whole-number-bias': {
+    label: 'भिन्नों को अंकों के हिसाब से क्रम देना',
+    explanation:
+      'जिसकी नीचे की संख्या बड़ी थी उसे बड़ा मान लिया गया, यानी हर पर पूर्ण संख्या का क्रम लगाया जा रहा है।',
+    remediation:
+      'एक ही पट्टी को दोनों तरह से काटकर दिखाएँ — जितने ज़्यादा टुकड़े, हर टुकड़ा उतना छोटा।',
+  },
+  'compare.additive-for-multiplicative': {
+    label: '"गुना" की जगह जोड़ना',
+    explanation:
+      '"3 गुना" को "3 ज़्यादा" समझ लिया गया, इसलिए गुणा की जगह जोड़ हो गया।',
+    remediation:
+      'छोटी मात्रा के लिए एक पट्टी बनाएँ, फिर पूछें कि बड़ी उसमें थोड़ा और है या वही पट्टी कई बार।',
+  },
+  'bonds.recount-from-one': {
+    label: 'याद करने की जगह एक से गिनना',
+    explanation:
+      'भागों को शुरू से गिना गया, याद नहीं किया गया — यह धीमा है और बड़ी संख्याओं पर टूट जाता है।',
+    remediation:
+      'दस के जोड़े बिना गिने याद आने तक अभ्यास कराएँ — ये याद रखने के तथ्य हैं, हल करने के सवाल नहीं।',
+  },
+  'inverse.repeated-not-reversed': {
+    label: 'उलटने की जगह वही संक्रिया दोहराना',
+    explanation:
+      'दी गई संक्रिया फिर से लगा दी गई, उलटी नहीं की गई — जहाँ भाग चाहिए था वहाँ गुणा हुआ।',
+    remediation:
+      'तथ्य-परिवार बोलकर दोहराएँ: अगर 7 × 8 = 56 तो 56 ÷ 8 = 7 और 56 ÷ 7 = 8।',
+  },
+  'rounding.wrong-precision': {
+    label: 'गलत स्थान तक पूर्णांकन',
+    explanation:
+      'संख्या को इतना पूर्णांकित कर दिया गया कि अर्थ ही चला गया, या जहाँ अनुमान चाहिए था वहाँ बिलकुल नहीं किया गया।',
+    remediation:
+      'पूर्णांकन से पहले पूछें कि संख्या किस काम की है — भीड़ और कीमत की सटीकता अलग होती है।',
+  },
   // docs/27 P2-01/02/03 — misconceptions that only became expressible once
   // geometry, measurement and data were split into separate skills.
   'geometry.wrong-dimension': {

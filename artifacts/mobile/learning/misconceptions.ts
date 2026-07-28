@@ -231,6 +231,64 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
   },
   // docs/27 P2-01. The split makes a NEW error visible that the broad node
   // could not express: using a formula correctly but on the wrong dimension.
+  // ── Structural concepts (docs/27 P2-05 … P2-14) ────────────────────────────
+  // The first two are the documented errors these skills exist to catch, not
+  // errors observed in this app's logs — they come from the literature that
+  // motivated adding the skills at all.
+  'equality.operational-reading': {
+    id: 'equality.operational-reading',
+    label: 'Reading = as "write the answer here"',
+    explanation:
+      'The total of the left-hand side was given, because the equals sign is being read as an instruction to compute rather than a statement that both sides match.',
+    remediation:
+      'Read the sentence aloud as "the same as". Cover one side and ask what the other side must come to.',
+    skills: ['equality.balance'],
+  },
+  'frac.whole-number-bias': {
+    id: 'frac.whole-number-bias',
+    label: 'Ordering fractions by their digits',
+    explanation:
+      'The fraction with the larger bottom number was chosen as larger, because whole-number ordering is being applied to the denominator.',
+    remediation:
+      'Cut the same strip into that many pieces both ways — more pieces means each piece is smaller.',
+    skills: ['frac.compare', 'frac.numberline'],
+  },
+  'compare.additive-for-multiplicative': {
+    id: 'compare.additive-for-multiplicative',
+    label: 'Adding where "times as many" was meant',
+    explanation:
+      '"3 times as many" was treated as "3 more than", so the numbers were added instead of multiplied.',
+    remediation:
+      'Draw one bar for the smaller amount, then ask whether the bigger one is that bar plus a bit, or that bar repeated.',
+    skills: ['compare.multiplicative'],
+  },
+  'bonds.recount-from-one': {
+    id: 'bonds.recount-from-one',
+    label: 'Counting from one instead of recalling the bond',
+    explanation:
+      'The parts were recounted from the beginning rather than recalled, which is slow and breaks down with larger numbers.',
+    remediation:
+      'Practise the bonds of ten until they come back without counting — they are facts to know, not sums to do.',
+    skills: ['bonds.basic'],
+  },
+  'inverse.repeated-not-reversed': {
+    id: 'inverse.repeated-not-reversed',
+    label: 'Repeating the operation instead of undoing it',
+    explanation:
+      'The given operation was applied again rather than reversed, so multiplication was used where division was needed.',
+    remediation:
+      'Say the fact family aloud: if 7 × 8 = 56 then 56 ÷ 8 = 7 and 56 ÷ 7 = 8.',
+    skills: ['inverse.basic'],
+  },
+  'rounding.wrong-precision': {
+    id: 'rounding.wrong-precision',
+    label: 'Rounding to an unhelpful place',
+    explanation:
+      'The number was rounded so far that the meaning was lost, or not rounded at all where an estimate was wanted.',
+    remediation:
+      'Ask what the number is FOR before rounding it — a crowd size and a price need different precision.',
+    skills: ['rounding.decide'],
+  },
   'geometry.wrong-dimension': {
     id: 'geometry.wrong-dimension',
     label: 'Using one side where two are needed',
@@ -566,6 +624,24 @@ export function diagnose(input: DiagnosisInput): string | null {
     const n = operands[0];
     if (n !== 0 && got !== 0 && got % n === 0 && got > n) {
       return 'factors.multiple-not-factor';
+    }
+  }
+
+  // ── Structural concepts (docs/27 P2-05 … P2-14) ────────────────────────────
+  if (skill === 'equality.balance' && operands.length >= 2 && numeric) {
+    // The left-hand total is the operational reading. Diagnosed from the
+    // operands rather than a distractor map, so it fires on typed entry too.
+    const [a, b] = operands;
+    if (got === a + b && exp !== a + b) return 'equality.operational-reading';
+  }
+  if (skill === 'compare.multiplicative' && operands.length >= 2 && numeric) {
+    const [base, k] = operands;
+    if (got === base + k && exp === base * k) return 'compare.additive-for-multiplicative';
+  }
+  if (skill === 'inverse.basic' && operands.length >= 2 && numeric) {
+    const [a, b] = operands;
+    if ((got === a * b || got === a + b) && got !== exp) {
+      return 'inverse.repeated-not-reversed';
     }
   }
 

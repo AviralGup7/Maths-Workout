@@ -5,11 +5,11 @@
 Supersedes `18-outstanding-work.md` (all 22 items complete). Tick items here as they land; do not maintain a second list anywhere else.
 
 ```
-Progress    25 of 93 complete · Phase 1 complete · Phase 2 §2.1 done
+Progress    32 of 93 complete · Phase 1 complete · Phase 2 §2.1 done, §2.2 in progress
 Baseline    a81e9e5
 Verify      cd artifacts/mobile && npm run verify     # typecheck + arch-check 7/7 + 675 tests
 UI check    npm run ui:smoke                          # 23 browser assertions
-Current     55 skills · 28 worked-example solvers · 45 hinted · 40 misconceptions
+Current     62 skills · 28 worked-example solvers · 62 hinted · 46 misconceptions
             18 chapters · 15 achievements · 6 interaction kinds
             error analysis 8.43% of planned questions (was 0.00% adaptive)
 ```
@@ -79,16 +79,16 @@ Current     55 skills · 28 worked-example solvers · 45 hinted · 40 misconcept
 
 ### 2.2 Missing high-value concepts
 
-- [ ] **P2-05 · Number bonds / part-whole** as a first-class family (docs/26 A7 — Singapore spine)
-- [ ] **P2-06 · Equality as balance** — `8 + 4 = □ + 5` (docs/26 A8 — McNeil)
-- [ ] **P2-07 · Fractions on a number line** (docs/26 A11 — NAEP's strongest predictor)
-- [ ] **P2-08 · Comparing fractions** — whole-number bias
+- [x] **P2-05 · Number bonds / part-whole** as a first-class family (docs/26 A7 — Singapore spine)
+- [x] **P2-06 · Equality as balance** — `8 + 4 = □ + 5` (docs/26 A8 — McNeil)
+- [x] **P2-07 · Fractions on a number line** (docs/26 A11 — NAEP's strongest predictor)
+- [x] **P2-08 · Comparing fractions** — whole-number bias
 - [ ] **P2-09 · Fraction subtraction, unlike denominators, mixed numbers**
-- [ ] **P2-10 · Multiplicative comparison** — "3 times as many"
-- [ ] **P2-11 · Inverse relationships** taught as structure
+- [x] **P2-10 · Multiplicative comparison** — "3 times as many"
+- [x] **P2-11 · Inverse relationships** taught as structure
 - [ ] **P2-12 · Elapsed time**
 - [ ] **P2-13 · Negative-number arithmetic** (currently recognition only)
-- [ ] **P2-14 · Rounding as a decision**
+- [x] **P2-14 · Rounding as a decision**
 - [ ] **P2-15 · Probability and chance**
 - [ ] **P2-16 · 3D shapes, nets, volume** (spatial reasoning predicts STEM attainment)
 - [x] **P2-17 · Misconceptions for every new skill** — 55/55 held after the splits. *(Re-open if §2.2 adds skills.)*

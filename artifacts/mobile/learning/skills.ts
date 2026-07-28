@@ -129,6 +129,21 @@ export const SKILLS: Record<SkillId, Skill> = {
   'data.range':          { id: 'data.range',          label: 'Range',                         prerequisites: ['sub.2digit.borrow'],  introducedIn: '5th', category: 'data' },
   'integers.basic':      { id: 'integers.basic',      label: 'Positive and negative numbers', prerequisites: ['sub.3digit'],         introducedIn: '6th', category: 'integers' },
   'algebra.basic':       { id: 'algebra.basic',       label: 'Find the unknown value',        prerequisites: ['mul.tables.full', 'patterns.basic'], introducedIn: '6th', category: 'algebra' },
+  // ── Structural concepts (docs/27 P2-05 … P2-14) ────────────────────────────
+  // None of these is a new procedure; each is a way of SEEING relationships
+  // the child already computes. They sit early in the graph on purpose —
+  // number bonds and equality are foundations, not enrichment.
+  'bonds.basic':         { id: 'bonds.basic',         label: 'Number bonds',                  prerequisites: ['count.objects'],      introducedIn: '1st', category: 'addition' },
+  // McNeil: most primary children read `=` as "write the answer here". The
+  // repair is exposure to non-canonical forms, of which the app had none.
+  'equality.balance':    { id: 'equality.balance',    label: 'Equals means balanced',         prerequisites: ['add.within20'],       introducedIn: '2nd', category: 'addition' },
+  // Siegler/NAEP: fraction magnitude is the strongest single predictor of
+  // later algebra attainment, and the number line is where magnitude lives.
+  'frac.numberline':     { id: 'frac.numberline',     label: 'Fractions on a number line',    prerequisites: ['frac.ofAmount'],      introducedIn: '3rd', category: 'fractions' },
+  'frac.compare':        { id: 'frac.compare',        label: 'Comparing fractions',           prerequisites: ['frac.numberline'],    introducedIn: '4th', category: 'fractions' },
+  'compare.multiplicative': { id: 'compare.multiplicative', label: 'Times as many',           prerequisites: ['mul.tables.mid'],     introducedIn: '4th', category: 'word_problems' },
+  'inverse.basic':       { id: 'inverse.basic',       label: 'Inverse operations',            prerequisites: ['mul.tables.mid'],     introducedIn: '3rd', category: 'division' },
+  'rounding.decide':     { id: 'rounding.decide',     label: 'Rounding sensibly',             prerequisites: ['placevalue', 'numsense.estimate'], introducedIn: '4th', category: 'number_sense' },
   'wordproblems':        { id: 'wordproblems',        label: 'Word problems',                 prerequisites: ['add.2digit.carry', 'mul.tables.mid', 'numsense.reasonable'], introducedIn: '3rd', category: 'word_problems' },
   'shapes.basic':        { id: 'shapes.basic',        label: 'Shapes',                        prerequisites: [],                     introducedIn: '1st', category: 'shapes' },
   'time.basic':          { id: 'time.basic',          label: 'Telling the time',              prerequisites: ['count.objects'],      introducedIn: '1st', category: 'time' },
