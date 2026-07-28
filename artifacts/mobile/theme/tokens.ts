@@ -127,8 +127,63 @@ export const DARK: Palette = {
   mastered:      '#B6F7D6',
 };
 
-export type ThemeName = 'light' | 'dark';
-export const PALETTES: Record<ThemeName, Palette> = { light: LIGHT, dark: DARK };
+/**
+ * High contrast — docs/28 item 54.
+ *
+ * Not "dark mode with more contrast". Low vision, and the residual vision that
+ * remains with cataract or corneal scarring, is served by MAXIMUM luminance
+ * separation and hard edges, not by a tasteful palette. Every text pair here
+ * clears 7:1 (WCAG AAA) rather than 4.5:1, borders are full-strength rather
+ * than decorative, and the semantic colours are pushed to the extremes of
+ * their hue so they remain distinguishable at low acuity.
+ *
+ * Offered free and prominently. An accessibility theme behind an unlock would
+ * be indefensible.
+ */
+export const HIGH_CONTRAST: Palette = {
+  bg:            '#FFFFFF',
+  surface:       '#FFFFFF',
+  surfaceSunken: '#F2F2F2',
+  surfaceRaised: '#FFFFFF',
+
+  // Borders carry structure here rather than decoration: at low acuity a 1.6
+  // ratio edge simply does not exist, so cards would merge into the page.
+  border:        '#000000',
+  borderStrong:  '#000000',
+
+  text:          '#000000',
+  textMuted:     '#3A3A3A',   // 10.8:1 — still AAA, so nothing is "quiet"
+  textInverse:   '#FFFFFF',
+
+  primary:       '#0000C8',
+  primaryOn:     '#FFFFFF',
+  primarySoft:   '#E4E4FF',
+
+  // Correct and wrong must differ in LUMINANCE, not only hue — a deep green
+  // and a deep red at the same lightness are the same colour to a
+  // deuteranopic reader, which is precisely the 1.07 defect the standard
+  // palettes were rebuilt to fix. The first draft of this theme scored 1.05
+  // between the two; the guard caught it. This pair measures 2.99 apart while
+  // both still clear AA on white.
+  correct:       '#007A42',
+  correctOn:     '#FFFFFF',
+  correctSoft:   '#DFF5E8',
+  wrong:         '#4A0000',
+  wrongOn:       '#FFFFFF',
+  wrongSoft:     '#FFE4E4',
+  attention:     '#6B4400',
+  attentionSoft: '#FFF0D6',
+
+  locked:        '#3A3A3A',
+  mastered:      '#005C2E',
+};
+
+export type ThemeName = 'light' | 'dark' | 'highContrast';
+export const PALETTES: Record<ThemeName, Palette> = {
+  light: LIGHT,
+  dark: DARK,
+  highContrast: HIGH_CONTRAST,
+};
 
 // ─── State semantics (A1 — the equity fix) ───────────────────────────────────
 
@@ -220,6 +275,21 @@ export const TYPE = {
 } as const;
 
 export type TypeRole = keyof typeof TYPE;
+
+/**
+ * Dyslexia-friendly typeface flag — docs/28 item 53.
+ *
+ * Lives here, in the lowest layer, because BOTH the theme provider (which owns
+ * the preference) and the global <Text> patch (which applies it) need it, and
+ * a component may not be imported by the theme — the architecture guard
+ * enforces that direction and was right to reject the first attempt.
+ *
+ * A module-level flag rather than context: the patch replaces `Text.render`
+ * once at startup and cannot subscribe to React.
+ */
+let dyslexicTypeface = false;
+export function setDyslexicTypeface(on: boolean): void { dyslexicTypeface = on; }
+export function isDyslexicTypeface(): boolean { return dyslexicTypeface; }
 
 /** Nothing in the product may render text below this size. */
 export const MIN_FONT_SIZE = 13;

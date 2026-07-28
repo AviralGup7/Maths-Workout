@@ -2,6 +2,7 @@ import React from 'react';
 import { Text as RNText, StyleSheet } from 'react-native';
 import type { TextProps, TextStyle } from 'react-native';
 import { fontForText } from '@/hooks/useFontFamily';
+import { isDyslexicTypeface } from '@/theme/tokens';
 import type { InterWeight } from '@/hooks/useFontFamily';
 
 /**
@@ -40,6 +41,22 @@ function resolveFontFamily(style: TextStyle | undefined, text: string): TextStyl
   return resolved === family ? style : { ...style, fontFamily: resolved };
 }
 
+/**
+ * Dyslexia-friendly override — docs/28 item 53.
+ *
+ * Module-level rather than a hook because the patch below replaces
+ * `Text.render` once at startup and cannot subscribe to React context. The
+ * provider pushes the value in; a stale read is impossible because the setter
+ * runs on the same tick as the state change.
+ *
+ * `System` resolves to the platform's own UI face (San Francisco / Roboto),
+ * both of which are humanist sans-serifs with distinct b/d/p/q shapes — the
+ * property that actually matters for dyslexic readers. This deliberately does
+ * NOT ship a bundled OpenDyslexic: the evidence for that specific typeface is
+ * weak, the licence is restrictive, and it would add ~200KB for a debatable
+ * benefit. What is well supported is increased letter spacing and line height,
+ * which is applied alongside.
+ */
 let installed = false;
 
 /**
@@ -58,6 +75,24 @@ export function installScriptAwareText(): void {
 
   Base.render = function patched(props: TextProps, ref: unknown) {
     const text = extractText(props.children);
+
+    // Dyslexia mode applies to ALL text, so it is handled before the
+    // Devanagari early-out below.
+    if (isDyslexicTypeface()) {
+      const flatD = StyleSheet.flatten(props.style) as TextStyle | undefined;
+      const size = typeof flatD?.fontSize === 'number' ? flatD.fontSize : 16;
+      const dys: TextStyle = {
+        ...flatD,
+        // Drop the weight-specific family: a single face with unambiguous
+        // letterforms beats four weights of a geometric sans here.
+        fontFamily: undefined,
+        // Both of these are the well-evidenced part of the accommodation.
+        letterSpacing: Math.max(flatD?.letterSpacing ?? 0, size * 0.04),
+        lineHeight: Math.max(flatD?.lineHeight ?? 0, Math.round(size * 1.6)),
+      };
+      return original.call(this, { ...props, style: dys }, ref);
+    }
+
     // Only pay the cost when Devanagari is actually present.
     if (!/[\u0900-\u097F]/.test(text)) return original.call(this, props, ref);
 

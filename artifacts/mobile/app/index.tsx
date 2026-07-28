@@ -16,6 +16,7 @@ import { SEEN_WELCOME_KEY } from './welcome';
 import { DAILY_GOAL } from '@/context/GameContext';
 import { t } from '@/i18n/strings';
 import { SKILLS } from '@/learning/skills';
+import { skillLabel } from '@/i18n/skills-hi';
 import { STRUGGLING_THRESHOLD } from '@/learning/mastery';
 import { dueReviewChapters, CHAPTERS, chapterStatus } from '@/curriculum/chapters';
 import { MASTERED_THRESHOLD } from '@/learning/mastery';
@@ -121,7 +122,8 @@ export default function HomeScreen() {
 
   const sessionSummary = useMemo(() => {
     if (weakest.length > 0) {
-      const first = SKILLS[weakest[0].skill]?.label ?? '';
+      const first = SKILLS[weakest[0].skill]
+        ? skillLabel(weakest[0].skill, SKILLS[weakest[0].skill].label, lang) : '';
       return weakest.length > 1
         ? (lang === 'hi' ? `${first}, और ${weakest.length - 1} और` : `${first}, and ${weakest.length - 1} more`)
         : first;
@@ -247,11 +249,11 @@ export default function HomeScreen() {
                 {t('needsAttention', lang)}
               </Text>
               {weakest.map(m => (
-                <Card key={m.skill} onPress={start} accessibilityLabel={SKILLS[m.skill].label}>
+                <Card key={m.skill} onPress={start} accessibilityLabel={skillLabel(m.skill, SKILLS[m.skill].label, lang)}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
                     <Feather name="target" size={18} color={c.attention} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[type('body'), { color: c.text }]}>{SKILLS[m.skill].label}</Text>
+                      <Text style={[type('body'), { color: c.text }]}>{skillLabel(m.skill, SKILLS[m.skill].label, lang)}</Text>
                       <View style={{ marginTop: space.xs }}>
                         <ProgressBar value={m.value} tint={c.attention} showValue={false} height={5} />
                       </View>

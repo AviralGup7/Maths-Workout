@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { Mascot } from '@/components/Mascot';
+import { ChapterMap } from '@/components/ChapterMap';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, SchoolClass, Category } from '@/context/GameContext';
 import { classTextTone } from '@/generators';
@@ -12,6 +13,7 @@ import { MISCONCEPTIONS_HI } from '@/i18n/misconceptions-hi';
 import { t, categoryLabel } from '@/i18n/strings';
 import { CLASS_LABELS } from '@/curriculum/boards';
 import { SKILLS } from '@/learning/skills';
+import { skillLabel } from '@/i18n/skills-hi';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from '@/learning/mastery';
 import { biggestGain, growthSentence } from '@/learning/feedback';
 import { evaluateAchievements } from '@/progression/achievements';
@@ -187,27 +189,11 @@ export default function ProgressScreen() {
         {journey.length > 0 && (
           <>
             <Text style={styles.sectionLabel}>{lang === 'hi' ? 'आपका सफ़र' : 'YOUR JOURNEY'}</Text>
+            {/* docs/28 item 43: six identical grey rows with a percentage was an
+                inventory, not a journey. The map shows position AND density, so
+                progress is legible without reading a number. */}
             <View style={styles.insightCard}>
-              {journey.slice(0, 6).map(({ ch, status, pct }) => (
-                <View key={ch.id} style={styles.journeyRow}>
-                  {/* docs/28: every chapter rendered as the same grey row with
-                      the same glyph, so a child who cannot read the titles had
-                      nothing to navigate by. Colour and icon give each chapter
-                      an identity that survives not reading. */}
-                  <View style={[styles.chapterTile, {
-                    backgroundColor: chapterStyle(ch.id).colour + '1A',
-                    borderColor: status === 'complete' ? chapterStyle(ch.id).colour : 'transparent',
-                  }]}>
-                    <Feather
-                      name={(status === 'complete' ? 'check' : chapterStyle(ch.id).icon) as never}
-                      size={16}
-                      color={chapterStyle(ch.id).colour}
-                    />
-                  </View>
-                  <Text style={styles.journeyTitle}>{lang === 'hi' ? ch.title.hi : ch.title.en}</Text>
-                  <Text style={styles.journeyPct}>{pctLabel(pct, lang)}</Text>
-                </View>
-              ))}
+              <ChapterMap items={journey.slice(0, 6)} lang={lang} />
             </View>
           </>
         )}
@@ -306,7 +292,7 @@ export default function ProgressScreen() {
                 return (
                   <View key={m.skill} style={styles.skillRow}>
                     <View style={styles.skillTop}>
-                      <Text style={styles.skillName} numberOfLines={1}>{SKILLS[m.skill].label}</Text>
+                      <Text style={styles.skillName} numberOfLines={1}>{skillLabel(m.skill, SKILLS[m.skill].label, lang)}</Text>
                       <Text style={[styles.skillPct, { color: tone }]}>{pct}%</Text>
                     </View>
                     <View style={styles.skillTrack}>
@@ -314,7 +300,7 @@ export default function ProgressScreen() {
                     </View>
                     {gap && SKILLS[gap] && (
                       <Text style={styles.skillGap}>
-                        {t('likelyCause', lang)}: {SKILLS[gap].label} — {t('needsWorkFirst', lang)}
+                        {t('likelyCause', lang)}: {skillLabel(gap, SKILLS[gap].label, lang)} — {t('needsWorkFirst', lang)}
                       </Text>
                     )}
                     {m.trend !== 0 && Math.abs(m.trend) > 0.15 && (

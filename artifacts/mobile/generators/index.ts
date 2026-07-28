@@ -57,8 +57,16 @@ export const CLASS_CONFIGS: ClassConfig[] = [
   { key: '6th', label: 'Class 6', ageRange: 'Age 11–12',color: '#AB47BC', textColor: '#7B2A8A', textColorDark: '#DFA3EC' },
 ];
 
-/** The accessible text tone for a class, for the active theme. */
-export function classTextTone(cfg: ClassConfig, theme: 'light' | 'dark'): string {
+/**
+ * The accessible text tone for a class, for the active theme.
+ *
+ * High contrast deliberately discards the class hue entirely: at low acuity a
+ * coloured label is a legibility cost with no navigational benefit, and the
+ * theme's contract is maximum luminance separation. The identity is still
+ * carried by the FILL behind it, which is unaffected.
+ */
+export function classTextTone(cfg: ClassConfig, theme: 'light' | 'dark' | 'highContrast'): string {
+  if (theme === 'highContrast') return '#000000';
   return theme === 'dark' ? cfg.textColorDark : cfg.textColor;
 }
 

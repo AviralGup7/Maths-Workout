@@ -40,6 +40,10 @@ export const KEYS = {
   timerPref:     '@maths_workout_timer_pref',
   theme:         '@maths_workout_theme',
   textScale:     '@maths_workout_text_scale',
+  /** Dyslexia-friendly typeface — docs/28 item 53. */
+  dyslexicFont:  '@maths_workout_dyslexic_font',
+  /** Animation speed multiplier — docs/28 item 60. */
+  motionSpeed:   '@maths_workout_motion_speed',
   deviceId:      '@maths_workout_device_id',
   seenWelcome:   '@maths_workout_seen_welcome',
   /** Single manifest version covering every key above. */

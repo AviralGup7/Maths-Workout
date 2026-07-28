@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { playSound, setSoundEnabled, isSoundEnabled } from '@/hooks/useFeedbackSound';
+import { setMotionSpeed, getMotionSpeed } from '@/hooks/motionRules';
 import * as Haptics from 'expo-haptics';
 import { useGame } from '@/context/GameContext';
 import { BOARD_CONFIGS, categoriesFor, CLASS_LABELS } from '@/curriculum/boards';
@@ -57,6 +58,8 @@ export default function BoardSelectScreen() {
   const router = useRouter();
   const { board, setBoard, lang, setLang, timerPref, setTimerPref } = useGame();
   const [soundOn, setSoundOn] = React.useState(isSoundEnabled());
+  const [speed, setSpeed] = React.useState(getMotionSpeed());
+  const { preference, setPreference, dyslexicFont, setDyslexicFont } = useTheme();
   // docs/28: a single mid-tone accent cannot clear AA on BOTH a light and a
   // dark wash of itself — darkening these for light mode pushed dark mode from
   // 6 failures to 15. Each board therefore carries two tones of the same hue.
@@ -204,6 +207,92 @@ export default function BoardSelectScreen() {
                   setSoundOn(opt.key);
                   if (opt.key) playSound('correct');
                 }}
+                activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sel }}
+              >
+                <Text style={[styles.langText, sel && { color: C.primary }]}>{opt.label}</Text>
+                {sel && <Feather name="check" size={15} color={C.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* ── Appearance and accessibility — docs/28 items 53, 54, 60 ──────
+            All free and all prominent. An accessibility option behind an
+            unlock, or buried three screens deep, is not an accessibility
+            option. */}
+        <Text style={[styles.sectionLabel, { marginTop: 22 }]}>
+          {lang === 'hi' ? 'दिखावट · APPEARANCE' : 'APPEARANCE'}
+        </Text>
+        <View style={styles.langRow}>
+          {([
+            { key: 'light' as const,        label: lang === 'hi' ? 'हल्का' : 'Light' },
+            { key: 'dark' as const,         label: lang === 'hi' ? 'गहरा' : 'Dark' },
+            { key: 'highContrast' as const, label: lang === 'hi' ? 'उच्च कंट्रास्ट' : 'High contrast' },
+          ]).map(opt => {
+            const sel = preference === opt.key;
+            return (
+              <TouchableOpacity
+                key={opt.key}
+                style={[styles.langChip, sel && styles.langChipOn]}
+                onPress={() => { Haptics.selectionAsync(); setPreference(opt.key); }}
+                activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sel }}
+              >
+                <Text style={[styles.langText, sel && { color: C.primary }]}>{opt.label}</Text>
+                {sel && <Feather name="check" size={15} color={C.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.sectionLabel, { marginTop: 22 }]}>
+          {lang === 'hi' ? 'पढ़ने में आसान अक्षर · EASIER LETTERS' : 'EASIER LETTERS'}
+        </Text>
+        <View style={styles.langRow}>
+          {([
+            { key: false, label: lang === 'hi' ? 'सामान्य' : 'Standard' },
+            { key: true,  label: lang === 'hi' ? 'चालू' : 'On' },
+          ]).map(opt => {
+            const sel = dyslexicFont === opt.key;
+            return (
+              <TouchableOpacity
+                key={String(opt.key)}
+                style={[styles.langChip, sel && styles.langChipOn]}
+                onPress={() => { Haptics.selectionAsync(); setDyslexicFont(opt.key); }}
+                activeOpacity={0.8}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: sel }}
+              >
+                <Text style={[styles.langText, sel && { color: C.primary }]}>{opt.label}</Text>
+                {sel && <Feather name="check" size={15} color={C.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text style={styles.timerNote}>
+          {lang === 'hi'
+            ? 'अक्षरों के बीच और पंक्तियों के बीच अधिक जगह — पढ़ने में कठिनाई होने पर मदद करता है।'
+            : 'More space between letters and lines. Helps many children who find reading hard.'}
+        </Text>
+
+        <Text style={[styles.sectionLabel, { marginTop: 22 }]}>
+          {lang === 'hi' ? 'गति · ANIMATION SPEED' : 'ANIMATION SPEED'}
+        </Text>
+        <View style={styles.langRow}>
+          {([
+            { key: 0.5, label: lang === 'hi' ? 'धीमा' : 'Slower' },
+            { key: 1,   label: lang === 'hi' ? 'सामान्य' : 'Normal' },
+            { key: 2,   label: lang === 'hi' ? 'तेज़' : 'Faster' },
+          ]).map(opt => {
+            const sel = speed === opt.key;
+            return (
+              <TouchableOpacity
+                key={String(opt.key)}
+                style={[styles.langChip, sel && styles.langChipOn]}
+                onPress={() => { Haptics.selectionAsync(); setMotionSpeed(opt.key); setSpeed(opt.key); }}
                 activeOpacity={0.8}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: sel }}

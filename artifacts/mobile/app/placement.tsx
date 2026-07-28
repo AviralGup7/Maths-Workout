@@ -17,6 +17,7 @@ import {
   MAX_PLACEMENT_QUESTIONS, type PlacementState,
 } from '@/learning/placement';
 import { SKILLS } from '@/learning/skills';
+import { skillLabel } from '@/i18n/skills-hi';
 import { categoryForSkill } from '@/learning/scheduler';
 import { generateForSkill } from '@/generators';
 import { expectedAnswer } from '@/generators/interactions';
@@ -201,7 +202,7 @@ export default function PlacementScreen() {
               {summary.secure.length > 0 && (
                 <Text style={[type('caption'), { color: c.textMuted, marginTop: space.sm }]}>
                   {hi ? 'पक्का लगा: ' : 'Looked secure: '}
-                  {summary.secure.slice(0, 4).map(s => SKILLS[s]?.label).filter(Boolean).join(', ')}
+                  {summary.secure.slice(0, 4).map(s => SKILLS[s] && skillLabel(s, SKILLS[s].label, lang)).filter(Boolean).join(', ')}
                 </Text>
               )}
             </Card>

@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import { Animated, Easing } from 'react-native';
 import { useReducedMotion } from './useA11y';
+import { scaleDuration } from './motionRules';
 
 type TimingCfg = Omit<Animated.TimingAnimationConfig, 'useNativeDriver'> & { useNativeDriver?: boolean };
 type SpringCfg = Omit<Animated.SpringAnimationConfig, 'useNativeDriver'> & { useNativeDriver?: boolean };
@@ -40,7 +41,7 @@ export function useMotion(): Motion {
   const reduced = useReducedMotion();
 
   return useMemo<Motion>(() => {
-    const ms = (duration: number) => (reduced ? 0 : duration);
+    const ms = (duration: number) => (reduced ? 0 : scaleDuration(duration));
 
     const timing = (value: Animated.Value, cfg: TimingCfg) =>
       Animated.timing(value, {

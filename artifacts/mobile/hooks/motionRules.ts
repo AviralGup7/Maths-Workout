@@ -9,6 +9,28 @@
  * stays deliberately longer - the child needs time to read the diagnosis, and
  * rushing past a mistake defeats the purpose of detecting it.
  */
+/**
+ * Animation speed multiplier — docs/28 item 60.
+ *
+ * Distinct from the OS "reduce motion" switch, which is binary and global.
+ * Some children are not motion-sensitive but ARE overwhelmed by a fast
+ * interface, and some want it faster than default once they are fluent. This
+ * scales travel time only; it never scales a pause that exists so text can be
+ * read (see `readingDelay`), because speeding that up removes information
+ * rather than movement.
+ *
+ * Module-level so the pure motion helpers can read it without React.
+ */
+let motionSpeed = 1;
+export function setMotionSpeed(multiplier: number): void {
+  motionSpeed = Math.max(0.5, Math.min(2, multiplier));
+}
+export function getMotionSpeed(): number { return motionSpeed; }
+/** Scale an animation duration by the user's speed preference. */
+export function scaleDuration(ms: number): number {
+  return Math.round(ms / getMotionSpeed());
+}
+
 export const FEEDBACK_MS = {
   correct: 280,
   correctBlitz: 200,

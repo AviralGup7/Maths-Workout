@@ -25,6 +25,7 @@ import { useSpeech, readAloudDefault } from '@/hooks/useSpeech';
 import { playSound } from '@/hooks/useFeedbackSound';
 import { Mascot } from '@/components/Mascot';
 import { classTextTone } from '@/generators';
+import { skillLabel } from '@/i18n/skills-hi';
 import { hintLevelFor, hintText, hintsFor, needsDescentNotHints } from '@/learning/hints';
 import {
   shouldAskConfidence, quadrant, CONFIDENCE_COPY,
@@ -226,6 +227,11 @@ export default function GameScreen() {
   const classColor      = classConfig?.color ?? C.primary;
   // Fill vs text: the pastel is only safe as a wash (docs/28).
   const classTextColor  = classConfig ? classTextTone(classConfig, themeName) : C.primary;
+  // The skill this question is actually practising, in the child's language.
+  const activeSkillId = sessionSkillFor(currentIndex);
+  const activeSkillLabel = activeSkillId && SKILLS[activeSkillId]
+    ? skillLabel(activeSkillId, SKILLS[activeSkillId].label, lang)
+    : undefined;
   // In adaptive and Mixed sessions the topic changes per question, so label the
   // question actually on screen rather than the session's nominal category.
   const activeCategory  = currentQuestion?.resolvedCategory ?? selectedCategory;
@@ -442,7 +448,9 @@ export default function GameScreen() {
       const after = before + (1 - before) * 0.12;
       if (before < MASTERED_THRESHOLD && after >= MASTERED_THRESHOLD && hits >= 3) {
         masteryShownRef.current.add(skillNow);
-        const label = SKILLS[skillNow]?.label ?? skillNow;
+        const label = SKILLS[skillNow]
+          ? skillLabel(skillNow, SKILLS[skillNow].label, lang)
+          : skillNow;
         playSound('celebrate');
         setMasteryWin(lang === 'hi' ? `${label} पक्का हुआ!` : `${label} is secure!`);
       }
@@ -684,8 +692,16 @@ export default function GameScreen() {
           <View style={[styles.pill, { backgroundColor: classColor + '22' }]}>
             <Text style={[styles.pillText, { color: classTextColor }]}>{classConfig ? CLASS_LABELS[classConfig.key][lang === 'hi' ? 'hi' : 'en'] : ''}</Text>
           </View>
+          {/* docs/28 item 39: the chip named the CATEGORY ("Addition"), which
+              is true of half the app. Naming the SKILL tells the child what
+              this particular stretch of questions is for, which is the whole
+              claim the adaptive engine is making and was invisible to them. */}
           <View style={[styles.pill, { backgroundColor: catMeta.color + '22' }]}>
-            <Text style={[styles.pillText, { color: catMeta.color }]}>{isTablesMode ? t('timesTables', lang).replace('\n', ' ') : categoryLabel(activeCategory, lang)}</Text>
+            <Text style={[styles.pillText, { color: catMeta.color }]} numberOfLines={1}>
+              {isTablesMode
+                ? t('timesTables', lang).replace('\n', ' ')
+                : (activeSkillLabel ?? categoryLabel(activeCategory, lang))}
+            </Text>
           </View>
         </View>
         <View style={styles.scorePill}>
@@ -806,7 +822,11 @@ export default function GameScreen() {
           removes the productive struggle where the learning happens. */}
       {!!hintLine && (
         <View style={styles.hintBox} accessibilityLiveRegion="polite">
-          <Feather name="help-circle" size={14} color={C.medium} />
+          {/* docs/28 item 44: a hint delivered by a question-mark glyph is the
+              system talking. The same words from the character are a helper
+              talking, which is a materially different thing to accept help
+              from when you are seven and stuck. */}
+          <Mascot mood="encouraging" size={40} />
           <Text style={styles.hintText}>{hintLine}</Text>
         </View>
       )}
@@ -989,7 +1009,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   },
   confidenceBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: C.primary },
   hintBox: {
-    flexDirection: 'row', gap: 8, alignItems: 'flex-start',
+    flexDirection: 'row', gap: 8, alignItems: 'center',
     marginBottom: 12, paddingVertical: 10, paddingHorizontal: 12,
     backgroundColor: C.medium + '12', borderRadius: 12,
   },

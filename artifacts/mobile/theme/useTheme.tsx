@@ -13,13 +13,15 @@ import { useColorScheme, useWindowDimensions, Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { readEnum, readNumber } from '../lib/storage';
 import {
-  PALETTES, TYPE, SPACE, RADIUS, TOUCH, ELEVATION,
+  PALETTES, TYPE, SPACE, RADIUS, TOUCH, ELEVATION, setDyslexicTypeface,
   sizeClassFor, CONTENT_MAX_WIDTH,
 } from './tokens';
 import type { Palette, ThemeName, TypeRole, SizeClass } from './tokens';
 
+
 const THEME_KEY = '@maths_workout_theme';
 const TEXT_SCALE_KEY = '@maths_workout_text_scale';
+const DYSLEXIC_KEY = '@maths_workout_dyslexic_font';
 
 /** 'system' follows the OS; the other two are explicit overrides. */
 export type ThemePreference = ThemeName | 'system';
@@ -42,12 +44,15 @@ export interface Theme {
   contentMaxWidth: number | null;
   /** User text-scale multiplier, 1.0–2.0. */
   textScale: number;
+  /** Dyslexia-friendly typeface requested — docs/28 item 53. */
+  dyslexicFont: boolean;
 }
 
 interface ThemeCtx extends Theme {
   preference: ThemePreference;
   setPreference: (p: ThemePreference) => void;
   setTextScale: (n: number) => void;
+  setDyslexicFont: (on: boolean) => void;
   /** True until stored preferences have been read. */
   loaded: boolean;
 }
@@ -63,6 +68,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const { width } = useWindowDimensions();
   const [preference, setPref] = useState<ThemePreference>('light');
   const [textScale, setScale] = useState(1);
+  // docs/28 item 53. The type scale already carries a 1.6 body line-height as
+  // a dyslexia accommodation, which showed the awareness was there; this makes
+  // it a choice rather than a fixed guess. Atkinson Hyperlegible is the
+  // evidence-backed option (Braille Institute, designed for low vision and
+  // widely reported as easier by dyslexic readers) and degrades to the system
+  // sans if it is unavailable, so nothing ever renders as tofu.
+  const [dyslexic, setDyslexic] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -71,12 +83,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // validation. The inline version here happened to be correct, but every
     // duplicate of a validation rule is a place for one to drift.
     Promise.all([
-      readEnum(THEME_KEY, ['light', 'dark', 'system'] as const, 'system'),
+      readEnum(THEME_KEY, ['light', 'dark', 'highContrast', 'system'] as const, 'system'),
       readNumber(TEXT_SCALE_KEY, 1),
-    ]).then(([t, n]) => {
+      readEnum(DYSLEXIC_KEY, ['on', 'off'] as const, 'off'),
+    ]).then(([t, n, d]) => {
       if (!alive) return;
       setPref(t);
       if (n >= TEXT_SCALE_MIN && n <= TEXT_SCALE_MAX) setScale(n);
+      setDyslexic(d === 'on');
+      setDyslexicTypeface(d === 'on');
     }).catch(() => {}).finally(() => { if (alive) setLoaded(true); });
     return () => { alive = false; };
   }, []);
@@ -84,6 +99,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setPreference = useCallback((p: ThemePreference) => {
     setPref(p);
     AsyncStorage.setItem(THEME_KEY, p).catch(() => {});
+  }, []);
+
+  const setDyslexicFont = useCallback((on: boolean) => {
+    setDyslexic(on);
+    setDyslexicTypeface(on);
+    AsyncStorage.setItem(DYSLEXIC_KEY, on ? 'on' : 'off').catch(() => {});
   }, []);
 
   const setTextScale = useCallback((n: number) => {
@@ -107,6 +128,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       sizeClass,
       contentMaxWidth: CONTENT_MAX_WIDTH[sizeClass],
       textScale,
+      dyslexicFont: dyslexic,
       type: (role: TypeRole) => {
         const t = TYPE[role];
         const fontSize = Math.round(t.size * textScale);
@@ -119,9 +141,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           letterSpacing: t.tracking,
         };
       },
-      preference, setPreference, setTextScale, loaded,
+      preference, setPreference, setTextScale, setDyslexicFont, loaded,
     };
-  }, [name, width, textScale, preference, setPreference, setTextScale, loaded]);
+  }, [name, width, textScale, dyslexic, preference, setPreference, setTextScale, setDyslexicFont, loaded]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
