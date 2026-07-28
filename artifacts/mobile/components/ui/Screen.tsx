@@ -108,7 +108,7 @@ export function ScreenHeader({
           (onBack ?? (() => router.back()))();
         }}
         hitSlop={touchSlop(40)}
-        style={{ width: 40, height: 40, textAlign: 'center', lineHeight: 40 }}
+        style={{ width: 44, height: 44, textAlign: 'center', lineHeight: 44 }}
         suppressHighlighting
       />
       <View style={styles.grow}>

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from '
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { Mascot } from '@/components/Mascot';
 import * as Haptics from 'expo-haptics';
 import { useGame, CLASS_CONFIGS, CATEGORY_META, SchoolClass, Category } from '@/context/GameContext';
 import { touchSlop } from '@/hooks/useA11y';
@@ -46,6 +47,21 @@ function useLegacyPalette() {
 }
 const CATS: Category[] = ['addition', 'subtraction', 'multiplication', 'division', 'mixed'];
 
+/**
+ * Render a completion figure the way a child should read it.
+ *
+ * docs/28: the Progress screen showed a column of "0%" beside six empty
+ * circles, which to a six-year-old reads as "you have achieved nothing" — on
+ * the one screen they visit to feel proud. 0% is a verdict; "not started" is
+ * a beginning. Anything above zero keeps the number, because real progress
+ * should be legible and precise.
+ */
+function pctLabel(fraction: number, lang: 'en' | 'hi'): string {
+  const pct = Math.round(fraction * 100);
+  if (pct > 0) return `${pct}%`;
+  return lang === 'hi' ? 'शुरू करें' : 'Not started';
+}
+
 export default function ProgressScreen() {
   const C = useLegacyPalette();
   const styles = React.useMemo(() => makeStyles(C), [C]);
@@ -81,11 +97,19 @@ export default function ProgressScreen() {
     return { pct: att > 0 ? Math.round((cor / att) * 100) : -1, att };
   }, [progressStats]);
 
+  // docs/28: this read the LEGACY `progressStats` counters, so the header said
+  // "0 questions answered" while the attempt log held hundreds of rows — the
+  // child's whole history reported as nothing on the one screen they visit to
+  // feel proud. The attempt log is the single source of truth (docs/23), so
+  // count it, and fall back to the legacy counters only for pre-migration
+  // installs that genuinely have no log.
   const { totalAtt, totalCor, overallPct } = useMemo(() => {
-    const totalAtt = Object.values(progressStats).reduce((s, e) => s + e.attempted, 0);
-    const totalCor = Object.values(progressStats).reduce((s, e) => s + e.correct, 0);
+    const legacyAtt = Object.values(progressStats).reduce((s, e) => s + e.attempted, 0);
+    const legacyCor = Object.values(progressStats).reduce((s, e) => s + e.correct, 0);
+    const totalAtt = attempts.length > 0 ? attempts.length : legacyAtt;
+    const totalCor = attempts.length > 0 ? attempts.filter(a => a.correct).length : legacyCor;
     return { totalAtt, totalCor, overallPct: totalAtt > 0 ? Math.round((totalCor / totalAtt) * 100) : 0 };
-  }, [progressStats]);
+  }, [progressStats, attempts]);
 
   const tablesPerfect = Object.values(tablesBest).filter(v => v === 12).length;
   const tablesTotal   = Object.keys(tablesBest).length;
@@ -170,7 +194,7 @@ export default function ProgressScreen() {
                     color={status === 'complete' ? C.easy : status === 'inProgress' ? C.primary : C.mutedForeground}
                   />
                   <Text style={styles.journeyTitle}>{lang === 'hi' ? ch.title.hi : ch.title.en}</Text>
-                  <Text style={styles.journeyPct}>{Math.round(pct * 100)}%</Text>
+                  <Text style={styles.journeyPct}>{pctLabel(pct, lang)}</Text>
                 </View>
               ))}
             </View>
@@ -183,8 +207,22 @@ export default function ProgressScreen() {
         <View style={styles.insightCard}>
           {achievements.slice(0, 6).map(a => (
             <View key={a.achievement.id} style={styles.journeyRow}>
-              <Feather name={a.earned ? 'award' : 'circle'} size={15}
-                color={a.earned ? C.gold : C.mutedForeground} />
+              {/* docs/28: an unearned achievement was a bare empty circle, so the
+                  screen read as six things the child had failed to do. A filled
+                  medallion silhouette reads as "not yet", which is the honest
+                  and the kinder framing of the same fact. */}
+              <View style={[
+                styles.badgeRing,
+                a.earned
+                  ? { backgroundColor: C.gold + '22', borderColor: C.gold }
+                  : { backgroundColor: C.secondary, borderColor: C.border },
+              ]}>
+                <Feather
+                  name="award"
+                  size={16}
+                  color={a.earned ? C.gold : C.mutedForeground}
+                />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.journeyTitle}>
                   {lang === 'hi' ? a.achievement.title.hi : a.achievement.title.en}
@@ -195,7 +233,7 @@ export default function ProgressScreen() {
                   </Text>
                 )}
               </View>
-              <Text style={styles.journeyPct}>{Math.round(a.progress * 100)}%</Text>
+              <Text style={styles.journeyPct}>{pctLabel(a.progress, lang)}</Text>
             </View>
           ))}
         </View>
@@ -283,9 +321,17 @@ export default function ProgressScreen() {
         {/* Empty state */}
         {totalAtt === 0 && (
           <View style={styles.emptyCard}>
-            <Feather name="trending-up" size={28} color={C.primary} />
-            <Text style={styles.emptyTitle}>No activity yet</Text>
-            <Text style={styles.emptySub}>Complete a practice session to see your stats here.</Text>
+            {/* docs/28: an empty progress screen is the child's first impression
+                of their own effort. A face and an invitation, not a verdict. */}
+            <Mascot mood="encouraging" size={88} />
+            <Text style={styles.emptyTitle}>
+              {lang === 'hi' ? 'यहाँ आपकी प्रगति दिखेगी' : 'Your progress will show up here'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {lang === 'hi'
+                ? 'एक अभ्यास पूरा करें और लौटकर देखें कि आपने क्या सीखा।'
+                : 'Finish one practice and come back to see what you learned.'}
+            </Text>
           </View>
         )}
 
@@ -447,11 +493,15 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     borderColor: C.border, paddingVertical: 14, alignItems: 'center',
   },
   statNum: { fontSize: 22, fontFamily: 'Inter_700Bold', color: C.foreground, fontVariant: ['tabular-nums'] },
-  statLbl: { fontSize: 11.5, fontFamily: 'Inter_500Medium', color: C.mutedForeground, marginTop: 2 },
+  statLbl: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.mutedForeground, marginTop: 2 },
   journeyRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   journeyTitle: { flex: 1, fontSize: 13.5, fontFamily: 'Inter_600SemiBold', color: C.foreground },
-  journeyPct: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: C.mutedForeground, fontVariant: ['tabular-nums'] },
-  achDesc: { fontSize: 11.5, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 1 },
+  badgeRing: {
+    width: 34, height: 34, borderRadius: 17, borderWidth: 2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  journeyPct: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.mutedForeground, fontVariant: ['tabular-nums'] },
+  achDesc: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 1 },
   growthCard: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     backgroundColor: C.easy + '14', borderRadius: 14,
@@ -465,38 +515,38 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     minWidth: 34, height: 24, borderRadius: 7, backgroundColor: C.hard + '22',
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6,
   },
-  insightCount: { fontSize: 11.5, fontFamily: 'Inter_700Bold', color: C.hard },
+  insightCount: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.hard },
   insightTitle: { fontSize: 13.5, fontFamily: 'Inter_700Bold', color: C.foreground, marginBottom: 3 },
-  insightBody: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
+  insightBody: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
   insightFix: { flexDirection: 'row', gap: 5, alignItems: 'flex-start', marginTop: 6 },
-  insightFixText: { flex: 1, fontSize: 11.5, fontFamily: 'Inter_500Medium', color: C.easy, lineHeight: 16 },
+  insightFixText: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.easy, lineHeight: 16 },
   skillRow: { gap: 5 },
   skillTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 },
   skillName: { flex: 1, fontSize: 13, fontFamily: 'Inter_500Medium', color: C.foreground },
   skillPct: { fontSize: 13, fontFamily: 'Inter_700Bold' },
   skillTrack: { height: 5, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
   skillFill: { height: 5, borderRadius: 3 },
-  skillGap: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.medium, marginTop: 1 },
-  skillTrend: { fontSize: 10.5, fontFamily: 'Inter_600SemiBold' },
+  skillGap: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.medium, marginTop: 1 },
+  skillTrend: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   container: { flex: 1, backgroundColor: C.background },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.foreground },
-  headerSub: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
+  headerSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
   scroll: { paddingHorizontal: 16, paddingTop: 16 },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   summaryCard: { flex: 1, backgroundColor: C.card, borderRadius: 14, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: C.border },
   summaryVal: { fontSize: 20, fontFamily: 'Inter_700Bold' },
-  summaryLbl: { fontSize: 10, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 2 },
+  summaryLbl: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 2 },
   emptyCard: { backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border, padding: 24, alignItems: 'center', gap: 8, marginBottom: 20 },
   emptyTitle: { fontSize: 16, fontFamily: 'Inter_700Bold', color: C.foreground },
   emptySub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
   mistakeCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: C.hard + '14', borderRadius: 14, borderWidth: 1, borderColor: C.hard + '44', padding: 14, marginBottom: 16 },
   mistakeIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.hard + '22', alignItems: 'center', justifyContent: 'center' },
   mistakeTitle: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.foreground },
-  mistakeSub: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 1 },
-  sectionLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, letterSpacing: 1.5, marginBottom: 10 },
+  mistakeSub: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 1 },
+  sectionLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, letterSpacing: 1.5, marginBottom: 10 },
   filterStrip: { marginBottom: 20 },
   filterChip: { borderRadius: 18, borderWidth: 1, borderColor: C.border, backgroundColor: C.card, paddingHorizontal: 14, paddingVertical: 8 },
   filterChipActive: { borderColor: C.primary, backgroundColor: C.primary + '18' },
@@ -510,17 +560,17 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   catPct: { fontSize: 14, fontFamily: 'Inter_700Bold' },
   catBar: { height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
   catBarFill: { height: 6, borderRadius: 3 },
-  catAtt: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
+  catAtt: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
   classGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   classBox: { width: '30%', backgroundColor: C.card, borderRadius: 14, borderWidth: 1, padding: 12, alignItems: 'center', gap: 4 },
   classBoxNum: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   classBoxNumText: { fontSize: 16, fontFamily: 'Inter_700Bold' },
-  classBoxLabel: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.foreground },
+  classBoxLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.foreground },
   classBoxPct: { fontSize: 16, fontFamily: 'Inter_700Bold' },
   classBoxBest: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  classBoxBestText: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.gold },
+  classBoxBestText: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.gold },
   tablesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tableBox: { width: '17%', backgroundColor: C.card, borderRadius: 10, borderWidth: 1, padding: 8, alignItems: 'center', gap: 2 },
   tableNum: { fontSize: 15, fontFamily: 'Inter_700Bold' },
-  tableBest: { fontSize: 10, fontFamily: 'Inter_600SemiBold' },
+  tableBest: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
 });

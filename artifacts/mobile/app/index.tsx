@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { ProgressBar } from '@/components/ui/ProgressBar';
 import { Chip } from '@/components/ui/Chip';
+import { Mascot } from '@/components/Mascot';
 import { SEEN_WELCOME_KEY } from './welcome';
 import { DAILY_GOAL } from '@/context/GameContext';
 import { t } from '@/i18n/strings';
@@ -141,6 +142,24 @@ export default function HomeScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
+        {/* docs/28: the app had no character at all — the largest single gap in
+            the audit. The mascot greets the child before any number does, and
+            its mood reflects how practice is actually going, so the first thing
+            on screen is a face rather than a metric. */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <Mascot mood={streak > 0 ? 'happy' : 'idle'} size={72} />
+          <View style={{ flex: 1 }}>
+            <Text style={[type('title'), { color: c.text }]}>
+              {lang === 'hi' ? 'नमस्ते!' : 'Hello!'}
+            </Text>
+            <Text style={[type('body'), { color: c.textMuted }]}>
+              {streak > 0
+                ? (lang === 'hi' ? 'चलिए फिर से अभ्यास करें' : "Let's keep it going")
+                : (lang === 'hi' ? 'आज कुछ नया सीखते हैं' : "Let's learn something today")}
+            </Text>
+          </View>
+        </View>
+
         {/* A compact status strip replaces the 278px hero. Streak and level are
             information, not decoration, and they occupy one line. */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>

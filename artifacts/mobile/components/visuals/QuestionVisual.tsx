@@ -8,6 +8,7 @@ import { visualFor, visualMode } from '@/learning/visualPolicy';
 import { extractOperands, extractFractions } from '@/learning/misconceptions';
 import type { Question } from '@/generators/types';
 import type { SkillId } from '@/learning/skills';
+import { TenFrame } from './TenFrame';
 
 /**
  * Chooses and renders the right visual for a question, or nothing.
@@ -99,6 +100,15 @@ export function QuestionVisual({
         showState={showState}
       />
     );
+  }
+
+  if (model === 'tenFrame') {
+    // The FIRST operand only, and only when it fits a frame. Showing both sides
+    // of "7 + 5" pre-computes the answer; showing the 7 makes the starting
+    // quantity concrete and leaves the adding to the child.
+    const [a] = operands;
+    if (!Number.isFinite(a) || a < 1 || a > 20) return null;
+    return <TenFrame count={a} max={a > 10 ? 20 : 10} />;
   }
 
   if (model === 'arrayGrid') {

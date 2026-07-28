@@ -18,6 +18,11 @@ import { grade, expectedAnswer } from '@/generators/interactions';
 import { praiseFor, praiseText } from '@/learning/feedback';
 import { BONUS_LABEL } from '@/progression/labels';
 import { QuestionVisual } from '@/components/visuals/QuestionVisual';
+import { Celebration } from '@/components/Celebration';
+import { MASTERED_THRESHOLD } from '@/learning/mastery';
+import { SKILLS } from '@/learning/skills';
+import { useSpeech, readAloudDefault } from '@/hooks/useSpeech';
+import { Mascot } from '@/components/Mascot';
 import { hintLevelFor, hintText, hintsFor, needsDescentNotHints } from '@/learning/hints';
 import {
   shouldAskConfidence, quadrant, CONFIDENCE_COPY,
@@ -130,6 +135,17 @@ export default function GameScreen() {
    * retrieving the reason yourself produces more learning than being told it,
    * and the app previously only ever told.
    */
+  // docs/28: crossing a skill into "secure" is the single thing this app
+  // exists to do, and it was communicated only by a progress bar changing
+  // width on a screen the child sees after the session has ended. Firing it
+  // at the moment it happens makes it the signature celebration.
+  // docs/28: read-aloud. On by default for Class 1-2, where decoding the
+  // question is a barrier rather than the task; available to everyone via the
+  // speaker button beside the question.
+  const readAloud = readAloudDefault(cls);
+  const { speak, stop: stopSpeech } = useSpeech(readAloud, lang);
+  const [masteryWin, setMasteryWin] = useState<string | null>(null);
+  const masteryShownRef = useRef<Set<string>>(new Set());
   const [whyPrompt, setWhyPrompt] = useState<SelfExplanationPrompt | null>(null);
   const [whyAnswer, setWhyAnswer] = useState<string | null>(null);
   const whyShownRef = useRef(0);
@@ -195,6 +211,14 @@ export default function GameScreen() {
   const scaleAnim = scaleAnimRef.current ?? (scaleAnimRef.current = new Animated.Value(1));
 
   const currentQuestion = questions[currentIndex];
+
+  // Speak each new question once it is on screen. Keyed on the index rather
+  // than the text so two identical questions in a row are both read.
+  useEffect(() => {
+    const q = questions[currentIndex];
+    if (q && readAloud) speak(q.questionText);
+    return () => stopSpeech();
+  }, [currentIndex, questions, readAloud, speak, stopSpeech]);
   const classConfig     = CLASS_CONFIGS.find(c => c.key === selectedClass);
   const classColor      = classConfig?.color ?? C.primary;
   // In adaptive and Mixed sessions the topic changes per question, so label the
@@ -400,6 +424,24 @@ export default function GameScreen() {
       }];
     }
 
+    // Mastery crossing: fire once per skill per session, only on a correct
+    // unaided answer, and never in Blitz (a 60s race is the wrong place to
+    // stop and celebrate).
+    if (correct && skillNow && !isBlitz && !scaffoldedRef.current
+        && !masteryShownRef.current.has(skillNow)) {
+      const before = mastery[skillNow]?.value ?? 0;
+      const rows = sessionLogRef.current.filter(r => r.skill === skillNow);
+      const hits = rows.filter(r => r.correct).length;
+      // Approximate the post-answer estimate: the context updates async, so
+      // reading `mastery` here would be one answer stale.
+      const after = before + (1 - before) * 0.12;
+      if (before < MASTERED_THRESHOLD && after >= MASTERED_THRESHOLD && hits >= 3) {
+        masteryShownRef.current.add(skillNow);
+        const label = SKILLS[skillNow]?.label ?? skillNow;
+        setMasteryWin(lang === 'hi' ? `${label} पक्का हुआ!` : `${label} is secure!`);
+      }
+    }
+
     if (correct) {
       // §9 M3 — name what the learner *did*, not that they were right.
       // Outcome praise reliably produces fixed-mindset attribution; process
@@ -592,6 +634,15 @@ export default function GameScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: top, paddingBottom: bot + 16 }]}>
+      {/* docs/28: mastery is the app's signature moment and had no moment. */}
+      {masteryWin && (
+        <Celebration
+          visible
+          reason="mastery"
+          message={masteryWin}
+          onDone={() => setMasteryWin(null)}
+        />
+      )}
       {/* Top bar */}
       <View style={styles.topBar}>
         <TouchableOpacity
@@ -679,6 +730,18 @@ export default function GameScreen() {
             {currentQuestion.questionText}
           </Text>
         </ScrollView>
+        {/* Always available, not only when auto-read is on: a child who missed
+            it, or whose parent turned auto-read off, still needs a way to hear
+            the question. Labelled for screen readers as a distinct action. */}
+        <TouchableOpacity
+          onPress={() => { Haptics.selectionAsync().catch(() => {}); speak(currentQuestion.questionText); }}
+          style={styles.speakBtn}
+          hitSlop={touchSlop(40)}
+          accessibilityRole="button"
+          accessibilityLabel={lang === 'hi' ? 'सवाल सुनें · Read aloud' : 'Read the question aloud'}
+        >
+          <Feather name="volume-2" size={18} color={C.mutedForeground} />
+        </TouchableOpacity>
       </Animated.View>
 
       {/* Answer grid */}
@@ -811,6 +874,12 @@ export default function GameScreen() {
           reading exercise. */}
       {whyPrompt && !worked && (
         <View style={styles.whyBox} accessibilityLiveRegion="polite">
+          {/* docs/28: a wrong answer is exactly where the character must appear,
+              and exactly where it must NOT look disappointed. `thinking` is
+              curiosity — the owl is puzzling it out alongside the child. */}
+          <View style={{ alignItems: 'center', marginBottom: 6 }}>
+            <Mascot mood="thinking" size={64} />
+          </View>
           <Text style={styles.whyPrompt}>
             {lang === 'hi' ? whyPrompt.question.hi : whyPrompt.question.en}
           </Text>
@@ -915,30 +984,35 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     backgroundColor: C.primary + '14', borderRadius: 999,
     paddingHorizontal: 10, paddingVertical: 5,
   },
-  bonusText: { fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  bonusText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
   diagnosisBox: {
     flexDirection: 'row', gap: 9, alignItems: 'flex-start',
     marginTop: 12, padding: 12,
     backgroundColor: C.medium + '18', borderRadius: 12,
     borderWidth: 1, borderColor: C.medium + '44',
   },
-  diagnosisTitle: { fontSize: 12.5, fontFamily: 'Inter_700Bold', color: C.medium, marginBottom: 2 },
-  diagnosisText:  { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
+  diagnosisTitle: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.medium, marginBottom: 2 },
+  diagnosisText:  { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, gap: 8 },
   xBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   topMid: { flex: 1, flexDirection: 'row', justifyContent: 'center', gap: 6 },
   pill: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
-  pillText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  pillText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   scorePill: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: C.gold + '22', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 18 },
   scoreText: { fontSize: 14, fontFamily: 'Inter_700Bold', color: C.gold },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   progressTrack: { flex: 1, height: 4, backgroundColor: C.border, borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: 4, borderRadius: 2 },
-  progressLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, minWidth: 30, textAlign: 'right' },
+  progressLabel: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, minWidth: 30, textAlign: 'right' },
   timerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
   timerTrack: { flex: 1, height: 6, backgroundColor: C.border, borderRadius: 3, overflow: 'hidden' },
   timerFill: { height: 6, borderRadius: 3 },
-  timerText: { fontSize: 12, fontFamily: 'Inter_700Bold', minWidth: 26, textAlign: 'right' },
+  timerText: { fontSize: 13, fontFamily: 'Inter_700Bold', minWidth: 26, textAlign: 'right' },
+  speakBtn: {
+    position: 'absolute', top: 8, right: 8,
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+  },
   qCard: {
     backgroundColor: C.card, borderRadius: 22, borderWidth: 1,
     paddingHorizontal: 20, paddingVertical: 20,
@@ -946,7 +1020,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     justifyContent: 'center', marginBottom: 16,
   },
   qCardTall: { maxHeight: 260, minHeight: 160 },
-  blitzCount: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, marginBottom: 4 },
+  blitzCount: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, marginBottom: 4 },
   qScrollInner: { paddingBottom: 4 },
   qScrollCenter: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   // lineHeight is set per-render from fontSize, NOT fixed here. It used to be a

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Animated, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -74,11 +74,11 @@ function getMessage(s: number, t: number, lang: 'en' | 'hi') {
     ? { title: 'अच्छा अभ्यास', sub: 'आपने कठिन सवालों पर काम किया' }
     : { title: 'Good practice', sub: 'You worked through some hard ones' };
   if (p >= 0.3) return hi
-    ? { title: 'कठिन अभ्यास', sub: 'यही वह अभ्यास है जिससे सीख होती है' }
-    : { title: 'Tough session', sub: 'This is the practice that teaches you most' };
+    ? { title: 'यह कठिन था', sub: 'कठिन अभ्यास से ही सबसे ज़्यादा सीख होती है' }
+    : { title: 'That was a hard one', sub: 'Hard practice is the practice that teaches you most' };
   return hi
-    ? { title: 'मुश्किल दौर', sub: 'कठिन चीज़ों पर टिके रहना ही असली काम है' }
-    : { title: 'Hard going', sub: 'Sticking with hard things is the real work' };
+    ? { title: 'आप डटे रहे', sub: 'कठिन चीज़ों पर टिके रहना ही असली काम है' }
+    : { title: 'You kept going', sub: 'Sticking with hard things is the real work' };
 }
 
 export default function ResultsScreen() {
@@ -209,7 +209,17 @@ export default function ResultsScreen() {
         onDone={() => setCelebration(null)}
       />
     )}
-    <Animated.View style={[styles.container, { paddingTop: top + 10, paddingBottom: bot + 20, opacity: fadeAnim }]}>
+    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+      {/* docs/28: the container was `justifyContent: 'center'` with no scroll,
+          so on a 320pt screen (iPhone SE, common in this market) the score
+          circle rendered at top:-98px, overlapped all three header chips, and
+          pushed the primary CTA behind the tab bar. Measured: 3 overlaps at
+          320pt, 0 at 390pt and 412pt. Scrolling makes the layout height-safe
+          at every size instead of only the ones we happened to test. */}
+      <ScrollView
+        contentContainerStyle={[styles.scrollBody, { paddingTop: top + 10, paddingBottom: bot + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
       {/* Nav */}
       <View style={styles.topNav}>
         <TouchableOpacity onPress={() => router.replace('/')} style={styles.homeBtn}
@@ -400,6 +410,7 @@ export default function ResultsScreen() {
           <Text style={[styles.secBtnText, { color: C.primary }]}>Change</Text>
         </TouchableOpacity>
       </View>
+      </ScrollView>
     </Animated.View>
     </>
   );
@@ -411,12 +422,13 @@ export default function ResultsScreen() {
  * exact defect that left dark mode non-functional (docs/20 F1).
  */
 const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.background, paddingHorizontal: 20, alignItems: 'center', justifyContent: 'center' },
+  container: { flex: 1, backgroundColor: C.background },
+  scrollBody: { paddingHorizontal: 20, alignItems: 'center', flexGrow: 1, justifyContent: 'center' },
   topNav: { position: 'absolute', top: 0, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   homeBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   navBadges: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   navBadge: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
-  navBadgeText: { fontSize: 11, fontFamily: 'Inter_600SemiBold' },
+  navBadgeText: { fontSize: 13, fontFamily: 'Inter_600SemiBold' },
   learningCard: {
     width: '100%', backgroundColor: C.card, borderRadius: 16,
     borderWidth: 1, borderColor: C.border, padding: 16, marginTop: 18, gap: 4,
@@ -442,7 +454,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   statsRow: { flexDirection: 'row', backgroundColor: C.card, borderRadius: 14, paddingVertical: 14, width: '100%', marginBottom: 20, borderWidth: 1, borderColor: C.border },
   statBox: { flex: 1, alignItems: 'center' },
   statVal: { fontSize: 22, fontFamily: 'Inter_700Bold' },
-  statLbl: { fontSize: 11, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 2 },
+  statLbl: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, marginTop: 2 },
   statDiv: { width: 1, backgroundColor: C.border },
   playAgainBtn: { width: '100%', backgroundColor: C.primary, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 17, marginBottom: 10 },
   playAgainText: { fontSize: 17, fontFamily: 'Inter_700Bold', color: '#fff' },

@@ -181,7 +181,7 @@ export function OrderingTray({
  */
 const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   wrap: { gap: 12 },
-  hint: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
+  hint: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
   slots: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
   slot: {
     flex: 1, maxWidth: 78, height: 58, borderRadius: 12, borderWidth: 2,
@@ -197,7 +197,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   },
   poolText: { fontSize: 19, fontFamily: 'Inter_600SemiBold', color: C.foreground },
   answerRow: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' },
-  answerLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
+  answerLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
   answerChip: {
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8,
     backgroundColor: C.correct + '1E', borderWidth: 1, borderColor: C.correct + '55',

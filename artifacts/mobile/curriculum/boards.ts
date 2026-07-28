@@ -34,7 +34,7 @@ export const BOARD_CONFIGS: BoardConfig[] = [
     fullNameHi: 'केंद्रीय माध्यमिक शिक्षा बोर्ड',
     note: 'Follows NCERT. Balanced pace, concept-first.',
     noteHi: 'एनसीईआरटी पर आधारित। संतुलित गति, अवधारणा पर ज़ोर।',
-    colour: '#42A5F5',
+    colour: '#0B5FA5',
   },
   {
     key: 'icse',
@@ -44,7 +44,7 @@ export const BOARD_CONFIGS: BoardConfig[] = [
     fullNameHi: 'भारतीय माध्यमिक शिक्षा प्रमाणपत्र',
     note: 'Broader syllabus. Several topics start a year earlier.',
     noteHi: 'व्यापक पाठ्यक्रम। कई विषय एक वर्ष पहले शुरू होते हैं।',
-    colour: '#AB47BC',
+    colour: '#7B2A8A',
   },
   {
     key: 'state',
@@ -54,7 +54,7 @@ export const BOARD_CONFIGS: BoardConfig[] = [
     fullNameHi: 'राज्य बोर्ड (एससीईआरटी)',
     note: 'NCERT-aligned with a gentler pace on abstract topics.',
     noteHi: 'एनसीईआरटी के अनुरूप, कठिन विषयों में धीमी गति।',
-    colour: '#66BB6A',
+    colour: '#2E6B32',
   },
 ];
 

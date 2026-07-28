@@ -14,7 +14,7 @@ import type { Lang } from '@/i18n/strings';
  * The audit found the app had **no persistent navigation at all** — a pure
  * stack, so every journey restarted from home and a child had no sense of
  * place. Three destinations, because there are three things a learner does:
- * practise, look at their progress, and change settings.
+ * practise, look at their progress, and hand the phone to a grown-up.
  *
  * Rejected alternatives are recorded in docs/17 §3. Briefly: a drawer hides
  * functionality (poor discoverability for children), gesture navigation is
@@ -33,7 +33,12 @@ import type { Lang } from '@/i18n/strings';
 const TABS = [
   { key: 'practice', route: '/',         icon: 'play-circle' as const, labelKey: 'navPractice' },
   { key: 'progress', route: '/progress', icon: 'trending-up' as const, labelKey: 'navProgress' },
-  { key: 'settings', route: '/board-select', icon: 'settings' as const, labelKey: 'navSettings' },
+  // docs/28: "Settings" was one of three top-level destinations in an app for
+  // six-year-olds — a third of the primary navigation unusable by, and
+  // uninteresting to, the actual user. No benchmark does this; settings sit
+  // behind a parent-facing entry. Relabelled and pointed at the parent screen,
+  // which is where a grown-up actually wants to land.
+  { key: 'grownups', route: '/parent', icon: 'users' as const, labelKey: 'navSettings' },
 ];
 
 /** Routes that take over the screen entirely — no tab bar. */

@@ -420,10 +420,10 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
 
   // Header (review mode)
   header:       { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border },
-  backBtn:      { width: 40, height: 40, borderRadius: 20, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
+  backBtn:      { width: 44, height: 44, borderRadius: 22, backgroundColor: C.card, alignItems: 'center', justifyContent: 'center' },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle:  { fontSize: 18, fontFamily: 'Inter_700Bold', color: C.foreground },
-  headerSub:    { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
+  headerSub:    { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground },
 
   // Review scroll
   scroll: { paddingHorizontal: 16, paddingTop: 16, gap: 12 },
@@ -451,7 +451,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   answerBox:   { flex: 1, alignItems: 'center', gap: 6 },
   answerDivider: { width: 1, backgroundColor: C.border, marginHorizontal: 16 },
   answerIconWrap: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  answerLabel: { fontSize: 11, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
+  answerLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
   answerVal:   { fontSize: 28, fontFamily: 'Inter_700Bold' },
 
   // Sticky practice button (review mode)
@@ -475,7 +475,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     padding: 24, minHeight: 140, justifyContent: 'center', marginBottom: 16,
   },
   qBadge:     { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
-  qBadgeText: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.primary },
+  qBadgeText: { fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.primary },
   qText:      { fontSize: 38, fontFamily: 'Inter_700Bold', color: C.foreground, textAlign: 'center' },
 
   // Status banner

@@ -148,7 +148,7 @@ export function MultiSelect({
  */
 const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   wrap: { gap: 12 },
-  hint: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
+  hint: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9, justifyContent: 'center' },
   chip: {
     minWidth: 66, paddingHorizontal: 16, paddingVertical: 14, borderRadius: 13,

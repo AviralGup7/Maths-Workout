@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useReducedMotion, announce } from '@/hooks/useA11y';
 import { useTheme } from '@/theme/useTheme';
+import { Mascot } from '@/components/Mascot';
 
 
 /**
@@ -194,6 +195,9 @@ export function Celebration({
           },
         ]}
       >
+        {/* docs/28: the celebration was a particle burst and a line of text.
+            The character is what makes the moment feel like someone noticed. */}
+        <Mascot mood="celebrate" size={72} />
         <Text style={styles.bannerText}>{message}</Text>
       </Animated.View>
     </View>
@@ -212,7 +216,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     paddingHorizontal: 20, paddingVertical: 12, borderRadius: 16,
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border,
     shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
-    elevation: 6, maxWidth: '80%',
+    elevation: 6, maxWidth: '80%', alignItems: 'center', gap: 6,
   },
   bannerText: {
     fontSize: 15, fontFamily: 'Inter_700Bold', color: C.foreground, textAlign: 'center',

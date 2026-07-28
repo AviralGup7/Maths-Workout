@@ -6,6 +6,9 @@
 
 import { SchoolClass, Difficulty, Question } from './types';
 import { ri, pick, shuffleArr, makeIntChoices } from './helpers';
+
+/** Countable glyphs that render identically on every platform. */
+const SHAPES = ['●', '▲', '■', '◆', '★'];
 import type { Lang } from '../i18n/strings';
 import { qp } from '../i18n/questions';
 
@@ -25,8 +28,12 @@ export function genCounting(cls: SchoolClass, diff: Difficulty, lang: Lang = 'en
   }
 
   if (diff === 'medium') {
-    const emojis = ['⭐', '●', '♦', '▲', '■'];
-    const e = pick(emojis);
+    // docs/28: these were emoji (🍎 ⭐). Emoji render differently on every OS,
+    // cannot be styled to the theme and are not a designed asset — the app had
+    // delegated its most important early-years visual to the platform. These
+    // geometric glyphs are identical everywhere, and the ten-frame beneath the
+    // question now carries the real pedagogical work.
+    const e = pick(SHAPES);
     // Class 1: count up to 15; Class 2+: up to 20
     const n = cls === '1st' ? ri(10, 15) : ri(10, 20);
     return { questionText: `${qp('howManyOf', lang, e)}\n${e.repeat(n)}`, answer: n, choices: makeIntChoices(n) };
@@ -34,7 +41,7 @@ export function genCounting(cls: SchoolClass, diff: Difficulty, lang: Lang = 'en
 
   // Easy: count small objects — Class 1 stays within 10
   const n = cls === '1st' ? ri(1, 10) : ri(1, 15);
-  const e = pick(['🍎', '⭐', '●', '♦']);
+  const e = pick(SHAPES);
   return { questionText: `${qp('howManyOf', lang, e)}\n${e.repeat(n)}`, answer: n, choices: makeIntChoices(n) };
 }
 

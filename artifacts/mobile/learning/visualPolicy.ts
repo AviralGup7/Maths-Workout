@@ -20,7 +20,7 @@
 import type { SkillId } from './skills';
 import { MASTERED_THRESHOLD, STRUGGLING_THRESHOLD } from './mastery';
 
-export type VisualModel = 'numberLine' | 'partModel' | 'arrayGrid' | 'baseTen';
+export type VisualModel = 'numberLine' | 'partModel' | 'arrayGrid' | 'baseTen' | 'tenFrame';
 export type VisualMode = 'interactive' | 'illustrative' | 'none';
 
 /** Below this, the visual is the answer surface. */
@@ -64,6 +64,19 @@ const MODEL_FOR_SKILL: Partial<Record<SkillId, VisualModel>> = {
   'sub.2digit.borrow':   'baseTen',
   'add.3digit':          'baseTen',
   'sub.3digit':          'baseTen',
+
+  // docs/28: 16 of 63 skills had a visual model, and the 47 without included
+  // EVERY Class 1-2 foundation — the youngest children, who need
+  // concrete-pictorial-abstract scaffolding most, were given pure symbols.
+  // The ten-frame is the canonical early-number model: it makes 7 visibly
+  // "five and two", which is what makes bonds to 10 and bridging work.
+  'count.objects':       'tenFrame',
+  'count.skip':          'tenFrame',
+  'add.within10':        'tenFrame',
+  'add.within20':        'tenFrame',
+  'sub.within10':        'tenFrame',
+  'sub.within20':        'tenFrame',
+  'bonds.basic':         'tenFrame',
 
   // Multiplication structure — the array unifies ×, area and factors.
   'mul.2digit':          'arrayGrid',

@@ -271,7 +271,7 @@ function constraintLine(spec: OpenSpec, index: number, lang: 'en' | 'hi'): strin
 const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create({
   wrap: { gap: 10 },
   checksHead: {
-    fontSize: 11.5, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground,
+    fontSize: 13, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground,
     textTransform: 'uppercase', letterSpacing: 0.6, paddingHorizontal: 4,
   },
   slotRow: { flexDirection: 'row', gap: 10, justifyContent: 'center' },
@@ -289,9 +289,9 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   value: { fontSize: 30, fontFamily: 'Inter_700Bold', letterSpacing: 1 },
   checks: { gap: 4, paddingHorizontal: 4 },
   checkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  checkText: { fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, flex: 1 },
+  checkText: { fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, flex: 1 },
   feedback: {
-    textAlign: 'center', fontSize: 12.5, fontFamily: 'Inter_500Medium',
+    textAlign: 'center', fontSize: 13, fontFamily: 'Inter_500Medium',
     color: C.mutedForeground,
   },
   pad: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, justifyContent: 'center' },

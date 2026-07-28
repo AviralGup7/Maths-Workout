@@ -168,7 +168,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   },
   value: { fontSize: 34, fontFamily: 'Inter_700Bold', color: C.foreground, letterSpacing: 1 },
   unit: { fontSize: 15, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
-  truth: { textAlign: 'center', fontSize: 12.5, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
+  truth: { textAlign: 'center', fontSize: 13, fontFamily: 'Inter_500Medium', color: C.mutedForeground },
   pad: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
   key: {
     width: '31.5%', height: 54, borderRadius: 12, alignItems: 'center', justifyContent: 'center',

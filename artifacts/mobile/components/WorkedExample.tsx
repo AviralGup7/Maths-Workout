@@ -160,7 +160,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     width: 22, height: 22, borderRadius: 11, backgroundColor: C.primary + '22',
     alignItems: 'center', justifyContent: 'center',
   },
-  stepNum: { fontSize: 11, fontFamily: 'Inter_700Bold', color: C.primary },
+  stepNum: { fontSize: 13, fontFamily: 'Inter_700Bold', color: C.primary },
   stepText: { fontSize: 13.5, fontFamily: 'Inter_400Regular', color: C.foreground, lineHeight: 19 },
   work: {
     fontSize: 15, fontFamily: 'Inter_700Bold', color: C.primary,
@@ -170,7 +170,7 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
     flexDirection: 'row', gap: 8, alignItems: 'flex-start',
     backgroundColor: C.medium + '14', borderRadius: 10, padding: 10, marginBottom: 4,
   },
-  errorText: { flex: 1, fontSize: 12, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
+  errorText: { flex: 1, fontSize: 13, fontFamily: 'Inter_400Regular', color: C.mutedForeground, lineHeight: 17 },
   button: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: C.primary, borderRadius: 12, paddingVertical: 13, marginTop: 10,

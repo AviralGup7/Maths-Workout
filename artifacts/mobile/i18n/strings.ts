@@ -184,9 +184,9 @@ export const S: Dict = {
   // Tab labels are short by necessity; they stay single-language in Hindi
   // because the icon carries the redundancy and a bilingual label would not
   // fit a third of a phone width.
-  navPractice:      { en: 'Practice',          hi: 'अभ्यास' },
-  navProgress:      { en: 'Progress',          hi: 'प्रगति' },
-  navSettings:      { en: 'Settings',          hi: 'सेटिंग' },
+  navPractice:      { en: 'Play',              hi: 'खेलें' },
+  navProgress:      { en: 'My Maths',          hi: 'मेरा गणित' },
+  navSettings:      { en: 'Grown-ups',         hi: 'बड़ों के लिए · Grown-ups' },
 
   // ── Home (docs/17 §6.1) ─────────────────────────────────────────────────
   continueLearning: { en: 'Continue',          hi: 'जारी रखें' },

@@ -20,9 +20,12 @@ import { t } from '@/i18n/strings';
  * report. What a parent cannot get anywhere else is a named misconception and
  * something concrete to do about it at the kitchen table.
  *
- * Reached through Settings rather than a tab. A child opening the app 300 times
- * should not see a door labelled "for grown-ups" 300 times: it implies
- * surveillance and changes how the child uses the product.
+ * docs/28: this is now the third tab ("Grown-ups"), replacing a "Settings" tab
+ * that put an adult configuration screen in a six-year-old's primary
+ * navigation. The door is labelled for grown-ups on purpose — a child who can
+ * see it is a child who knows it is not for them, which is a clearer signal
+ * than a gear icon they will tap out of curiosity. Settings are reachable from
+ * here rather than from the child's home.
  */
 export default function ParentScreen() {
   const insets = useSafeAreaInsets();
@@ -125,6 +128,23 @@ export default function ParentScreen() {
             )}
           </>
         )}
+
+        {/* Settings live behind the grown-up door, not in the child's tab bar. */}
+        <Card>
+          <Text style={[type('label'), { color: c.textMuted, marginBottom: space.sm }]}>
+            {lang === 'hi' ? 'सेटिंग · SETTINGS' : 'SETTINGS'}
+          </Text>
+          <Text style={[type('body'), { color: c.textMuted, marginBottom: space.md }]}>
+            {lang === 'hi'
+              ? 'बोर्ड, भाषा, टाइमर और थीम बदलें।'
+              : 'Change board, language, timer and theme.'}
+          </Text>
+          <Button
+            label={lang === 'hi' ? 'सेटिंग खोलें · Settings' : 'Open settings'}
+            onPress={() => router.push('/board-select')}
+            variant="secondary" size="md" icon="settings"
+          />
+        </Card>
       </ScrollView>
     </View>
   );
