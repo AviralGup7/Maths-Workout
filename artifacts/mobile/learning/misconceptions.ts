@@ -307,6 +307,19 @@ export const MISCONCEPTIONS: Record<string, Misconception> = {
       'Name the shape first: a straight line is 180°, a triangle 180°, a quadrilateral 360°, a full turn 360°.',
     skills: ['geometry.angles', 'geometry.basic'],
   },
+  // Volume's characteristic error, and the reason it is not a variety of area:
+  // the child stops after two dimensions. side × side is the face, not the
+  // solid, and it is the answer a child gives when they have mapped "volume"
+  // onto the area procedure they already know.
+  'geometry.volume-as-area': {
+    id: 'geometry.volume-as-area',
+    label: 'Multiplying two dimensions instead of three',
+    explanation:
+      'Only two sides were multiplied, so the answer is the area of one face rather than the volume of the solid.',
+    remediation:
+      'A solid needs all three directions. For a cube, multiply the side by itself three times, not twice.',
+    skills: ['geometry.volume'],
+  },
   'measurement.unit-conversion': {
     id: 'measurement.unit-conversion',
     label: 'Converting units the wrong way',
@@ -657,6 +670,13 @@ export function diagnose(input: DiagnosisInput): string | null {
     }
     if (a !== b && (got === 4 * a || got === 4 * b) && exp === 2 * (a + b)) {
       return 'geometry.wrong-dimension';
+    }
+  }
+  // Volume asked, face area given: got === cbrt(exp)^2.
+  if (skill === 'geometry.volume' && numeric && exp > 0) {
+    const side = Math.round(Math.cbrt(exp));
+    if (side > 0 && side * side * side === exp && got === side * side) {
+      return 'geometry.volume-as-area';
     }
   }
   if (skill === 'geometry.angles' && numeric && exp !== 0) {

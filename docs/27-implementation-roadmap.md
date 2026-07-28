@@ -7,9 +7,12 @@ Supersedes `18-outstanding-work.md` (all 22 items complete). Tick items here as 
 ```
 Progress    32 of 93 complete · Phase 1 complete · Phase 2 §2.1 done, §2.2 in progress
 Baseline    a81e9e5
-Verify      cd artifacts/mobile && npm run verify     # typecheck + arch-check 7/7 + 675 tests
-UI check    npm run ui:smoke                          # 23 browser assertions
-Current     62 skills · 28 worked-example solvers · 62 hinted · 46 misconceptions
+Verify      cd artifacts/mobile && npm run test:fast  # the inner loop, ~35s
+CI          .github/workflows/ci.yml runs everything on push:
+              fast   typecheck + arch-check + unit tests  (gate, minutes)
+              audit  the docs/21 and docs/23 simulations  (~25 min, parallel)
+              ui     web export + ui-smoke + open-task render, screenshots uploaded
+Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconceptions
             18 chapters · 15 achievements · 6 interaction kinds
             error analysis 8.43% of planned questions (was 0.00% adaptive)
 ```
@@ -72,7 +75,7 @@ Current     62 skills · 28 worked-example solvers · 62 hinted · 46 misconcept
 
 ### 2.1 Split over-broad skills
 
-- [x] **P2-01 · Split `geometry.basic`** → area / perimeter / angles, taught by contrast (docs/26 A10 — variation theory)
+- [x] **P2-01 · Split `geometry.basic`** → area / perimeter / angles / volume, taught by contrast (docs/26 A10 — variation theory) *(volume added after the coverage guard measured 177 of 720 generated geometry questions stranded on the retired parent)*
 - [x] **P2-02 · Split `measurement.basic`** → length / mass / capacity *(conversion dropped: measured, all 12 generator forms ARE conversions, so the node would have shipped empty)*
 - [x] **P2-03 · Split `data.basic`** → mean / median / mode / range
 - [x] **P2-04 · Migration: map existing attempts** onto split skills without losing history. **Depends on P2-01/02/03.**

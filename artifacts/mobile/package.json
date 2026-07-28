@@ -13,7 +13,10 @@
     "test": "vitest run",
     "arch": "node scripts/arch-check.mjs",
     "ui:smoke": "expo export --platform web --output-dir .ui-build && node scripts/ui-smoke.mjs .ui-build",
-    "verify": "npm run typecheck && npm run arch && npm run test"
+    "verify": "npm run typecheck && npm run arch && npm run test",
+    "test:fast": "vitest run --exclude '**/audit/**'",
+    "test:audit": "vitest run audit",
+    "ui:open": "expo export --platform web --output-dir .ui-build && node scripts/open-task-render.mjs .ui-build 8412 .ui-shots"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
@@ -23,6 +26,7 @@
     "@types/react-dom": "~19.1.7",
     "babel-plugin-react-compiler": "^19.0.0-beta-e993439-20250117",
     "fast-check": "3.23.2",
+    "playwright": "1.49.1",
     "typescript": "~5.9.2",
     "vitest": "2.1.9"
   },

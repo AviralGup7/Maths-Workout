@@ -28,7 +28,7 @@ import type { Attempt } from './attempts';
 
 /** Parent skills that were split, and what they split into. */
 export const SPLIT_PARENTS: Record<SkillId, SkillId[]> = {
-  'geometry.basic': ['geometry.area', 'geometry.perimeter', 'geometry.angles'],
+  'geometry.basic': ['geometry.area', 'geometry.perimeter', 'geometry.angles', 'geometry.volume'],
   // Split by the quantity being converted, not into "length" vs "conversion".
   // Measuring the generator first showed every one of its 12 question forms
   // across all three difficulties is a unit conversion — there is no
@@ -72,6 +72,10 @@ export function classifyQuestion(parent: SkillId, text: string): SkillId | null 
     // filed under `geometry.angles` — 4 of 6 medium forms and 3 of 6 hard
     // forms misclassified, in the exact pair of concepts this split exists to
     // separate.
+    // Volume is tested before area for the same reason perimeter is: the cube
+    // question names a side and a cubic result, and an `\barea\b` test would
+    // never catch it but a looser one would steal it.
+    if (/volume|cubic|\bcube\b/.test(t)) return 'geometry.volume';
     if (/perimeter/.test(t)) return 'geometry.perimeter';
     if (/\barea\b/.test(t)) return 'geometry.area';
     if (/degree|\bangles?\b|°/.test(t)) return 'geometry.angles';

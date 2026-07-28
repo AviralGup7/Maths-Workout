@@ -1,0 +1,135 @@
+name: CI
+
+# Every push and PR is verified here rather than on a developer machine.
+#
+# The split below is not cosmetic. The suite takes ~24 minutes end to end,
+# almost all of it in `audit/` (the system-balance scorecard alone simulates
+# months of use and runs for ~115 seconds). Running that in the inner loop
+# means it gets skipped, and a guard that gets skipped is documentation.
+#
+# So: `fast` gates everything in about a minute and blocks the merge, while
+# `audit` and `ui` run the expensive work in parallel on separate runners.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A new push supersedes an in-flight run of the same branch.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '10'
+
+jobs:
+  # ── Gate: must pass, must be quick ─────────────────────────────────────────
+  fast:
+    name: typecheck · arch · unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --no-frozen-lockfile
+
+      - name: Typecheck
+        working-directory: artifacts/mobile
+        run: pnpm exec tsc -p tsconfig.json --noEmit
+
+      # 0 circular dependencies, 0 React imports in domain layers, and the
+      # storage-key drift guard. Cheap, and it has caught real regressions
+      # (an unregistered `@maths_workout_*` key, an unreachable domain module).
+      - name: Architecture guard
+        working-directory: artifacts/mobile
+        run: node scripts/arch-check.mjs
+
+      - name: Unit tests (everything except the audit simulations)
+        working-directory: artifacts/mobile
+        run: pnpm exec vitest run --exclude '**/audit/**'
+
+  # ── Heavy: long-running simulations, run in parallel with the gate ─────────
+  audit:
+    name: audit simulations
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --no-frozen-lockfile
+
+      # docs/21 (24 balance properties) and docs/23 (data integrity, 9.4/10)
+      # are closed audits. This job is what stops them silently reopening.
+      - name: Audit suite
+        working-directory: artifacts/mobile
+        run: pnpm exec vitest run audit
+
+  # ── Browser: the checks 714 unit tests provably cannot see ─────────────────
+  ui:
+    name: browser render
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --no-frozen-lockfile
+
+      - name: Install Chromium
+        working-directory: artifacts/mobile
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Export web build
+        working-directory: artifacts/mobile
+        run: pnpm exec expo export --platform web --output-dir .ui-build
+
+      # docs/25 found three defects here that typecheck and the unit suite
+      # could not: light-on-dark answer tiles, a praise line painted and gone
+      # in 280 ms, and an unlocalised screen mid-flow.
+      - name: UI smoke (23 assertions)
+        working-directory: artifacts/mobile
+        run: node scripts/ui-smoke.mjs .ui-build 8399
+
+      # docs/27 P1-17…P1-20. Drives a real session until an open-response task
+      # appears, then asserts the constraint checklist renders and the exemplar
+      # stays hidden until the child commits.
+      - name: Open-response render
+        working-directory: artifacts/mobile
+        run: node scripts/open-task-render.mjs .ui-build 8412 .ui-shots
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: artifacts/mobile/.ui-shots
+          if-no-files-found: ignore

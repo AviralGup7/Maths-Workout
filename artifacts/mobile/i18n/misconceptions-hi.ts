@@ -211,6 +211,13 @@ export const MISCONCEPTIONS_HI: Record<string, { label: string; explanation: str
     remediation:
       'पहले आकृति पहचानें: सरल रेखा 180°, त्रिभुज 180°, चतुर्भुज 360°, पूरा चक्कर 360°।',
   },
+  'geometry.volume-as-area': {
+    label: 'तीन के बजाय दो विमाओं का गुणा',
+    explanation:
+      'केवल दो भुजाएँ गुणा हुईं, इसलिए उत्तर ठोस का आयतन नहीं बल्कि एक फलक का क्षेत्रफल है।',
+    remediation:
+      'ठोस में तीनों दिशाएँ लगती हैं। घन के लिए भुजा को दो बार नहीं, तीन बार गुणा करें।',
+  },
   'data.median-unsorted': {
     label: 'क्रम में लगाए बिना बीच वाला लेना',
     explanation:

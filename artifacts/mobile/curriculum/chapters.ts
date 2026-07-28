@@ -115,7 +115,7 @@ export const CHAPTERS: Chapter[] = [
     id: 'geometry',
     title: { en: 'Shape and Space', hi: 'आकृति और स्थान' },
     kind: 'core', introducedIn: '3rd', prerequisites: ['shapes-time-money', 'tables'],
-    skills: ['geometry.area', 'geometry.perimeter', 'geometry.angles', 'symmetry.basic'],
+    skills: ['geometry.area', 'geometry.perimeter', 'geometry.angles', 'geometry.volume', 'symmetry.basic'],
   },
   {
     id: 'decimals',

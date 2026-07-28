@@ -135,6 +135,28 @@ describe('generator routing', () => {
       .toBe('geometry.area');
   });
 
+  it('files volume questions under volume, not the retired parent', () => {
+    // The regression that motivated `geometry.volume`: 177 of 720 generated
+    // geometry questions were "Volume of a cube with side N cm", which matched
+    // none of area / perimeter / angles. Every attempt at the only 3D content
+    // in the app was therefore logged against a node the scheduler no longer
+    // serves, so the child could never be given it again.
+    expect(classifyQuestion('geometry.basic', 'Volume of a cube with side 5 cm = ?'))
+      .toBe('geometry.volume');
+    // And it must not steal the 2D questions on its way past.
+    expect(classifyQuestion('geometry.basic', 'Area of a square with side 7 = ?'))
+      .toBe('geometry.area');
+  });
+
+  it('diagnoses volume answered as the area of one face', () => {
+    // side³ expected, side² given — the child mapped "volume" onto the area
+    // procedure they already had.
+    expect(diagnose({
+      skill: 'geometry.volume', chosen: '25', expected: '125',
+      questionText: 'Volume of a cube with side 5 cm = ?',
+    } as any)).toBe('geometry.volume-as-area');
+  });
+
   it('classifies the overwhelming majority of real generated questions', () => {
     // An unclassifiable question is not a bug on its own — some genuinely
     // belong to neither strand — but a high rate would mean the split leaves

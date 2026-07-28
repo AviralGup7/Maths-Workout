@@ -154,6 +154,7 @@ const SKILL_GENERATORS: Record<string, (cls: SchoolClass, diff: Difficulty) => Q
   'geometry.area':        (c, d) => forSubSkill('geometry.basic', 'geometry.area', dd => genGeometry(c, dd), d),
   'geometry.perimeter':   (c, d) => forSubSkill('geometry.basic', 'geometry.perimeter', dd => genGeometry(c, dd), d),
   'geometry.angles':      (c, d) => forSubSkill('geometry.basic', 'geometry.angles', dd => genGeometry(c, dd), d),
+  'geometry.volume':      (c, d) => forSubSkill('geometry.basic', 'geometry.volume', dd => genGeometry(c, dd), d),
   'measurement.length':   (c, d) => forSubSkill('measurement.basic', 'measurement.length', dd => genMeasurement(c, dd), d),
   'measurement.mass':     (c, d) => forSubSkill('measurement.basic', 'measurement.mass', dd => genMeasurement(c, dd), d),
   'measurement.capacity': (c, d) => forSubSkill('measurement.basic', 'measurement.capacity', dd => genMeasurement(c, dd), d),

@@ -310,6 +310,14 @@ export const HINTS: Partial<Record<SkillId, HintTriple>> = {
     'Subtract the angle you know from the total for that shape or line.',
     'उस आकृति या रेखा के कुल में से ज्ञात कोण घटाएँ।',
   ),
+  'geometry.volume': H(
+    'How much space does the solid fill?',
+    'यह ठोस कितनी जगह घेरता है?',
+    'Volume needs all three directions — length, width and height.',
+    'आयतन में तीनों दिशाएँ लगती हैं — लंबाई, चौड़ाई और ऊँचाई।',
+    'For a cube, multiply the side by itself three times. The answer is in cubic units.',
+    'घन के लिए भुजा को तीन बार गुणा करें। उत्तर घन इकाई में आता है।',
+  ),
   'measurement.length': H(
     'Are you going to a bigger unit or a smaller one?',
     'बड़ी इकाई की ओर जा रहे हैं या छोटी की ओर?',

@@ -109,6 +109,13 @@ export const SKILLS: Record<SkillId, Skill> = {
   // theory): the pair is what makes either one meaningful.
   'geometry.perimeter':  { id: 'geometry.perimeter',  label: 'Perimeter',                     prerequisites: ['add.2digit.carry'],   introducedIn: '3rd', category: 'geometry' },
   'geometry.angles':     { id: 'geometry.angles',     label: 'Angles',                        prerequisites: ['sub.2digit.borrow'],  introducedIn: '4th', category: 'geometry' },
+  // Volume was found stranded on the retired parent by the classifier-coverage
+  // guard: 177 of 720 generated geometry questions ("Volume of a cube with
+  // side N cm") matched none of the three sub-skills, so every attempt at the
+  // only 3D content in the app was logged against a node the scheduler no
+  // longer serves. It is a distinct concept, not a variety of area — the whole
+  // difficulty is that the third dimension multiplies again.
+  'geometry.volume':     { id: 'geometry.volume',     label: 'Volume',                        prerequisites: ['geometry.area'],      introducedIn: '5th', category: 'geometry' },
 
   // ── Measurement (docs/27 P2-02) ────────────────────────────────────────────
   'measurement.basic':   { id: 'measurement.basic',   label: 'Measurement and units',         prerequisites: ['placevalue'],         introducedIn: '2nd', category: 'measurement' },
@@ -207,8 +214,15 @@ export function resolveSkill(cls: SchoolClass, cat: Category, diff: Difficulty):
     // so a child practising "Geometry" from the menu still meets all three but
     // each attempt is logged against the concept it actually exercised.
     case 'geometry':
+      // Four sub-skills, three difficulty slots — as with `data`, class
+      // carries the fourth. Volume only appears in the hard generator forms
+      // and only makes sense once area is secure, so it takes the hard slot
+      // from Class 5 while younger children keep angles there.
       if (diff === 'easy') return 'geometry.perimeter';
-      return diff === 'hard' ? 'geometry.angles' : 'geometry.area';
+      if (diff === 'hard') {
+        return (cls === '5th' || cls === '6th') ? 'geometry.volume' : 'geometry.angles';
+      }
+      return 'geometry.area';
     case 'measurement':
       if (diff === 'easy') return 'measurement.length';
       return diff === 'hard' ? 'measurement.capacity' : 'measurement.mass';
