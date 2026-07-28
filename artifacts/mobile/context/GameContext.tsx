@@ -783,12 +783,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
     // Word problems must be read before they can be solved, so a Hindi-medium
     // learner needs them in Hindi — otherwise we test English, not maths.
-    const q =
-      cat === 'word_problems' ? genWordProblemsI18n(cls, diff, lang, board) :
-      cat === 'money'         ? genMoneyI18n(cls, diff, lang, board) :
-      // Skill-targeted: categories that pick a strand at random (number_sense,
-      // shapes) must serve the skill the attempt will be logged against.
-      generateForSkill(cls, diff, cat, skill, board);
+    // `lang` now reaches every generator, not just these two. Word problems and
+    // money were special-cased here because they were the only categories with
+    // localised variants; the other 21 fell through to an English-only
+    // dispatcher, which is why 51.6% of the stream reached a Hindi-medium
+    // child in English.
+    const q = generateForSkill(cls, diff, cat, skill, board, lang);
     // The ladder: secure skills lose the multiple-choice scaffold.
     const withLadder = pickInteraction(level, { entry: true }) === 'entry' ? toEntry(q) : q;
     return { ...withLadder, resolvedCategory: withLadder.resolvedCategory ?? cat };

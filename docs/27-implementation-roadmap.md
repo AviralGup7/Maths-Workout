@@ -12,7 +12,7 @@ CI          .github/workflows/ci.yml runs everything on push (all three green
             on 4f56647, measured):
               fast   typecheck + arch-check + 704 unit tests   0m43s  (gate)
               audit  the docs/21 and docs/23 simulations      13m21s  (parallel)
-              ui     ui-smoke 23/23 + open-task render 8/8     3m46s  (parallel)
+              ui     ui-smoke 23/23 + open-task 8/8 + Hindi 7/7  (parallel)
                      screenshots uploaded as the ui-screenshots artifact
 Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconceptions
             18 chapters · 15 achievements · 6 interaction kinds

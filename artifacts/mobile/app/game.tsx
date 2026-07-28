@@ -675,7 +675,9 @@ export default function GameScreen() {
           contentContainerStyle={[styles.qScrollInner, !isLongQuestion && styles.qScrollCenter]}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.qText, { fontSize: qFontSize }]}>{currentQuestion.questionText}</Text>
+          <Text style={[styles.qText, { fontSize: qFontSize, lineHeight: Math.round(qFontSize * 1.45) }]}>
+            {currentQuestion.questionText}
+          </Text>
         </ScrollView>
       </Animated.View>
 
@@ -947,7 +949,13 @@ const makeStyles = (C: ReturnType<typeof useLegacyPalette>) => StyleSheet.create
   blitzCount: { fontSize: 12, fontFamily: 'Inter_600SemiBold', color: C.mutedForeground, marginBottom: 4 },
   qScrollInner: { paddingBottom: 4 },
   qScrollCenter: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
-  qText: { fontFamily: 'Inter_700Bold', color: C.foreground, textAlign: 'center', lineHeight: 32 },
+  // lineHeight is set per-render from fontSize, NOT fixed here. It used to be a
+  // constant 32 while `qFontSize` scales to 44 for short questions, so the line
+  // box was smaller than the glyphs. Latin tolerates that; Devanagari does not
+  // — the i-matra (ि) and the shirorekha sit ABOVE the base glyph, so "कितने"
+  // rendered with the matra clipped and visually detached. Found by
+  // photographing the Hindi render, not by reading the stylesheet.
+  qText: { fontFamily: 'Inter_700Bold', color: C.foreground, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   gridText: { gap: 10 },
   choiceBtn: {

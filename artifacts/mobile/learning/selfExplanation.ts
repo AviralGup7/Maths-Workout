@@ -31,6 +31,7 @@
 
 import type { SkillId } from './skills';
 import { MISCONCEPTIONS } from './misconceptions';
+import { MISCONCEPTIONS_HI } from '../i18n/misconceptions-hi';
 import type { Attempt } from './attempts';
 import type { Lang } from '../i18n/strings';
 
@@ -136,11 +137,20 @@ export function buildWhyPrompt(args: {
 
   const distractors = shuffle(others).slice(0, Math.max(0, SE_OPTION_COUNT - 2));
 
+  // The Hindi label comes from MISCONCEPTIONS_HI, not from the English one.
+  // This previously read `hi: truth.label`, so a Hindi-medium child met a
+  // Hindi prompt with English options — "Miscounting by one" next to
+  // "मुझे आता था — बस चूक हो गई". The translations already existed for all 47
+  // misconceptions; nothing consulted them here. Found by photographing the
+  // Hindi render, not by any unit test.
+  const label = (m: { id: string; label: string }) => ({
+    en: m.label,
+    hi: MISCONCEPTIONS_HI[m.id]?.label ?? m.label,
+  });
+
   const options: SelfExplanationOption[] = [
-    { id: truth.id, text: { en: truth.label, hi: truth.label }, correct: true },
-    ...distractors.map(m => ({
-      id: m.id, text: { en: m.label, hi: m.label }, correct: false,
-    })),
+    { id: truth.id, text: label(truth), correct: true },
+    ...distractors.map(m => ({ id: m.id, text: label(m), correct: false })),
     SLIP_OPTION,
   ];
 

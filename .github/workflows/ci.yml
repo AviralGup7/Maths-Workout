@@ -129,6 +129,13 @@ jobs:
       # include-hidden-files is required: the shots land in a dot-directory and
       # upload-artifact v4 silently skips hidden paths, which showed up as a
       # green job with 0 artifacts attached.
+      # The Hindi stream is a separate render: the language has to survive the
+      # store, the context, the dispatcher AND the paint. 712 unit tests could
+      # not see that 51.6% of questions reached a Hindi-medium child in English.
+      - name: Hindi render
+        working-directory: artifacts/mobile
+        run: node scripts/hindi-render.mjs .ui-build 8710 .ui-shots
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4

@@ -64,6 +64,12 @@ export function isRetiredParent(id: SkillId): boolean {
 export function classifyQuestion(parent: SkillId, text: string): SkillId | null {
   const t = text.toLowerCase();
 
+  // Bilingual by necessity, not for tidiness. This predicate drives BOTH
+  // sub-skill routing and the P2-04 history migration, so an English-only
+  // matcher would leave a Hindi-medium learner permanently unclassified:
+  // every geometry, measurement and data attempt would fall back to the
+  // retired parent, which the scheduler no longer serves. The Hindi terms are
+  // the ones i18n/questions.ts actually emits.
   if (parent === 'geometry.basic') {
     // Perimeter and area are tested BEFORE angles, and `angle` carries word
     // boundaries. Both matter, and the second was found by measurement rather
@@ -75,10 +81,10 @@ export function classifyQuestion(parent: SkillId, text: string): SkillId | null 
     // Volume is tested before area for the same reason perimeter is: the cube
     // question names a side and a cubic result, and an `\barea\b` test would
     // never catch it but a looser one would steal it.
-    if (/volume|cubic|\bcube\b/.test(t)) return 'geometry.volume';
-    if (/perimeter/.test(t)) return 'geometry.perimeter';
-    if (/\barea\b/.test(t)) return 'geometry.area';
-    if (/degree|\bangles?\b|°/.test(t)) return 'geometry.angles';
+    if (/volume|cubic|\bcube\b|आयतन|घन/.test(t)) return 'geometry.volume';
+    if (/perimeter|परिमाप/.test(t)) return 'geometry.perimeter';
+    if (/\barea\b|क्षेत्रफल/.test(t)) return 'geometry.area';
+    if (/degree|\bangles?\b|°|कोण|डिग्री/.test(t)) return 'geometry.angles';
     // "A rectangle is 9 long and 4 wide. How much longer…" is neither; it is a
     // subtraction dressed in a rectangle. Left unclassified on purpose.
     return null;
@@ -89,19 +95,21 @@ export function classifyQuestion(parent: SkillId, text: string): SkillId | null 
     // are unambiguous, whereas a bare `m` appears inside neither — but `g` is
     // a suffix of nothing here and `l` of nothing either, so order is a
     // safety margin rather than a requirement.
-    if (/\b(l|ml|litre|liter|millilitre)\b|capacity/.test(t)) return 'measurement.capacity';
-    if (/\b(kg|g|gram|kilogram)\b|mass|weigh/.test(t)) return 'measurement.mass';
-    if (/\b(km|m|cm|mm|metre|meter|centimetre)\b|length|long|tall|height|distance/.test(t)) {
+    // Unit symbols are untranslated by policy, so these match in both
+    // languages already; the words are added for the prose forms.
+    if (/\b(l|ml|litre|liter|millilitre)\b|capacity|धारिता|लीटर/.test(t)) return 'measurement.capacity';
+    if (/\b(kg|g|gram|kilogram)\b|mass|weigh|द्रव्यमान|भार|ग्राम/.test(t)) return 'measurement.mass';
+    if (/\b(km|m|cm|mm|metre|meter|centimetre)\b|length|long|tall|height|distance|लंबाई|दूरी|ऊँचाई|मीटर/.test(t)) {
       return 'measurement.length';
     }
     return null;
   }
 
   if (parent === 'data.basic') {
-    if (/\bmean\b|average/.test(t)) return 'data.mean';
-    if (/\bmedian\b/.test(t)) return 'data.median';
-    if (/\bmode\b/.test(t)) return 'data.mode';
-    if (/\brange\b/.test(t)) return 'data.range';
+    if (/\bmean\b|average|माध्य(?!िका)/.test(t)) return 'data.mean';
+    if (/\bmedian\b|माध्यिका/.test(t)) return 'data.median';
+    if (/\bmode\b|बहुलक/.test(t)) return 'data.mode';
+    if (/\brange\b|परिसर/.test(t)) return 'data.range';
     return null;
   }
 

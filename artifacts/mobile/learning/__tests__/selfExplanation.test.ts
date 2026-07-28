@@ -15,6 +15,7 @@ import {
   SE_MAX_PER_SESSION, SE_OPTION_COUNT,
 } from '../selfExplanation';
 import { MISCONCEPTIONS } from '../misconceptions';
+import { MISCONCEPTIONS_HI } from '../../i18n/misconceptions-hi';
 import { SKILLS } from '../skills';
 import type { Attempt } from '../attempts';
 
@@ -160,5 +161,41 @@ describe('feedback never tells a child they were wrong about being wrong', () =>
     expect(out).not.toContain('incorrect');
     // Identifying your own error imperfectly is still reflection.
     expect(out).toContain('good thinking');
+  });
+});
+
+describe('self-explanation is bilingual', () => {
+  it('renders option labels in Hindi, not English', () => {
+    // The regression: `hi: truth.label` copied the ENGLISH label into the Hindi
+    // slot, so a Hindi-medium child met a Hindi prompt with English options —
+    // "Miscounting by one" sitting next to "मुझे आता था — बस चूक हो गई".
+    // The translations existed for all 47 misconceptions; nothing used them.
+    const ids = Object.keys(MISCONCEPTIONS).filter(
+      id => id !== 'guessing' && id !== 'legacy-import',
+    );
+    let checked = 0;
+    for (const id of ids) {
+      const skill = MISCONCEPTIONS[id].skills[0];
+      if (!skill) continue;
+      const prompt = buildWhyPrompt({ skill, misconception: id });
+      if (!prompt) continue;
+      for (const o of prompt.options) {
+        const hiTranslation = MISCONCEPTIONS_HI[o.id];
+        if (!hiTranslation) continue;         // the slip option is hand-written
+        expect(o.text.hi, `${o.id} hi label`).toBe(hiTranslation.label);
+        expect(o.text.hi, `${o.id} untranslated`).not.toBe(MISCONCEPTIONS[o.id].label);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(20);
+  });
+
+  it('every Hindi option is actually Devanagari', () => {
+    const id = 'count.miscount-by-one';
+    const prompt = buildWhyPrompt({ skill: MISCONCEPTIONS[id].skills[0], misconception: id });
+    expect(prompt).not.toBeNull();
+    for (const o of prompt!.options) {
+      expect(o.text.hi, `${o.id}`).toMatch(/[\u0900-\u097F]/);
+    }
   });
 });
