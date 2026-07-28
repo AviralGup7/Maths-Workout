@@ -10,6 +10,9 @@ import type { Question } from '@/generators/types';
 import type { SkillId } from '@/learning/skills';
 import { TenFrame } from './TenFrame';
 import { BarModel } from './BarModel';
+import { ClockFace } from './ClockFace';
+import { MoneyRow } from './MoneyRow';
+import { clockFor, moneyFor, shouldShowEveryday } from '@/learning/everydayVisualPolicy';
 import { barModelFor, shouldShowBarModel } from '@/learning/barModelPolicy';
 
 /**
@@ -53,6 +56,23 @@ export function QuestionVisual({
     const spec = barModelFor(question.questionText);
     if (!spec) return null;
     return <BarModel structure={spec.structure} a={spec.a} b={spec.b} />;
+  }
+
+  // docs/27 P3-03 / P3-04. Same placement reasoning as the bar model above:
+  // neither skill has an entry in MODEL_FOR_SKILL, so `visualMode` would
+  // return 'none' and exit before these were reached.
+  if (skill === 'time.basic') {
+    if (!shouldShowEveryday(mastery)) return null;
+    const spec = clockFor(question.questionText);
+    if (!spec) return null;
+    return <ClockFace hour={spec.hour} minute={spec.minute} />;
+  }
+
+  if (skill === 'money.basic') {
+    if (!shouldShowEveryday(mastery)) return null;
+    const spec = moneyFor(question.questionText);
+    if (!spec) return null;
+    return <MoneyRow amount={spec.amount} />;
   }
 
   const mode = visualMode(skill, mastery);

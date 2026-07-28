@@ -5,7 +5,7 @@
 Tick items here as they land. Do not maintain a second list anywhere else.
 
 ```
-Progress    72 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
+Progress    74 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
 Verify      cd artifacts/mobile && npm run test:fast   # 751 tests, ~40s
 CI          .github/workflows/ci.yml, three parallel jobs on every push:
               fast   typecheck + arch-check + 751 unit tests    ~45s  (gate)
@@ -107,8 +107,8 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
 
 - [x] **P3-01 · Ten-frames** for Class 1–2 addition/subtraction (docs/25 T2-10, docs/26 B30) *(shipped: `components/visuals/TenFrame.tsx`, 7 skills in `visualPolicy`)*
 - [~] **P3-02 · Array/grid visual for times tables** — **DECLINED.** `visualPolicy.ts` records the reason: automaticity is the goal for tables and a visual slows retrieval. A deliberate pedagogical choice, not an omission.
-- [ ] **P3-03 · Clock face** for time (docs/25 T2-11)
-- [ ] **P3-04 · Coin/note images** for money (docs/25 T2-12)
+- [x] **P3-03 · Clock face** for time (docs/25 T2-11) — **DONE.** `components/visuals/ClockFace.tsx`. Hour hand carries the minute fraction, so half past 2 sits between 2 and 3 rather than pointing at 2 — the most common error in clock diagrams and the one that breaks a child the moment they meet a real clock. Minute ticks are drawn but not numbered, so counting in fives stays the child's job. Shows the STARTING time, never the answer.
+- [x] **P3-04 · Coin/note images** for money (docs/25 T2-12) — **DONE.** `components/visuals/MoneyRow.tsx` draws real Indian denominations (coins ≤₹20 as circles, notes as rectangles) from a greedy breakdown, which is also minimal because the denomination set is canonical. Shapes rather than reproduced currency: legally safer, maintainable, theme-aware, and no assets. 73%/74% coverage of the live stream in both languages.
 - [x] **P3-05 · Bar-model / tape diagram** for word problems (Singapore) — **DONE.** `components/visuals/BarModel.tsx` draws four structures (part-whole, difference, equal groups, sharing) chosen by `learning/barModelPolicy.ts` from the SENTENCE, not the arithmetic. Measured 46% coverage of the live stream in both languages; the remainder (speed, rate, percentage) is declined on purpose because a tape diagram would misrepresent it.
 - [x] **P3-06 · Interactive manipulatives** — regroupable base-ten, draggable fraction bars, where the manipulation *is* the answer (docs/26 A9 — DreamBox's differentiator). **Depends on P1-17.** *(shipped: `components/answer/ManipulativeFrame.tsx` — a new `manipulative` interaction kind where placing counters IS the answer)*
 - [ ] **P3-07 · Multi-representation items** — same quantity as fraction, decimal, percentage, number-line point
@@ -254,13 +254,13 @@ deliberately declined.*
 |---|---:|---|
 | 1 · Educational foundations | 0 | ✅ complete |
 | 2 · Curriculum structure | 6 | §2.1 and §2.2 done; breadth items remain |
-| 3 · Representation | 6 | Ten-frames, manipulatives and bar models shipped |
+| 3 · Representation | 4 | Ten-frames, manipulatives, bar models, clock and money shipped |
 | 4 · Engagement | 20 | Tier 1–2 shipped via Phase 8; long-tail polish remains |
 | 5 · Parent & teacher | 4 | Weekly digest and conversation starters shipped |
 | 6 · Platform | 4 | P6-01 closed; the rest are strategic |
 | 7 · Validation | 4 | Cannot be faked or deferred indefinitely |
 | 8 · UI/UX | 4 | Tiers 1–3 shipped |
-| **Total open** | **48** | of 120 |
+| **Total open** | **46** | of 120 |
 
 ### Do these next
 
@@ -276,8 +276,8 @@ If only five things happen, these five — in this order:
 3. **P2-18 · Curriculum review by a practising Indian teacher.** The board
    mapping is researched (docs/11) but has never been checked by someone who
    teaches it.
-4. **P3-03/04 · Clock face and coin/note images.** The two remaining
-   representations for topics a child meets outside the app every day.
+4. **P3-08 · Reduce the multiple-choice share below 40%** by extending the
+   interaction ladder to more skills — elimination transfers to nothing.
 5. **P7-03 · A small learning-gain study.** The only item on this list that can
    move the "no learning-gain evidence" verdict, which no amount of further
    engineering will.
