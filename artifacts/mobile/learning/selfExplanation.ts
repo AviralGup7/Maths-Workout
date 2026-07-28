@@ -10,7 +10,7 @@
 //
 // ── Why selectable reasons rather than free text ────────────────────────────
 //
-// docs/18 rejected free-text explanation, and correctly: it cannot be graded
+// Free-text explanation was rejected early on, and correctly: it cannot be graded
 // offline, deterministically, or equally across two languages, and shipping it
 // ungraded would be theatre. But that rejection was of the INPUT METHOD, not
 // of the pedagogy, and the two got conflated.

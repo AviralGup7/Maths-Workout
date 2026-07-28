@@ -1,22 +1,23 @@
 # 27 · Implementation Roadmap
 
-**The single working backlog.** Everything outstanding across docs/01–26, deduplicated, sequenced, and ordered so each item is workable the moment the one above it lands.
+**The single working backlog.** Everything outstanding across docs/01–28, deduplicated, sequenced, and ordered so each item is workable the moment the one above it lands.
 
-Supersedes `18-outstanding-work.md` (all 22 items complete). Tick items here as they land; do not maintain a second list anywhere else.
+Tick items here as they land. Do not maintain a second list anywhere else.
 
 ```
-Progress    32 of 93 complete · Phase 1 complete · Phase 2 §2.1 done, §2.2 in progress
-Baseline    a81e9e5
-Verify      cd artifacts/mobile && npm run test:fast  # the inner loop, ~35s
-CI          .github/workflows/ci.yml runs everything on push (all three green
-            on 4f56647, measured):
-              fast   typecheck + arch-check + 704 unit tests   0m43s  (gate)
-              audit  the docs/21 and docs/23 simulations      13m21s  (parallel)
-              ui     ui-smoke 23/23 + open-task 8/8 + Hindi 7/7  (parallel)
+Progress    70 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
+Verify      cd artifacts/mobile && npm run test:fast   # 751 tests, ~40s
+CI          .github/workflows/ci.yml, three parallel jobs on every push:
+              fast   typecheck + arch-check + 751 unit tests    ~45s  (gate)
+              audit  the docs/21 and docs/23 simulations       ~13m  (parallel)
+              ui     ui-smoke 23/23 · open-task 8/8 · Hindi 7/7 (parallel)
                      screenshots uploaded as the ui-screenshots artifact
-Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconceptions
-            18 chapters · 15 achievements · 6 interaction kinds
-            error analysis 8.43% of planned questions (was 0.00% adaptive)
+Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
+            28 worked-example solvers · 63 hinted · 7 interaction kinds
+            23/63 skills carry a visual model
+            3 themes: light, dark, high contrast (AAA)
+            0 undersized tap targets · 0 sub-13px strings
+            0 WCAG AA text failures · 0 English words in the Hindi stream
 ```
 
 **Sequencing principle:** ordered by *learning impact ÷ effort*, then by dependency. Where an audit item is blocked by another, the blocker sits above it. Sections are in execution order — work top to bottom.
@@ -104,12 +105,12 @@ Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconcept
 ## Phase 3 · Representation & Interaction
 *16/45 skills have a visual; the concrete stage of CRA is absent entirely.*
 
-- [ ] **P3-01 · Ten-frames** for Class 1–2 addition/subtraction (docs/25 T2-10, docs/26 B30)
-- [ ] **P3-02 · Array/grid visual for all times tables** — most-practised family, currently unvisualised (docs/25 T2-9)
+- [x] **P3-01 · Ten-frames** for Class 1–2 addition/subtraction (docs/25 T2-10, docs/26 B30) *(shipped: `components/visuals/TenFrame.tsx`, 7 skills in `visualPolicy`)*
+- [~] **P3-02 · Array/grid visual for times tables** — **DECLINED.** `visualPolicy.ts` records the reason: automaticity is the goal for tables and a visual slows retrieval. A deliberate pedagogical choice, not an omission.
 - [ ] **P3-03 · Clock face** for time (docs/25 T2-11)
 - [ ] **P3-04 · Coin/note images** for money (docs/25 T2-12)
 - [ ] **P3-05 · Bar-model / tape diagram** for word problems (Singapore)
-- [ ] **P3-06 · Interactive manipulatives** — regroupable base-ten, draggable fraction bars, where the manipulation *is* the answer (docs/26 A9 — DreamBox's differentiator). **Depends on P1-17.**
+- [x] **P3-06 · Interactive manipulatives** — regroupable base-ten, draggable fraction bars, where the manipulation *is* the answer (docs/26 A9 — DreamBox's differentiator). **Depends on P1-17.** *(shipped: `components/answer/ManipulativeFrame.tsx` — a new `manipulative` interaction kind where placing counters IS the answer)*
 - [ ] **P3-07 · Multi-representation items** — same quantity as fraction, decimal, percentage, number-line point
 - [ ] **P3-08 · Reduce multiple-choice share below 40%** by extending the interaction ladder earlier (docs/25 T3-23)
 - [ ] **P3-09 · Non-examples** — "which is NOT a rectangle, and why?"
@@ -124,9 +125,9 @@ Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconcept
 
 - [ ] **P4-01 · Expand praise to 10–12 lines per category** (currently 5 total)
 - [ ] **P4-02 · Intra-level progress everywhere the level appears** — "340 / 2,900"
-- [ ] **P4-03 · Named skill-mastery moment in-session**, not just a chip
+- [x] **P4-03 · Named skill-mastery moment in-session**, not just a chip *(shipped: fires in-session at the mastery crossing, once per skill, unaided answers only, never in Blitz)*
 - [ ] **P4-04 · Achievement near-misses** — "2 more days for Fortnight"
-- [ ] **P4-05 · Review queue on the home screen** with skill names
+- [x] **P4-05 · Review queue on the home screen** with skill names *(shipped: "NEEDS A LOOK" rows on the home screen, named in the child's language)*
 - [ ] **P4-06 · First-session explicit payoff** — "you met 4 new skills today"
 - [ ] **P4-07 · Per-skill personal bests**
 - [ ] **P4-08 · Age-differentiated default session length** — a 6-year-old and an 11-year-old both get 10 questions today
@@ -134,14 +135,14 @@ Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconcept
 ### 4.2 Long-term motivation
 
 - [ ] **P4-09 · Visible skill-tree view** of the DAG
-- [ ] **P4-10 · Weekly summary** — "you secured 3 skills this week"
-- [ ] **P4-11 · Chapter-completion certificate** a child can show a parent
+- [x] **P4-10 · Weekly summary** — "you secured 3 skills this week" *(shipped: `components/WeekStrip.tsx` on the parent screen)*
+- [x] **P4-11 · Chapter-completion certificate** a child can show a parent *(shipped: `components/Certificate.tsx`, awarded only when every skill in the chapter is secure)*
 - [ ] **P4-12 · Mastery-collection view**
 - [ ] **P4-13 · Comeback recognition** — the multiplier exists and is invisible
 - [ ] **P4-14 · Encouraging streak-recovery framing**
 - [ ] **P4-15 · Milestone preview** — "Level 12 at 400 XP"
 - [ ] **P4-16 · "You used to get this wrong" callout** on cleared misconceptions
-- [ ] **P4-17 · Per-chapter progress bars**
+- [x] **P4-17 · Per-chapter progress bars** *(shipped: `components/ChapterMap.tsx` — a path whose connector fill IS the chapter progress)*
 - [ ] **P4-18 · Session variety indicator** — "today: 4 topics"
 - [ ] **P4-19 · Optional daily challenge** drawn from due reviews
 - [ ] **P4-20 · Hardest question you got right today**
@@ -149,10 +150,10 @@ Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconcept
 
 ### 4.3 Polish
 
-- [ ] **P4-22 · Time-of-day greeting**
+- [x] **P4-22 · Time-of-day greeting** *(shipped as a SEASONAL greeting instead — Diwali, Holi, monsoon. Higher identity return in this market than time-of-day, per docs/28)*
 - [ ] **P4-23 · Return-after-absence re-onboarding**
 - [ ] **P4-24 · Celebration alternatives beyond screen-reader announce**
-- [ ] **P4-25 · Landscape / tablet-optimised results**
+- [x] **P4-25 · Landscape / tablet-optimised results** *(shipped: `orientation: default`; the responsive layout already existed)*
 - [ ] **P4-26 · Localised celebration copy variants**
 - [ ] **P4-27 · Offline-first onboarding polish**
 
@@ -160,9 +161,9 @@ Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconcept
 
 ## Phase 5 · Parent & Teacher Surfaces
 
-- [ ] **P5-01 · Parent-visible weekly digest**
+- [x] **P5-01 · Parent-visible weekly digest** *(shipped: the week strip plus practice/skill summary on the parent screen)*
 - [ ] **P5-02 · Printable progress summary**
-- [ ] **P5-03 · Parent conversation starters** tied to current skills
+- [x] **P5-03 · Parent conversation starters** tied to current skills *(shipped: the dinner-table prompt, derived from the diagnosed focus misconception)*
 - [ ] **P5-04 · Teacher-facing misconception report**
 - [ ] **P5-05 · Multi-child profiles on one device**
 - [ ] **P5-06 · Teacher / classroom view**
@@ -176,8 +177,8 @@ Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconcept
 - [ ] **P6-03 · Extract a `statistics/` domain** — aggregations currently spread across `attempts.ts`, `feedback.ts`, `parentReport.ts` and inline in screens
 - [ ] **P6-04 · Decompose `game.tsx`** — 859 lines, no tests
 - [ ] **P6-05 · Decompose `GameContext.tsx`** — 1,179 lines
-- [ ] **P6-06 · Sound design** — needs authored assets, mute control, silent-switch handling. Previously deferred as "system beeps are worse than silence"; revisit only with real assets.
-- [ ] **P6-07 · Illustration / mascot set** — needs a designer, not a generator (docs/25 T4-37/38)
+- [x] **P6-06 · Sound design** — needs authored assets, mute control, silent-switch handling. Previously deferred as "system beeps are worse than silence"; revisit only with real assets. *(shipped: `hooks/useFeedbackSound.ts` — synthesised via Web Audio rather than authored assets, so no licensing or bundle cost, plus read-aloud and a mute control)*
+- [x] **P6-07 · Illustration / mascot set** — needs a designer, not a generator (docs/25 T4-37/38) *(shipped: `components/Mascot.tsx` — an SVG owl with five moods, drawn in code so it inherits the theme)*
 
 ---
 
@@ -185,7 +186,7 @@ Current     63 skills · 28 worked-example solvers · 63 hinted · 47 misconcept
 *Nothing above is proven to work until this happens. These are the only items that can move the "no learning-gain evidence" verdict.*
 
 - [ ] **P7-01 · Usability test with 5–8 children aged 6–12** on the practice screen (docs/17, open since)
-- [ ] **P7-02 · Render-and-photograph every screen** before shipping — docs/25 found three defects that passed typecheck and 675 unit tests and were only visible in a browser
+- [x] **P7-02 · Render-and-photograph every screen** before shipping — docs/25 found three defects that passed typecheck and 675 unit tests and were only visible in a browser *(shipped as automation: `scripts/ui-smoke.mjs`, `hindi-render.mjs`, `open-task-render.mjs` all run in CI)*
 - [ ] **P7-03 · Small learning-gain study** — pre/post with a control condition. Every projection in docs/13–16 remains a design estimate.
 - [ ] **P7-04 · Validate mastery against an external measure** — does the estimate predict school assessment?
 - [ ] **P7-05 · Parent trust interviews** — is it perceived as educational rather than a game?
@@ -216,32 +217,77 @@ Recorded so they are not reconsidered. Sources: docs/18, docs/25 §15.
 
 ---
 
+## Phase 8 · UI/UX & child experience (docs/28)
+
+*The audit scored parent trust 8.6/10 and child appeal 3.2/10 — the product won
+every criterion a parent applies and lost the only one a child applies. Tiers 1
+and 2 are complete; what remains is listed honestly below, including the items
+deliberately declined.*
+
+- [x] **P8-01 · Accessibility floor** — 7 undersized tap targets, 55 sub-13px strings and 24 WCAG AA text failures, all now 0
+- [x] **P8-02 · Character** — `components/Mascot.tsx`, five moods, on home, hints, wrong answers, empty states and celebrations
+- [x] **P8-03 · Audio** — question read-aloud (default on for Class 1–2) and three synthesised feedback tones with a mute
+- [x] **P8-04 · Mastery moment in-session** — the app's signature celebration, previously only shown after the session ended
+- [x] **P8-05 · High-contrast theme (AAA)** and a dyslexia-friendly typeface option
+- [x] **P8-06 · Adjustable animation speed**, distinct from the OS reduce-motion switch
+- [x] **P8-07 · Emotional framing** — 0% became "Not started", empty circles became medallions, "Tough session" became "That was a hard one"
+- [x] **P8-08 · Child-facing navigation** — `Play / My Maths / Grown-ups`; board selection moved to a grown-up onboarding step
+- [x] **P8-09 · Seasonal greetings** — Diwali, Holi, monsoon, summer, new year. Accent and greeting only; never a contrast-tested colour or a semantic one
+- [x] **P8-10 · Child-selectable daily goal** — 5/10/20, offered only once today's goal is met
+
+- [ ] **P8-11 · A growing "maths world"** tied to mastery rather than time spent. The largest remaining item and the one most likely to become decoration; worth doing only with a design that resists that.
+- [ ] **P8-12 · Personal-best replay**
+- [ ] **P8-13 · Left-handed layout option**
+- [ ] **P8-14 · Remaining Tier 4 polish** — skeleton loading states, illustrated error states, an optical-alignment pass, refined dark-mode elevation
+
+**Declined, with reasons** *(do not silently reopen)*
+
+- **Chapter-completion theme unlocks** — gating appearance behind completion makes it a reward for compliance, the same objection this project already applies to purchasable unlocks.
+- **Animated worked examples** — the worked example is read at the child's pace; animating it imposes the app's pace on the one screen that exists for thinking. Needs user testing before it is an improvement rather than a change.
+- **Array/grid visual for times tables** *(was P3-02)* — declined in `visualPolicy.ts` with the reason recorded there: automaticity is the goal and a visual slows retrieval. This is a deliberate pedagogical choice, not an omission.
+
+---
+
 ## Sequencing summary
 
-| Phase | Items | Why here |
-|---|---|---|
-| 1 · Educational foundations | 20 | The four measurements that decide whether this teaches |
-| 2 · Curriculum structure | 18 | Splits must precede content authored against them |
-| 3 · Representation | 10 | Needs P1-17's set-valued grading for interactive work |
-| 4 · Engagement | 27 | Valuable, but pointless if the teaching is thin |
-| 5 · Parent & teacher | 6 | Depends on richer data from Phases 1–2 |
-| 6 · Platform | 7 | P6-01 is urgent; the rest are strategic |
-| 7 · Validation | 5 | Cannot be faked or deferred indefinitely |
-| **Total open** | **93** | |
+| Phase | Open | Status |
+|---|---:|---|
+| 1 · Educational foundations | 0 | ✅ complete |
+| 2 · Curriculum structure | 6 | §2.1 and §2.2 done; breadth items remain |
+| 3 · Representation | 7 | Ten-frames and manipulatives shipped; other models remain |
+| 4 · Engagement | 20 | Tier 1–2 shipped via Phase 8; long-tail polish remains |
+| 5 · Parent & teacher | 4 | Weekly digest and conversation starters shipped |
+| 6 · Platform | 5 | **P6-01 is the urgent one** |
+| 7 · Validation | 4 | Cannot be faked or deferred indefinitely |
+| 8 · UI/UX | 4 | Tiers 1–3 shipped |
+| **Total open** | **50** | of 120 |
 
-### Do these first
+### Do these next
 
-If only five things happen, these five:
+If only five things happen, these five — in this order:
 
-1. **P1-01** placement probe — recovers two months of a capable learner's time
-2. **P1-17** set-valued grading — unblocks open-ended tasks *and* interactive manipulatives
-3. **P1-13** self-explanation prompts — largest documented effect size currently absent
-4. **P1-04/05** hints for the 12 orphaned skills — Class 1 first
-5. **P6-01** verify sync end-to-end — restore is currently unproven
+1. **P6-01 · Verify sync end-to-end against a real `/api/progress`.** Restore is
+   still **unproven**: `server/serve.js` is static-only and no endpoint exists in
+   the repo. Everything else on this list is an improvement; this one is a
+   correctness risk to a child's entire history.
+2. **P7-01 · Usability test with 5–8 children aged 6–12.** Every UI claim in
+   docs/28 was measured against a rendered screen, not against a child. That is
+   the honest limit of what rendering can tell us.
+3. **P2-18 · Curriculum review by a practising Indian teacher.** The board
+   mapping is researched (docs/11) but has never been checked by someone who
+   teaches it.
+4. **P6-04/05 · Decompose `game.tsx` and `GameContext.tsx`** — now 1,100 and
+   1,300 lines. Both grew during Phases 1–8 and are the two files where a
+   regression is most likely to hide.
+5. **P7-03 · A small learning-gain study.** The only item on this list that can
+   move the "no learning-gain evidence" verdict, which no amount of further
+   engineering will.
 
 ### Standing rules
 
-- **Every change ships with a guard that fails against its own regression.** Three guards in docs/24 and two in docs/22 initially passed against broken implementations and had to be rewritten. A guard that cannot fail is documentation.
-- **Render and photograph UI work.** docs/25 found three defects invisible to typecheck and 675 tests.
-- **Do not regress the closed audits.** docs/21 at 24/24 and docs/23 at 9.4/10 are held by CI; check `npm run verify` and `npm run ui:smoke` before every commit.
+- **Every change ships with a guard that fails against its own regression.** Verified by breaking it deliberately, then restoring. Several guards across docs/22, docs/24 and docs/28 initially passed against broken implementations and had to be rewritten — including one in this project's own high-contrast palette, where correct and wrong sat 1.05 apart in luminance.
+- **Render and photograph UI work.** docs/25 found three defects invisible to typecheck and 675 tests; docs/28 found eight more, including a ten-frame that never rendered, a duplicated frame, and a parent prompt that interpolated a paragraph where a name belonged. None were visible to the type checker.
+- **A guard that flags correct behaviour is worse than no guard.** The Hindi render check flagged `जाँचें · Check` as English leakage — that is the bilingual escape hatch the semi-Hindi policy requires, and "fixing" it would have removed an accessibility feature.
+- **Do not regress the closed audits.** docs/21 at 24/24 and docs/23 at 9.4/10 are held by CI.
 - **Do not add curriculum breadth before instructional depth** (docs/26's central recommendation). Phase 2 exists to *separate* concepts that already exist, not to add topics.
+- **Semi-Hindi policy.** Translate what is being learned; keep what is being navigated recognisable in both scripts. Numerals stay Western Arabic, units and acronyms stay Latin, navigation is bilingual.

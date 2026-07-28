@@ -39,6 +39,10 @@ below was produced by an executed command, not by reading source.
 > dyslexia typeface, high-contrast theme, landscape, offline reassurance,
 > adjustable animation speed.
 >
+> **The remaining items now live in [27 · Implementation Roadmap](./27-implementation-roadmap.md)
+> as Phase 8**, so there is one backlog rather than two. Repeated here only as a
+> summary; 27 is authoritative.
+>
 > **Deliberately not done, with reasons:**
 >
 > - **#42 chapter-completion theme unlocks** — colour themes exist, but gating

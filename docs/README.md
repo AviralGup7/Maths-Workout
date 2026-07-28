@@ -1,115 +1,135 @@
 # Maths Workout — Engineering Documentation
 
-> Engineering documentation for [`AviralGup7/Maths-Workout`](https://github.com/AviralGup7/Maths-Workout).
+> Documentation for [`AviralGup7/Maths-Workout`](https://github.com/AviralGup7/Maths-Workout),
+> an Expo/React Native mathematics practice app for Indian primary school
+> children, Classes 1–6, in English and Hindi.
 >
-> Every claim in these documents was **verified by executing the code**, not by
-> reading it alone. Where a bug is asserted, the reproduction command and its
-> real output are included.
->
-> Docs 01–08 were written against the original commit `24c6330` and describe
-> problems that have since been **fixed**; they are kept as the record of what
-> was wrong and why. Docs 10+ describe the app as it stands today.
+> **Every claim in these documents was verified by executing the code**, not by
+> reading it. Where a bug is asserted, the reproduction command and its real
+> output are included. Where a UI claim is made, the screen was rendered in a
+> browser and photographed.
+
+---
+
+## Start here
+
+**[27 · Implementation Roadmap](./27-implementation-roadmap.md) is the single
+live backlog.** 120 items, 70 done. Everything outstanding across every audit
+lives there, deduplicated and sequenced. Do not maintain a second list.
 
 ---
 
 ## Current state
 
-The repository installs, typechecks and tests cleanly:
-
 ```bash
 pnpm install --no-frozen-lockfile
 cd artifacts/mobile
-npx vitest run                       # 307 passed
-npx tsc -p tsconfig.json --noEmit    # clean
+
+npm run test:fast     # 751 tests, ~40s — the inner loop
+npm run test:audit    # the long simulations, ~13 min
+npm run arch          # 118 modules, 7 architecture checks
+npm run ui:smoke      # 23 browser assertions
+npm run ui:hindi      # 7 Hindi render assertions
 ```
 
-The install failure documented in
-[04-critical-issues.md](./04-critical-issues.md#c1) was fixed in `5f13ee9`.
-The most recent work is **[15 · Phase 1 Implementation](./15-phase-1-implementation.md)**.
+CI runs all of it on every push — see `.github/workflows/ci.yml`. Three
+parallel jobs: a fast gate, the audit simulations, and browser renders with
+screenshots uploaded as an artifact.
+
+**Measured, not asserted:**
+
+| | |
+|---|---|
+| Skills · chapters · achievements | 63 · 19 · 15 |
+| Misconceptions named | 47, covering every skill |
+| Interaction kinds | 7 (choice, entry, multiSelect, ordering, estimate, open, manipulative) |
+| Themes | light, dark, high contrast (AAA) |
+| Accessibility | 0 undersized tap targets, 0 sub-13px strings, 0 WCAG AA text failures |
+| Hindi | 0 English words in the question stream, 0 Devanagari numerals |
+
+---
+
+## How to read these documents
+
+They are a working record, written in sequence. Later documents supersede
+earlier ones where they disagree, and each audit states its own scope and
+method at the top.
+
+Two conventions worth knowing:
+
+- **Audits do not change code.** An audit measures and reports; a separate
+  remediation document records what was then fixed. That separation is why the
+  scores are trustworthy — 21 and 23 were both closed by 22 and 24.
+- **Rejections are recorded, not deleted.** Where something was deliberately
+  not built, the reason sits next to it so it is not silently reopened later.
 
 ---
 
 ## Document index
 
+### The live backlog
+
 | # | Document | What it covers |
-|---|----------|----------------|
-| 01 | [Overview & Quick Start](./01-overview.md) | What the app is, how to actually run it today |
-| 02 | [Architecture](./02-architecture.md) | Layers, data flow, module graph, state model, rendering |
-| 04 | [Critical Issues](./04-critical-issues.md) | Reproducible blockers, ranked, with fixes |
-| 08 | [Reference](./08-reference.md) | API surface, storage keys, types, env vars, glossary |
-| 10 | [Question Engine Evolution](./10-question-engine-evolution.md) | Interaction taxonomy, UI plan, and what was built |
+|---|---|---|
+| **27** | [**Implementation Roadmap**](./27-implementation-roadmap.md) | **The single working backlog — 120 items, 70 done, sequenced by impact ÷ effort** |
+
+### Audits (measured, scored, closed or open)
+
+| # | Document | Score | Status |
+|---|---|---|---|
+| 13 | [Learning Effectiveness](./13-learning-effectiveness-audit.md) | 6.4/10 | Superseded by 26 |
+| 19 | [Architecture v2](./19-architecture-audit-v2.md) | — | Remediated |
+| 20 | [Architecture v2, second pass](./20-architecture-audit-v2-second-pass.md) | — | Remediated |
+| 21 | [System Balancing & Simulation](./21-system-balancing-and-simulation-audit.md) | 10/10, 24 properties | ✅ closed, held by CI |
+| 23 | [Data Integrity & State](./23-data-integrity-and-state-audit.md) | 9.4/10 | ✅ closed, held by CI |
+| 25 | [Playability & Engagement](./25-playability-and-engagement-audit.md) | 5.4 → Tiers 1–2 shipped | 🟡 long tail open |
+| 26 | [Learning Content & Educational Knowledge](./26-learning-content-and-educational-knowledge-audit.md) | 6.4/10 | 🟡 Phases 1–3 largely shipped |
+| 28 | [UI/UX & Child Experience](./28-ui-ux-child-experience-audit.md) | Child appeal 3.2, parent trust 8.6 | 🟡 Tiers 1–3 shipped |
+
+### Remediation records
+
+| # | Document | Closes |
+|---|---|---|
+| 22 | [Balancing Remediation](./22-balancing-remediation.md) | docs/21 |
+| 24 | [Data Integrity Remediation](./24-data-integrity-remediation.md) | docs/23 |
+
+### Design & research
+
+| # | Document | What it covers |
+|---|---|---|
+| 10 | [Question Engine Evolution](./10-question-engine-evolution.md) | Interaction taxonomy — why answering is not always tapping a tile |
 | 11 | [Curriculum Research](./11-curriculum-research.md) | CBSE / ICSE / state syllabus sources behind the board model |
-| 12 | [Performance & Delight](./12-performance-and-delight.md) | Accessibility, reduced motion, perceived speed, celebration, onboarding |
-| 13 | [**Learning Effectiveness Audit**](./13-learning-effectiveness-audit.md) | **Educational review: learning science, pedagogy, diagnostics, curriculum. Score 6.4/10** |
-| 14 | [Educational Improvement Roadmap](./14-educational-improvement-roadmap.md) | Solution design for every audit finding, phased by learning-per-hour |
-| 15 | [**Phase 1 Implementation**](./15-phase-1-implementation.md) | **What was built, measured results, bugs found, deliberate divergences** |
-| 16 | [**Progression System Design**](./16-progression-system-design.md) | **XP economy, levels, achievements, anti-exploit — simulated against adversarial strategies** |
-| 17 | [**UI/UX Redesign**](./17-ui-ux-redesign.md) | **Full interface redesign, driven by a measured accessibility and layout audit** |
+| 12 | [Performance & Delight](./12-performance-and-delight.md) | Accessibility, reduced motion, perceived speed |
+| 14 | [Educational Improvement Roadmap](./14-educational-improvement-roadmap.md) | Solution design for the docs/13 findings |
+| 15 | [Phase 1 Implementation](./15-phase-1-implementation.md) | What was built from docs/14, with measured results |
+| 16 | [Progression System Design](./16-progression-system-design.md) | XP economy, levels, achievements, anti-exploit |
+| 17 | [UI/UX Redesign](./17-ui-ux-redesign.md) | The design token system and the accessibility audit behind it |
+
+### Historical
+
+| # | Document | Note |
+|---|---|---|
+| 01 | [Overview](./01-overview.md) | Written against `24c6330`. Kept as the record of the starting point. |
+| 02 | [Architecture](./02-architecture.md) | Superseded by docs/19–20; kept for the original module graph. |
+| 04 | [Critical Issues](./04-critical-issues.md) | **All fixed.** Kept because several code comments cite its findings by number (C5, C11). |
 
 ---
 
-## Executive summary
+## Standing rules
 
-**What it is.** A React Native / Expo mobile app for drilling primary-school
-mental arithmetic, aligned to the Irish primary curriculum (Classes 1–6, ages
-6–12). 23 question categories, 3 difficulty levels, 3 session formats, times
-tables drills, mistake review, and progress tracking.
+These are enforced by CI and by review, and they exist because each one was
+learned the hard way:
 
-**Code quality.** The application code is genuinely good. It is well organised,
-consistently formatted, thoughtfully commented, and **type-clean** — once
-installable, `tsc --noEmit` reports **0 errors** across all 5,524 lines. The
-generator layer is a clean, well-factored dispatcher. The curriculum mapping
-shows real domain knowledge.
-
-**What's wrong.** The repository was published after a destructive history
-cleanup that deleted six workspace packages while leaving every reference to
-them intact — in `pnpm-lock.yaml`, `tsconfig.json`, `pnpm-workspace.yaml` and
-`artifacts/mobile/package.json`. The result is a repo that cannot install,
-cannot typecheck, and ships a sync layer pointing at a backend that is no
-longer present.
-
-Beneath that, the audit found a genuine gameplay bug (60-second Blitz mode is
-capped at 10 questions), an inverted colour palette (`light` holds dark values
-and vice-versa), a float-precision defect producing `29.999999999999996` as a
-displayed answer, and true/false questions rendering only 2 choices where the
-UI expects 4.
-
-### Severity breakdown
-
-| Severity | Count | Examples |
-|----------|-------|----------|
-| 🔴 Blocker | 3 | Install fails, typecheck fails, backend absent |
-| 🟠 High | 5 | Blitz capped at 10Q, inverted palette, 2-choice questions |
-| 🟡 Medium | 9 | Float artifacts, non-monotonic difficulty, unbounded storage |
-| 🟢 Low | 12 | 1.1 MB icon, no README, no tests, no CI |
-
-### The 15-minute fix
-
-Three edits make the repo installable and type-clean. Verified working:
-
-```bash
-# 1. artifacts/mobile/package.json — remove the dangling workspace dep
-#    and the duplicated dependencies block
-# 2. tsconfig.json — empty the "references" array
-# 3. pnpm install --no-frozen-lockfile
-```
-
-Full detail, including the exact reproduction transcript, in
-[04-critical-issues.md](./04-critical-issues.md).
-
----
-
-## How this audit was performed
-
-| Method | Detail |
-|--------|--------|
-| Static reading | All 45 files, 5,524 LOC |
-| Install reproduction | `pnpm@10.34.5`, Node v20.20.2, clean cache |
-| Type checking | `tsc 5.9.3`, both `--build` (root) and `-p` (app) |
-| Generator fuzzing | 4,000 iterations × 21 categories × 6 classes × 3 difficulties ≈ **1.4 million generated questions** |
-| Semantic verification | Re-derived the arithmetic from rendered question text and compared to the stated answer |
-| Difficulty analysis | Measured mean largest operand across 2,000 samples per (class, category, difficulty) cell |
-
-The fuzz harness used to produce these results is reproduced in
-the generator fuzzing audit (since retired) so findings can be
-independently re-run.
+1. **Every change ships a guard verified to fail against its own regression.**
+   Break it deliberately, watch it fail, restore it. Several guards initially
+   passed against broken implementations.
+2. **Render and photograph UI work.** Typecheck and 751 unit tests could not see
+   a ten-frame that never rendered, a frame drawn twice, or a parent prompt that
+   interpolated a paragraph where a name belonged.
+3. **A guard that flags correct behaviour is worse than no guard.** It trains
+   people to re-run CI instead of reading it.
+4. **Do not regress the closed audits** — docs/21 and docs/23.
+5. **Do not add curriculum breadth before instructional depth** (docs/26).
+6. **Semi-Hindi policy.** Translate what is being learned; keep what is being
+   navigated recognisable in both scripts. Numerals stay Western Arabic, units
+   and acronyms stay Latin, navigation is bilingual.
