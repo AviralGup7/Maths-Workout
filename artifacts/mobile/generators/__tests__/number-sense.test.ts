@@ -183,11 +183,22 @@ describe('the estimation gap is actually closed', () => {
   it('estimation reaches the live question stream', () => {
     // The regression this guards: the strand exists but is never dispatched,
     // which is exactly the state the audit found (0 of 1,720).
+    //
+    // The sample is large and the threshold is well clear of the observed
+    // spread. An earlier version drew 1,080 questions and asserted
+    // `> 0.15`, which sat INSIDE the sampling noise: measured over 400
+    // trials the share ran min 0.1454 / p5 0.1537 / median 0.1722, so 2.8%
+    // of runs failed on a strict `>` against an exactly-0.15 sample. That is
+    // a guard that cries wolf, which is worse than no guard — it trains
+    // people to re-run CI instead of reading it. Fixed by sampling 4x more
+    // and asserting against a floor below the real p5, so the test still
+    // fails hard if dispatch actually breaks (the regression it guards took
+    // the share to 0.00) but not on a coin toss.
     let est = 0;
     let total = 0;
     for (const cls of CLASSES) {
       for (const d of DIFFS) {
-        for (let i = 0; i < 60; i++) {
+        for (let i = 0; i < 240; i++) {
           const q = generateQuestion(cls, d, 'number_sense');
           total++;
           if (q.interaction?.kind === 'estimate') est++;
@@ -195,6 +206,6 @@ describe('the estimation gap is actually closed', () => {
       }
     }
     expect(total).toBeGreaterThan(0);
-    expect(est / total, `${est}/${total} were estimation`).toBeGreaterThan(0.15);
+    expect(est / total, `${est}/${total} were estimation`).toBeGreaterThan(0.13);
   });
 });
