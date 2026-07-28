@@ -6,7 +6,30 @@ viewports and two themes, photographed, and measured programmatically. Every num
 below was produced by an executed command, not by reading source.
 
 **Build audited:** `d369285` · 14 routes · light + dark · English + Hindi
-**Artefacts:** `/home/user/audit-shots/` (28 screenshots)
+**Artefacts:** `docs/audit-28-screens/` (28 screenshots)
+
+> **Implementation status — updated at `d5a9912`.** Four passes have landed
+> against this report. Measured after, on the same harness:
+>
+> | Metric | Audited | Now |
+> |---|---:|---:|
+> | Undersized tap targets | 7 | **0** |
+> | Sub-13px strings | 55 | **0** |
+> | WCAG AA failures on text | 24 | **0** *(7 remain on icon glyphs, no readable text)* |
+> | Image/character assets | 2 | mascot with 5 moods + ten-frame |
+> | Audio | none | read-aloud + 3 feedback tones, muteable |
+> | Skills with a visual model | 16 / 63 | 23 / 63 |
+> | Results layout at 320pt | 3 overlaps | **0** (screen made scrollable) |
+> | Progress "questions answered" | 0 with 264 in log | correct |
+>
+> Also shipped: in-session mastery celebration, segmented progress, chapter
+> colour identity, XP count-up, "Not started" instead of 0%, achievement
+> medallions, streak promoted, `Play / My Maths / Grown-ups` tabs, board
+> selection moved to a grown-up step, dinner-table prompt, session length on
+> the CTA, and Class 1–2 copy rewritten.
+>
+> Still open: illustrated chapter map, animated worked examples, interactive
+> manipulatives, seasonal themes, and the Tier 3–4 items below.
 
 ---
 
