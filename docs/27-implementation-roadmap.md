@@ -5,10 +5,10 @@
 Tick items here as they land. Do not maintain a second list anywhere else.
 
 ```
-Progress    75 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
-Verify      cd artifacts/mobile && npm run test:fast   # 780 tests, ~39s
+Progress    77 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
+Verify      cd artifacts/mobile && npm run test:fast   # 807 tests, ~43s
 CI          .github/workflows/ci.yml, three parallel jobs on every push:
-              fast   typecheck + arch-check + 780 unit tests    ~45s  (gate)
+              fast   typecheck + arch-check + 807 unit tests    ~45s  (gate)
               audit  the docs/21 and docs/23 simulations       ~13m  (parallel)
               ui     ui-smoke 23/23 · open-task 8/8 · Hindi 7/7 (parallel)
                      screenshots uploaded as the ui-screenshots artifact
@@ -112,7 +112,7 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
 - [x] **P3-04 · Coin/note images** for money (docs/25 T2-12) — **DONE.** `components/visuals/MoneyRow.tsx` draws real Indian denominations (coins ≤₹20 as circles, notes as rectangles) from a greedy breakdown, which is also minimal because the denomination set is canonical. Shapes rather than reproduced currency: legally safer, maintainable, theme-aware, and no assets. 73%/74% coverage of the live stream in both languages.
 - [x] **P3-05 · Bar-model / tape diagram** for word problems (Singapore) — **DONE.** `components/visuals/BarModel.tsx` draws four structures (part-whole, difference, equal groups, sharing) chosen by `learning/barModelPolicy.ts` from the SENTENCE, not the arithmetic. Measured 46% coverage of the live stream in both languages; the remainder (speed, rate, percentage) is declined on purpose because a tape diagram would misrepresent it.
 - [x] **P3-06 · Interactive manipulatives** — regroupable base-ten, draggable fraction bars, where the manipulation *is* the answer (docs/26 A9 — DreamBox's differentiator). **Depends on P1-17.** *(shipped: `components/answer/ManipulativeFrame.tsx` — a new `manipulative` interaction kind where placing counters IS the answer)*
-- [ ] **P3-07 · Multi-representation items** — same quantity as fraction, decimal, percentage, number-line point
+- [x] **P3-07 · Multi-representation items** — same quantity as fraction, decimal, percentage, number-line point — **DONE.** `generators/representation.ts` (`genRepresentationConvert`, `genRepresentationMatch`), routed by `learning/representationPolicy.ts`. Two forms: convert one representation to another, and "tap EVERY card equal to 3/4". The matching form is multi-select because equivalence is a property of a SET — asked to pick one match a child can succeed by elimination; asked to pick all of them they must evaluate every card, and a partial selection names the representation they cannot yet read. The conversion direction ROTATES: fraction → percentage is a rule most children can apply without understanding, so serving only that direction would measure recall and report it as magnitude knowledge. Conversion also fades out above mastery 0.88 (`CONVERT_CEILING`) — converting 3/4 to 75% for the two-hundredth time is a drilled rule, and the format's whole argument is that it reveals what a procedure hides.
 - [x] **P3-08 · Reduce multiple-choice share below 40%** by extending the interaction ladder earlier (docs/25 T3-23) — **DONE. 99.1% → 38.5%.** `learning/interactionLadder.ts`, guard `learning/__tests__/interaction-share.test.ts`.
 
   **Measured first, and the measurement changed the job.** docs/25 recorded 58.4% multiple choice from a year-long simulation. The raw supply is **99.1%** (26,752 of 27,000 questions drawn across all six classes × three difficulties × every category). The old `pickInteraction` was a *step*: tiles below mastery 0.80, typed entry at or above. Everyone between "no longer struggling" and "secure" — where children spend most of their time — never left the tiles. It also interlocked with the recognition ceiling: mastery is clamped at 0.80 without recall evidence (`mastery.ts` M4), and recall evidence was only served at 0.80. A learner had to reach the value the ladder gates on to be given the only question type that could carry them past it.
@@ -125,7 +125,7 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
   **Guard verified to fail against its own regression, twice.** Restoring the 0.80 step measured 68.8%. Dropping `ENTRY_FLOOR` to 0 — the cheap way to hit the number — measured 32.0% and *passed* the share assertion, but the companion "still scaffolds a struggling learner" assertion failed. The guard catches the bad fix as well as the missing one. Averaged over 5 passes: single-pass noise measured 37.9%–39.6% across 12 runs, which against a 40% bar would flake ~1 CI run in 20.
 
   Final mix: entry 42.1% · choice 38.5% · estimate 9.6% · open 3.2% · ordering 2.6% · manipulative 2.0% · multiSelect 1.5%.
-- [ ] **P3-09 · Non-examples** — "which is NOT a rectangle, and why?"
+- [x] **P3-09 · Non-examples** — "which is NOT a rectangle, and why?" — **DONE.** `generators/representation.ts` (`genNonExample`, `genNonExampleSet`), 6 concept cases (rectangle, square, prime, multiple of 3, equivalent to 1/2, right angle). Distractors are deliberately NEAR-misses — a shape failing on exactly one attribute — because a definition is learned from contrasting cases and a far-miss teaches nothing. Each non-example carries the attribute it fails on, so feedback can say *"a parallelogram has four sides, but its corners are not right angles"* rather than only marking the tile. The negation is capitalised in both scripts (`NOT` / `नहीं`): a child who skims and answers the positive question is making a reading error, and the item should not quietly measure that.
 - [ ] **P3-10 · Systematic surface-feature variation** while holding structure constant (variation theory)
 
 ---
@@ -266,13 +266,13 @@ deliberately declined.*
 |---|---:|---|
 | 1 · Educational foundations | 0 | ✅ complete |
 | 2 · Curriculum structure | 6 | §2.1 and §2.2 done; breadth items remain |
-| 3 · Representation | 3 | Ten-frames, manipulatives, bar models, clock, money and the graded interaction ladder shipped |
+| 3 · Representation | 1 | Only P3-10 (systematic surface-feature variation) remains |
 | 4 · Engagement | 20 | Tier 1–2 shipped via Phase 8; long-tail polish remains |
 | 5 · Parent & teacher | 4 | Weekly digest and conversation starters shipped |
 | 6 · Platform | 4 | P6-01 closed; the rest are strategic |
 | 7 · Validation | 4 | Cannot be faked or deferred indefinitely |
 | 8 · UI/UX | 4 | Tiers 1–3 shipped |
-| **Total open** | **45** | of 120 |
+| **Total open** | **43** | of 120 |
 
 ### Do these next
 
@@ -288,9 +288,10 @@ If only five things happen, these five — in this order:
 3. **P2-18 · Curriculum review by a practising Indian teacher.** The board
    mapping is researched (docs/11) but has never been checked by someone who
    teaches it.
-4. **P3-07 · Multi-representation items** — the same quantity as a fraction, a
-   decimal, a percentage and a point on a number line. The remaining Phase 3
-   item with the clearest instructional case now that P3-08 has landed.
+4. **P3-10 · Systematic surface-feature variation** — the last Phase 3 item,
+   and the one that makes the other nine transfer: hold the structure constant
+   and vary the surface, so a child learns the relationship rather than the
+   wording.
 5. **P7-03 · A small learning-gain study.** The only item on this list that can
    move the "no learning-gain evidence" verdict, which no amount of further
    engineering will.

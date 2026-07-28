@@ -24,6 +24,11 @@ import { pickReasoning } from '../reasoningPolicy';
 import { genOpenEnded, genOpenMiddle, genReverse } from '../../generators/openTasks';
 import { genMethodCompare, genReasonSelect } from '../../generators/metacognition';
 import { genErrorHunt } from '../../generators/reasoning';
+import { pickRepresentation } from '../representationPolicy';
+import {
+  genRepresentationConvert, genRepresentationMatch,
+  genNonExample, genNonExampleSet,
+} from '../../generators/representation';
 import { manipulativeQuestion } from '../../generators/interactions';
 import {
   genFactorSelect, genPrimeSelect, genMultipleSelect,
@@ -62,6 +67,13 @@ function buildQuestion(
   if (reasoningKind) {
     const gen = reasoningKind === 'errorHunt' ? genErrorHunt
               : reasoningKind === 'methodCompare' ? genMethodCompare : genReasonSelect;
+    return gen(cls, diff, 'en');
+  }
+  const reprKind = pickRepresentation({ skill, mastery: level, cls, roll: Math.random(), kindRoll: Math.random() });
+  if (reprKind) {
+    const gen = reprKind === 'convert' ? genRepresentationConvert
+              : reprKind === 'match' ? genRepresentationMatch
+              : reprKind === 'nonExample' ? genNonExample : genNonExampleSet;
     return gen(cls, diff, 'en');
   }
   const openKind = pickOpenTask({ skill, mastery: level, cls, roll: Math.random(), kindRoll: Math.random() });

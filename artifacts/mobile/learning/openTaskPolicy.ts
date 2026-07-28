@@ -74,6 +74,20 @@ export function skillsWithOpenTasks(): SkillId[] {
   return Object.keys(ELIGIBLE).filter(id => id in SKILLS);
 }
 
+/**
+ * The eligibility map's keys, UNFILTERED — for the drift guard only.
+ *
+ * `skillsWithOpenTasks` filters to known skills, which is right for callers and
+ * useless for a guard: a mistyped key is silently dropped, so a test built on
+ * the filtered list passes against a map whose entry matches nothing. Verified
+ * on the sibling policy in learning/representationPolicy.ts, where typing
+ * `percent.basics` for `percent.basic` left every assertion green. `SkillId`
+ * is a bare `string`, so the type system cannot catch it either.
+ */
+export function declaredOpenTaskKeys(): string[] {
+  return Object.keys(ELIGIBLE);
+}
+
 const CLASS_ORDER: SchoolClass[] = ['1st', '2nd', '3rd', '4th', '5th', '6th'];
 
 /**

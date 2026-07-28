@@ -104,6 +104,20 @@ export function skillsWithReasoning(): SkillId[] {
 }
 
 /**
+ * The eligibility map's keys, UNFILTERED — for the drift guard only.
+ *
+ * `skillsWithReasoning` filters to known skills, which is right for callers and
+ * useless for a guard: a mistyped key is silently dropped, so a test built on
+ * the filtered list passes against a map whose entry matches nothing. Verified
+ * on the sibling policy in learning/representationPolicy.ts, where typing
+ * `percent.basics` for `percent.basic` left every assertion green. `SkillId`
+ * is a bare `string`, so the type system cannot catch it either.
+ */
+export function declaredReasoningKeys(): string[] {
+  return Object.keys(ELIGIBLE);
+}
+
+/**
  * Which reasoning format, if any, to serve for this question.
  *
  * Pure: randomness is supplied by the caller, so the policy is testable and

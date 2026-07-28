@@ -53,6 +53,11 @@ const MANIPULATIVE_SKILLS = new Set([
 import { genMethodCompare, genReasonSelect } from '../generators/metacognition';
 import { genErrorHunt } from '../generators/reasoning';
 import { pickReasoning } from '../learning/reasoningPolicy';
+import {
+  genRepresentationConvert, genRepresentationMatch,
+  genNonExample, genNonExampleSet,
+} from '../generators/representation';
+import { pickRepresentation } from '../learning/representationPolicy';
 import { migrateLog } from '../learning/skillSplit';
 
 // ─── Learning engine (Directions C & D) ─────────────────────────────────────
@@ -777,6 +782,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const gen = reasoningKind === 'errorHunt' ? genErrorHunt
                 : reasoningKind === 'methodCompare' ? genMethodCompare
                 : genReasonSelect;
+      const q = gen(cls, diff, lang);
+      return { ...q, resolvedCategory: q.resolvedCategory ?? cat };
+    }
+
+    // docs/27 P3-07/P3-09. Multi-representation and non-example items sit
+    // below the reasoning formats and above the open tasks: they are a
+    // different WAY of asking about the planned skill rather than a different
+    // task, so an open task — which removes the procedure entirely — outranks
+    // them when both are eligible.
+    const reprKind = pickRepresentation({
+      skill, mastery: level, cls, roll: Math.random(), kindRoll: Math.random(),
+    });
+    if (reprKind) {
+      const gen = reprKind === 'convert' ? genRepresentationConvert
+                : reprKind === 'match' ? genRepresentationMatch
+                : reprKind === 'nonExample' ? genNonExample
+                : genNonExampleSet;
       const q = gen(cls, diff, lang);
       return { ...q, resolvedCategory: q.resolvedCategory ?? cat };
     }
