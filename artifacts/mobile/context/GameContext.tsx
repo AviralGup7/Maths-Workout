@@ -34,6 +34,8 @@ import {
   genOrderNumbers, genOrderDecimals, genOrderFractions,
   genMissingNumber, genTableRecall, genDoubleHalve,
 } from '../generators/topics-interactive';
+import { genOpenEnded, genOpenMiddle, genReverse } from '../generators/openTasks';
+import { pickOpenTask } from '../learning/openTaskPolicy';
 
 // ─── Learning engine (Directions C & D) ─────────────────────────────────────
 import type { Attempt } from '../learning/attempts';
@@ -717,6 +719,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const buildQuestion = useCallback((
     cls: SchoolClass, diff: Difficulty, cat: Category, skill: string, level: number,
   ): Question => {
+    // docs/27 P1-18/19/20. Open tasks are offered before the interactive
+    // variants, and before the entry ladder, because they SUBSUME both: an
+    // open task has no tiles to eliminate and no single value to type.
+    // Gated by learning/openTaskPolicy so the rate, the mastery floor and the
+    // per-skill eligibility are testable rather than inline constants.
+    const openKind = pickOpenTask({
+      skill, mastery: level, cls, roll: Math.random(), kindRoll: Math.random(),
+    });
+    if (openKind) {
+      const gen = openKind === 'openEnded' ? genOpenEnded
+                : openKind === 'openMiddle' ? genOpenMiddle
+                : genReverse;
+      const q = gen(cls, diff, lang);
+      return { ...q, resolvedCategory: q.resolvedCategory ?? cat };
+    }
+
     const variants = INTERACTIVE_VARIANTS[skill];
     if (variants && variants.length > 0 && Math.random() < 0.34) {
       const q = variants[Math.floor(Math.random() * variants.length)](cls, diff);

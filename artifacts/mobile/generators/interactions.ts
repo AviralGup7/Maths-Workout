@@ -15,6 +15,8 @@
 // absence means multiple choice. Every pre-existing generator keeps working.
 
 import type { ChoiceValue, Question } from './types';
+import type { OpenSpec } from './openResponse';
+import { gradeOpen } from './openResponse';
 import { shuffleArr, ri } from './helpers';
 
 export type Interaction =
@@ -49,7 +51,18 @@ export type Interaction =
    * exactly and then rounds gets the right answer but learns nothing, so the
    * buckets are spaced widely enough that estimating is the faster path.
    */
-  | { kind: 'estimate'; low: number; high: number; unit?: string; bands: [number, number][] };
+  | { kind: 'estimate'; low: number; high: number; unit?: string; bands: [number, number][] }
+  /**
+   * Answer anything that satisfies the stated constraints.
+   *
+   * docs/27 P1-17. The first interaction whose answer is a SET rather than a
+   * value: "find two numbers that add to 50" has 49 whole-number answers and
+   * infinitely many otherwise, so it cannot be expressed as a string to
+   * compare against. Grading delegates to `gradeOpen`, which evaluates the
+   * declarative constraints in `spec` and returns a reason as well as a
+   * verdict.
+   */
+  | ({ kind: 'open' } & OpenSpec);
 
 export type InteractionKind = Interaction['kind'];
 
@@ -83,6 +96,9 @@ export function expectedAnswer(q: Question): string {
   if (it.kind === 'entry') return normaliseEntry(String(q.answer));
   if (it.kind === 'multiSelect') return normaliseSet(it.correct);
   if (it.kind === 'estimate') return normaliseBand(it.low, it.high);
+  // An open task has no single expected answer; the exemplar is one of many
+  // and is labelled as such wherever it is shown.
+  if (it.kind === 'open') return it.exemplar;
   return normaliseSequence(it.correctOrder);
 }
 
@@ -101,6 +117,7 @@ export function normaliseBand(low: number, high: number): string {
  */
 export function grade(q: Question, submitted: string): boolean {
   const it = q.interaction;
+  if (it?.kind === 'open') return gradeOpen(it, submitted).correct;
   if (it?.kind === 'estimate') {
     const m = submitted.match(/^(-?[\d.]+)-(-?[\d.]+)$/);
     if (!m) return false;

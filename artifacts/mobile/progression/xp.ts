@@ -116,6 +116,11 @@ export const INTERACTION_WEIGHT: Record<InteractionKind, number> = {
   // options are visible, but they cannot be eliminated by computing — the
   // child has to hold a sense of magnitude, which is a different construct.
   estimate: 1.20,
+  // Constructing an answer that satisfies constraints, where many answers are
+  // valid. The highest weight in the table: there is nothing to eliminate,
+  // nothing to recall, and the child has to search a space rather than
+  // evaluate a candidate. docs/27 P1-17.
+  open: 1.40,
 };
 
 /**
