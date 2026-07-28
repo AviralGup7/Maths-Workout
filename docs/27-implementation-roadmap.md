@@ -5,10 +5,10 @@
 Tick items here as they land. Do not maintain a second list anywhere else.
 
 ```
-Progress    77 of 120 complete · Phase 1 done · Phase 8 Tiers 1-3 done
-Verify      cd artifacts/mobile && npm run test:fast   # 807 tests, ~43s
+Progress    78 of 120 complete · Phases 1 and 3 done · Phase 8 Tiers 1-3 done
+Verify      cd artifacts/mobile && npm run test:fast   # 811 tests, ~43s
 CI          .github/workflows/ci.yml, three parallel jobs on every push:
-              fast   typecheck + arch-check + 807 unit tests    ~45s  (gate)
+              fast   typecheck + arch-check + 811 unit tests    ~45s  (gate)
               audit  the docs/21 and docs/23 simulations       ~13m  (parallel)
               ui     ui-smoke 23/23 · open-task 8/8 · Hindi 7/7 (parallel)
                      screenshots uploaded as the ui-screenshots artifact
@@ -104,7 +104,7 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
 ---
 
 ## Phase 3 · Representation & Interaction
-*16/45 skills have a visual; the concrete stage of CRA is absent entirely.*
+*Complete. 23/63 skills carry a visual, seven interaction kinds are live, and the multiple-choice share is 38.5% (was 99.1%).*
 
 - [x] **P3-01 · Ten-frames** for Class 1–2 addition/subtraction (docs/25 T2-10, docs/26 B30) *(shipped: `components/visuals/TenFrame.tsx`, 7 skills in `visualPolicy`)*
 - [~] **P3-02 · Array/grid visual for times tables** — **DECLINED.** `visualPolicy.ts` records the reason: automaticity is the goal for tables and a visual slows retrieval. A deliberate pedagogical choice, not an omission.
@@ -126,7 +126,19 @@ Measured    63 skills · 19 chapters · 15 achievements · 47 misconceptions
 
   Final mix: entry 42.1% · choice 38.5% · estimate 9.6% · open 3.2% · ordering 2.6% · manipulative 2.0% · multiSelect 1.5%.
 - [x] **P3-09 · Non-examples** — "which is NOT a rectangle, and why?" — **DONE.** `generators/representation.ts` (`genNonExample`, `genNonExampleSet`), 6 concept cases (rectangle, square, prime, multiple of 3, equivalent to 1/2, right angle). Distractors are deliberately NEAR-misses — a shape failing on exactly one attribute — because a definition is learned from contrasting cases and a far-miss teaches nothing. Each non-example carries the attribute it fails on, so feedback can say *"a parallelogram has four sides, but its corners are not right angles"* rather than only marking the tile. The negation is capitalised in both scripts (`NOT` / `नहीं`): a child who skims and answers the positive question is making a reading error, and the item should not quietly measure that.
-- [ ] **P3-10 · Systematic surface-feature variation** while holding structure constant (variation theory)
+- [x] **P3-10 · Systematic surface-feature variation** while holding structure constant (variation theory) — **DONE.** `generators/word-problems-i18n.ts`, guard `generators/__tests__/surface-variation.test.ts`.
+
+  **The measurement found a real defect, and it was total.** Every word-problem template hardcoded its own noun, so over 9,600 sampled problems the noun WAS the operation: `mangoes` → subtraction **100%**, `laddoos` → multiplication **100%**, `chocolates` → division **100%**, `flowers` → addition **100%**. A child optimising for marks — which is what children do — could pick the operation from the noun without reading the sentence, and the app would have scored that as understanding word problems. It would then collapse the first time a school test said "apples".
+
+  Fix: the noun is drawn ONCE per question from a pool shared by every template (`ITEM_KEYS`), independently of the structure. Measured after: **NMI(noun; structure) = 0.0028**, worst noun TVD 0.049 from the overall structure mix, and all 8 nouns now reach all 4 classes.
+
+  This also forced a real singular form (`itemOne`) into `i18n/strings.ts`. The old code built one by chopping two characters off the Hindi plural — which happened to work for the single hardcoded noun it was written against, and would have shipped broken Hindi the moment the noun varied.
+
+  **Two flaws in my own guard, both caught before commit, both worth recording because each would have sent someone to fix correct content:**
+  - The first version inferred the structure from the prose with a keyword regex and measured every noun as ~75% "multiplication" — the classifier collapsing `equalGroups`, `rate`, `unitPrice` and `percentOf` onto one keyword. Templates now DECLARE their structure (`ProblemStructure` on `Question`), so the guard measures ground truth.
+  - The second asserted raw dominance and failed on a noun sitting at 64% `equalGroups` — which is the base rate, since three templates share that structure. Now compared against the marginal distribution via total-variation distance.
+
+  Guard verified to fail against the original confound: re-pinning the noun to the template index measures NMI **0.8290** and trips both the association assertion and the class-coverage one.
 
 ---
 
@@ -266,13 +278,13 @@ deliberately declined.*
 |---|---:|---|
 | 1 · Educational foundations | 0 | ✅ complete |
 | 2 · Curriculum structure | 6 | §2.1 and §2.2 done; breadth items remain |
-| 3 · Representation | 1 | Only P3-10 (systematic surface-feature variation) remains |
+| 3 · Representation | 0 | ✅ complete |
 | 4 · Engagement | 20 | Tier 1–2 shipped via Phase 8; long-tail polish remains |
 | 5 · Parent & teacher | 4 | Weekly digest and conversation starters shipped |
 | 6 · Platform | 4 | P6-01 closed; the rest are strategic |
 | 7 · Validation | 4 | Cannot be faked or deferred indefinitely |
 | 8 · UI/UX | 4 | Tiers 1–3 shipped |
-| **Total open** | **43** | of 120 |
+| **Total open** | **42** | of 120 |
 
 ### Do these next
 
@@ -288,10 +300,9 @@ If only five things happen, these five — in this order:
 3. **P2-18 · Curriculum review by a practising Indian teacher.** The board
    mapping is researched (docs/11) but has never been checked by someone who
    teaches it.
-4. **P3-10 · Systematic surface-feature variation** — the last Phase 3 item,
-   and the one that makes the other nine transfer: hold the structure constant
-   and vary the surface, so a child learns the relationship rather than the
-   wording.
+4. **P6-03 · Extract a `statistics/` domain** — aggregations are spread across
+   `attempts.ts`, `feedback.ts`, `parentReport.ts` and inline in screens, which
+   is where a quietly wrong number would survive longest.
 5. **P7-03 · A small learning-gain study.** The only item on this list that can
    move the "no learning-gain evidence" verdict, which no amount of further
    engineering will.

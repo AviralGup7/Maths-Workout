@@ -347,18 +347,37 @@ export function money(amount: number): string {
   return `₹${amount}`;
 }
 
-export const ITEMS: Record<string, { en: string; hi: string }> = {
-  mangoes:  { en: 'mangoes',  hi: 'आम' },
-  apples:   { en: 'apples',   hi: 'सेब' },
-  pencils:  { en: 'pencils',  hi: 'पेंसिलें' },
-  marbles:  { en: 'marbles',  hi: 'कंचे' },
-  laddoos:  { en: 'laddoos',  hi: 'लड्डू' },
-  books:    { en: 'books',    hi: 'किताबें' },
-  flowers:  { en: 'flowers',  hi: 'फूल' },
-  chocolates:{en: 'chocolates',hi: 'चॉकलेट' },
+export const ITEMS: Record<string, { en: string; hi: string; oneEn: string; oneHi: string }> = {
+  mangoes:   { en: 'mangoes',    hi: 'आम',        oneEn: 'mango',     oneHi: 'आम' },
+  apples:    { en: 'apples',     hi: 'सेब',       oneEn: 'apple',     oneHi: 'सेब' },
+  pencils:   { en: 'pencils',    hi: 'पेंसिलें',   oneEn: 'pencil',    oneHi: 'पेंसिल' },
+  marbles:   { en: 'marbles',    hi: 'कंचे',      oneEn: 'marble',    oneHi: 'कंचा' },
+  laddoos:   { en: 'laddoos',    hi: 'लड्डू',      oneEn: 'laddoo',    oneHi: 'लड्डू' },
+  books:     { en: 'books',      hi: 'किताबें',    oneEn: 'book',      oneHi: 'किताब' },
+  flowers:   { en: 'flowers',    hi: 'फूल',       oneEn: 'flower',    oneHi: 'फूल' },
+  chocolates:{ en: 'chocolates', hi: 'चॉकलेट',    oneEn: 'chocolate', oneHi: 'चॉकलेट' },
 };
+
+/** Every item key, for drawing a surface feature independently of structure. */
+export const ITEM_KEYS: string[] = Object.keys(ITEMS);
 
 export function item(key: string, lang: Lang): string {
   const e = ITEMS[key];
   return e ? (lang === 'hi' ? e.hi : e.en) : key;
+}
+
+/**
+ * The SINGULAR form.
+ *
+ * Needed because "One pencil costs Rs 8" cannot be built from the plural by
+ * chopping characters off the end — the previous code did exactly that
+ * (`item('pencils','hi').slice(0, -2)`), which only ever worked for the one
+ * hardcoded noun it was written against. Now that the noun varies
+ * independently of the sentence (docs/27 P3-10), a real singular is required
+ * or the variation would produce broken Hindi.
+ */
+export function itemOne(key: string, lang: Lang): string {
+  const e = ITEMS[key];
+  if (!e) return key;
+  return lang === 'hi' ? e.oneHi : e.oneEn;
 }

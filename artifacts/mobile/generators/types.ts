@@ -33,6 +33,16 @@ export interface Question {
    * See generators/interactions.ts and docs/10-question-engine-evolution.md.
    */
   interaction?: import('./interactions').Interaction;
+  /**
+   * The mathematical relationship a word problem expresses.
+   *
+   * Carried on the question so the P3-10 variation guard can measure the
+   * association between SURFACE (the noun) and STRUCTURE against ground truth
+   * instead of inferring the structure from prose. The first version of that
+   * guard used a keyword regex and reported a confound that did not exist.
+   * Only word problems set it.
+   */
+  structure?: import('./word-problems-i18n').ProblemStructure;
 }
 
 export interface WrongAnswer {
