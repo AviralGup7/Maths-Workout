@@ -23,6 +23,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
  */
 export const KEYS = {
   attempts:      '@maths_workout_v3_attempts',
+  /** Write-ahead buffer for the current session — docs/23 F1. */
+  pendingAttempts: '@maths_workout_pending_attempts',
+  /** Per-day aggregates retained beyond the attempt cap — docs/23 S5. */
+  dailySummary:  '@maths_workout_daily_summary',
   xpLedger:      '@maths_workout_xp_ledger',
   totalXp:       '@maths_workout_total_xp',
   highScores:    '@maths_workout_v2_high_scores',
@@ -50,8 +54,13 @@ export type StorageKey = keyof typeof KEYS;
  * the attempt log *from* the legacy counters, touching two keys at once. A
  * single monotonic version makes "which migrations still need to run?" a
  * question with one answer.
+ *
+ * v5 (docs/23): added `pendingAttempts` (crash-safe write-ahead buffer) and
+ * `dailySummary` (lifetime aggregates beyond the attempt cap), and every
+ * durable value gained a checksummed envelope with a backup slot. Both
+ * additions are read-optional, so a v4 install upgrades with no migration.
  */
-export const MANIFEST_VERSION = 4;
+export const MANIFEST_VERSION = 5;
 
 /** Recorded so a future migration knows what it is migrating from. */
 export interface Manifest {
@@ -150,10 +159,17 @@ export function isXpLedger(x: unknown): x is Record<string, number> {
   );
 }
 
+/**
+ * A map of non-negative numbers — high scores, tables bests.
+ *
+ * docs/23 F10. Previously accepted negatives, so a corrupt or tampered store
+ * could yield a negative high score that then won every `Math.max` merge and
+ * could never be beaten.
+ */
 export function isNumberMap(x: unknown): x is Record<string, number> {
   if (!x || typeof x !== 'object' || Array.isArray(x)) return false;
   return Object.values(x as Record<string, unknown>).every(
-    v => typeof v === 'number' && Number.isFinite(v),
+    v => typeof v === 'number' && Number.isFinite(v) && v >= 0,
   );
 }
 
@@ -165,6 +181,10 @@ export function isStatMap(
     if (!v || typeof v !== 'object') return false;
     const e = v as { attempted?: unknown; correct?: unknown };
     return typeof e.attempted === 'number' && typeof e.correct === 'number'
+      && Number.isFinite(e.attempted) && Number.isFinite(e.correct)
+      // docs/23 F10. Negative counts passed the old guard, because the ONLY
+      // numeric check was `correct <= attempted` and -10 <= -5 holds.
+      && e.attempted >= 0 && e.correct >= 0
       // A cell claiming more correct than attempted is corrupt, and would
       // produce accuracy above 100% in every downstream view.
       && e.correct <= e.attempted;

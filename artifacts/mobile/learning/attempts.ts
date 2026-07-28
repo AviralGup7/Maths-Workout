@@ -19,6 +19,25 @@ import type { SkillId } from './skills';
 import type { Category, Difficulty, SchoolClass } from '../generators/types';
 
 export interface Attempt {
+  /**
+   * Globally unique identity for this attempt: `${deviceId}:${counter}`.
+   *
+   * docs/23 F7. Identity used to be inferred from
+   * `${answeredAt}|${skill}|${questionText}|${chosen}`, which collides at
+   * millisecond resolution: two genuine attempts at the same question with the
+   * same answer are indistinguishable. Measured, merging a device holding one
+   * attempt with a device holding two yielded ONE — a real attempt destroyed by
+   * sync, silently.
+   *
+   * An explicit id makes the log a true CRDT: union-by-id is commutative,
+   * associative and idempotent, so any number of devices can merge in any
+   * order and converge on exactly the set of attempts that actually happened.
+   *
+   * Optional because rows written by older builds have no id. `ensureIds`
+   * backfills them deterministically on load, so the property holds for
+   * existing installs too.
+   */
+  id?: string;
   /** Skill exercised — resolved via `resolveSkill`, never the raw category. */
   skill: SkillId;
   correct: boolean;
@@ -57,19 +76,147 @@ export interface Attempt {
 }
 
 /**
- * Cap on retained attempts.
+ * Cap on retained FULL-FIDELITY attempts.
  *
- * At ~50 questions/day this is roughly eight months of history — far more than
- * the 21-day decay half-life needs, while bounding storage and JSON parse cost.
- * Oldest rows are evicted first.
+ * docs/23 S5. At 4,000 rows and ~20 questions/day this was a 200-day rolling
+ * window, which is short for a product measured in school years: five years of
+ * daily use generated 36,500 attempts and retained 11% of them, so any
+ * "lifetime" statistic was silently computed over the last 200 days.
+ *
+ * Raised to 12,000 — roughly 20 months at 20/day, still ~3 MB of JSON at the
+ * cap and well within what a mid-range device parses comfortably. Beyond that,
+ * `DailySummary` preserves the facts lifetime statistics actually need (see
+ * below), so eviction no longer erases a child's history, only its detail.
  */
-export const MAX_ATTEMPTS = 4000;
+export const MAX_ATTEMPTS = 12_000;
+
+// ─── Lifetime summary ────────────────────────────────────────────────────────
+
+/**
+ * One row per practice day, retained forever.
+ *
+ * The attempt log is capped, but a handful of numbers per day is not: ten years
+ * of daily practice is ~3,650 rows of five fields, a few hundred KB. This is
+ * what keeps "practise on 90 different days" honest for a learner in their
+ * third year, and what stops a five-year veteran's lifetime totals resetting.
+ *
+ * Deliberately minimal. It is NOT a second source of truth for anything the
+ * log can answer — mastery, misconceptions and scheduling all still read the
+ * log, and this is only consulted for facts that are inherently cumulative.
+ */
+export interface DailySummary {
+  /** Local YYYY-MM-DD. */
+  day: string;
+  attempted: number;
+  correct: number;
+  /** Attempts that were genuine (not timed out, not sub-second taps). */
+  genuine: number;
+  /** Distinct skills touched that day. */
+  skills: number;
+}
+
+/** Fold a set of attempts into per-day summary rows. */
+export function summariseByDay(log: Attempt[]): DailySummary[] {
+  const byDay = new Map<string, { attempted: number; correct: number; genuine: number; skills: Set<string> }>();
+  for (const a of log) {
+    const k = dayKey(a.answeredAt);
+    let e = byDay.get(k);
+    if (!e) { e = { attempted: 0, correct: 0, genuine: 0, skills: new Set() }; byDay.set(k, e); }
+    e.attempted++;
+    if (a.correct) e.correct++;
+    if (!a.timedOut && !(a.latencyMs > 0 && a.latencyMs < GUESS_LATENCY_MS)) e.genuine++;
+    e.skills.add(a.skill);
+  }
+  return [...byDay.entries()]
+    .map(([day, e]) => ({ day, attempted: e.attempted, correct: e.correct, genuine: e.genuine, skills: e.skills.size }))
+    .sort((x, y) => x.day.localeCompare(y.day));
+}
+
+/**
+ * Merge new summary rows into an existing set.
+ *
+ * Rows for days still present in the live log are RECOMPUTED rather than added,
+ * so folding the same day in twice cannot double-count. That makes this
+ * idempotent, which matters because it runs on every load.
+ */
+export function mergeSummaries(existing: DailySummary[], incoming: DailySummary[]): DailySummary[] {
+  const byDay = new Map(existing.map(r => [r.day, r]));
+  for (const r of incoming) {
+    const prev = byDay.get(r.day);
+    // Keep whichever row saw more of that day: the live log is authoritative
+    // while it still holds the day, and the archive wins once it no longer does.
+    byDay.set(r.day, !prev || r.attempted >= prev.attempted ? r : prev);
+  }
+  return [...byDay.values()].sort((x, y) => x.day.localeCompare(y.day));
+}
+
+/** Lifetime practice days, from the archive plus whatever the log still holds. */
+export function lifetimePracticeDays(summary: DailySummary[], log: Attempt[]): number {
+  const days = new Set(summary.filter(r => r.genuine >= 5).map(r => r.day));
+  for (const d of meaningfulPracticeDays(log)) days.add(d);
+  return days.size;
+}
 
 /** Append attempts, evicting oldest rows beyond the cap. */
 export function appendAttempts(log: Attempt[], incoming: Attempt[]): Attempt[] {
   if (incoming.length === 0) return log;
   const next = [...log, ...incoming];
+  // docs/23 S7. Keep the log chronological on APPEND, not only on merge. A
+  // backwards clock change (manual edit, NTP correction after a flat battery,
+  // travel) otherwise inserts an out-of-order row that every downstream
+  // window function then reads wrongly — `estimateFromRelevant` sorts
+  // defensively, but streaks, `isDue` and the recency window did not.
+  // Only sorts when the tail is actually out of order, so the common path
+  // stays O(n) rather than O(n log n).
+  for (let i = next.length - incoming.length; i < next.length; i++) {
+    if (i > 0 && next[i].answeredAt < next[i - 1].answeredAt) {
+      next.sort((p, q) => p.answeredAt - q.answeredAt);
+      break;
+    }
+  }
   return next.length > MAX_ATTEMPTS ? next.slice(next.length - MAX_ATTEMPTS) : next;
+}
+
+// ─── Attempt identity ────────────────────────────────────────────────────────
+
+/**
+ * Monotonic per-device counter, persisted alongside the log.
+ *
+ * Combined with the device id this yields an identifier that is unique across
+ * devices without coordination — the property a CRDT needs. The counter is
+ * seeded from the existing log on load so it never repeats after a restart.
+ */
+let idCounter = 0;
+
+/** Seed the counter above whatever the stored log already used. */
+export function seedAttemptIds(log: Attempt[]): void {
+  for (const a of log) {
+    const n = Number(a.id?.split(':')[1]);
+    if (Number.isFinite(n) && n >= idCounter) idCounter = n + 1;
+  }
+}
+
+export function nextAttemptId(deviceId: string): string {
+  return `${deviceId}:${idCounter++}`;
+}
+
+/**
+ * Backfill ids on rows written before ids existed.
+ *
+ * Deterministic on purpose: the same legacy row must receive the same id on
+ * every device that holds it, or a merge would treat one attempt as two. The
+ * legacy identity tuple is the only information available, so it is reused —
+ * which reintroduces the collision for pre-existing rows ONLY, and cannot
+ * affect anything recorded from now on.
+ */
+export function ensureIds(log: Attempt[]): Attempt[] {
+  let changed = false;
+  const out = log.map(a => {
+    if (a.id) return a;
+    changed = true;
+    return { ...a, id: `legacy:${a.answeredAt}|${a.skill}|${a.questionText}|${a.chosen}` };
+  });
+  return changed ? out : log;
 }
 
 /**
@@ -78,14 +225,23 @@ export function appendAttempts(log: Attempt[], incoming: Attempt[]): Attempt[] {
  * Attempts are immutable facts, so union-by-identity is correct and
  * commutative — unlike the legacy `Math.max` merge on counters, which lost
  * counts and could produce accuracy above 100%.
+ *
+ * docs/23 F7. Identity is now the explicit `id`, not a tuple of field values.
+ * The tuple collided at millisecond resolution and silently destroyed genuine
+ * attempts on cross-device merge. Union-by-id is a proper set union: idempotent
+ * (merging the same log twice is a no-op), commutative and associative, so
+ * devices converge regardless of sync order.
  */
 export function mergeAttempts(a: Attempt[], b: Attempt[]): Attempt[] {
-  const key = (x: Attempt) => `${x.answeredAt}|${x.skill}|${x.questionText}|${x.chosen}`;
-  const seen = new Set(a.map(key));
-  const merged = [...a];
-  for (const x of b) {
-    if (!seen.has(key(x))) {
-      seen.add(key(x));
+  const withIds = (xs: Attempt[]) => ensureIds(xs);
+  const left = withIds(a);
+  const right = withIds(b);
+
+  const seen = new Set(left.map(x => x.id!));
+  const merged = [...left];
+  for (const x of right) {
+    if (!seen.has(x.id!)) {
+      seen.add(x.id!);
       merged.push(x);
     }
   }
@@ -94,25 +250,70 @@ export function mergeAttempts(a: Attempt[], b: Attempt[]): Attempt[] {
 }
 
 /** Runtime guard — storage and network payloads are untrusted. */
+/**
+ * Earliest plausible attempt timestamp: 2020-01-01.
+ * Anything older is a corrupt or default-initialised value, not history.
+ */
+export const MIN_PLAUSIBLE_TS = Date.UTC(2020, 0, 1);
+
+/** Tolerance for benign clock skew before a timestamp is treated as future. */
+export const FUTURE_TOLERANCE_MS = 60 * 60 * 1000;   // 1 hour
+
+/**
+ * Latest structurally plausible timestamp: 2100-01-01.
+ *
+ * Distinct from the FUTURE clamp, which is relative to `now` and repairs benign
+ * clock skew. This is an absolute sanity bound catching values that are not
+ * timestamps at all — `8.64e15` (the year 275760) is the classic result of a
+ * corrupted numeric field, and it would sort to the end of the log forever.
+ */
+export const MAX_PLAUSIBLE_TS = Date.UTC(2100, 0, 1);
+
 export function isValidAttempt(x: unknown): x is Attempt {
   if (!x || typeof x !== 'object') return false;
   const a = x as Partial<Attempt>;
   return (
     typeof a.skill === 'string' &&
+    // docs/23 F10. An empty skill id passed every check and then silently
+    // failed to resolve anywhere downstream.
+    a.skill.length > 0 &&
     typeof a.correct === 'boolean' &&
     typeof a.answeredAt === 'number' &&
     Number.isFinite(a.answeredAt) &&
+    // A timestamp of 0, or of the year 275760, is corruption rather than data.
+    a.answeredAt >= MIN_PLAUSIBLE_TS &&
+    a.answeredAt <= MAX_PLAUSIBLE_TS &&
     typeof a.latencyMs === 'number' &&
     Number.isFinite(a.latencyMs) &&
+    // Negative latency is impossible and would invert the guess detector.
+    a.latencyMs >= 0 &&
     typeof a.chosen === 'string' &&
     typeof a.expected === 'string' &&
     typeof a.questionText === 'string'
   );
 }
 
-export function sanitiseLog(raw: unknown): Attempt[] {
+/**
+ * Validate, repair and order a stored log.
+ *
+ * docs/23 F10/S7. Three repairs, all of which prefer keeping the learner's
+ * history over discarding it:
+ *
+ *  · rows failing the structural check are dropped (they carry no usable fact)
+ *  · FUTURE-dated rows are clamped to `now` rather than dropped — a clock skew
+ *    is not the child's fault and the attempt really did happen. Left
+ *    unclamped, `daysSince` goes negative and the row sits at the head of the
+ *    log forever, poisoning every streak and spaced-review computation.
+ *  · the result is sorted, so callers can rely on chronological order
+ */
+export function sanitiseLog(raw: unknown, now: number = Date.now()): Attempt[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter(isValidAttempt);
+  const ceiling = now + FUTURE_TOLERANCE_MS;
+  const rows = raw.filter(isValidAttempt).map(a =>
+    a.answeredAt > ceiling ? { ...a, answeredAt: now } : a,
+  );
+  rows.sort((p, q) => p.answeredAt - q.answeredAt);
+  return rows;
 }
 
 // ─── Derived views ───────────────────────────────────────────────────────────

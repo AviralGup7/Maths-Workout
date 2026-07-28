@@ -57,6 +57,14 @@ export interface AnswerEvent {
   isTablesMode: boolean;
   /** Injected so the result is deterministic and testable. */
   now?: number;
+  /**
+   * Identity for the attempt about to be recorded (docs/23 F7).
+   *
+   * Supplied by the caller because id allocation needs the device id, which is
+   * I/O this pure function must not perform. Replay passes the EXISTING id so
+   * rebuilding never mints new identities for facts already recorded.
+   */
+  attemptId?: string;
 }
 
 export interface AnswerResult {
@@ -87,7 +95,7 @@ export function recordAnswer(state: AnswerState, event: AnswerEvent): AnswerResu
   const {
     question, chosen, correct, latencyMs, timedOut, scaffolded,
     plannedSkill, cls, sessionCategory, difficulty, isTablesMode,
-    now = Date.now(),
+    now = Date.now(), attemptId,
   } = event;
 
   const category = question.resolvedCategory ?? sessionCategory;
@@ -105,6 +113,7 @@ export function recordAnswer(state: AnswerState, event: AnswerEvent): AnswerResu
   }));
 
   const attempt: Attempt = {
+    id: attemptId,
     skill, correct, answeredAt: now, latencyMs, chosen,
     expected: String(question.answer), questionText: question.questionText,
     timedOut, misconception: misconception ?? undefined,
@@ -166,4 +175,52 @@ export function recordAnswer(state: AnswerState, event: AnswerEvent): AnswerResu
     masteryBefore,
     masteryAfter,
   };
+}
+
+// ─── Rebuilding progression from the log ─────────────────────────────────────
+
+/**
+ * Recompute `totalXp` and the XP ledger by replaying the attempt log.
+ *
+ * docs/23 F9/#10. `totalXp` and `xpLedger` were the only two values stored as
+ * authoritative accumulators, and that made them the only two that could
+ * disagree with the evidence. The disagreement was not hypothetical: XP was
+ * persisted immediately while the log was debounced 1500 ms, so every crash
+ * kept the payment and lost the proof. Worse, the surviving ledger recorded a
+ * high-water mark the log no longer justified, so `payableDelta` refused to pay
+ * for re-learning — the anti-exploit gate punished the child for the crash.
+ *
+ * The audit measured that a full replay reproduces the live total EXACTLY
+ * (drift 0.0), which means these two values never needed to be authoritative at
+ * all. Deriving them removes the divergence as a category rather than
+ * patching it: there is only one source of truth left, and it is the log.
+ *
+ * Cost is bounded by the log cap (4,000 rows) and it runs once, on load.
+ */
+export function rebuildProgression(log: Attempt[]): { totalXp: number; ledger: XpLedger; log: Attempt[] } {
+  let state: AnswerState = { log: [], ledger: {}, totalXp: 0 };
+  for (const a of log) {
+    state = recordAnswer(state, {
+      question: {
+        questionText: a.questionText,
+        answer: a.expected,
+        choices: [],
+        interaction: a.interaction ? ({ kind: a.interaction } as never) : undefined,
+      } as never,
+      chosen: a.chosen,
+      correct: a.correct,
+      latencyMs: a.latencyMs,
+      timedOut: a.timedOut,
+      scaffolded: a.scaffolded,
+      plannedSkill: a.skill,
+      cls: a.cls,
+      sessionCategory: a.category,
+      difficulty: a.difficulty,
+      isTablesMode: false,
+      now: a.answeredAt,
+      // Replay must not mint new ids: the rows already have them.
+      attemptId: a.id,
+    }).state;
+  }
+  return { totalXp: state.totalXp, ledger: state.ledger, log: state.log };
 }

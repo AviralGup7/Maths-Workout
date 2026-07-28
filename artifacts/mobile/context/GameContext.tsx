@@ -40,6 +40,8 @@ import type { Attempt } from '../learning/attempts';
 import {
   appendAttempts, mergeAttempts, sanitiseLog, deriveLegacyStats,
   migrateLegacyStats, currentStreak, todayCount,
+  ensureIds, seedAttemptIds, nextAttemptId,
+  summariseByDay, mergeSummaries, lifetimePracticeDays, type DailySummary,
 } from '../learning/attempts';
 import type { MasteryEstimate } from '../learning/mastery';
 import { estimateAll, estimateMastery, findRootGap } from '../learning/mastery';
@@ -48,11 +50,12 @@ import { resolveSkill, SKILLS } from '../learning/skills';
 import { buildSession, categoryForSkill, difficultyFor } from '../learning/scheduler';
 import { diagnose, summariseMisconceptions } from '../learning/misconceptions';
 import { awardXp, type XpLedger, type Award } from '../progression/award';
-import { recordAnswer } from '../progression/recordAnswer';
+import { recordAnswer, rebuildProgression } from '../progression/recordAnswer';
 import {
   MANIFEST_VERSION, readManifest, writeManifest,
   isXpLedger, isStatMap, isNumberMap, isWrongAnswerList,
 } from '../lib/storage';
+import { writeDurable, readDurable, storageHealth } from '../lib/durableStore';
 import { levelForXp, masteryIndex, masteryBand } from '../progression/levels';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────
@@ -65,6 +68,16 @@ const ATTEMPTS_KEY       = '@maths_workout_v3_attempts';
 const XP_LEDGER_KEY      = '@maths_workout_xp_ledger';
 const TOTAL_XP_KEY       = '@maths_workout_total_xp';
 const SCHEMA_VERSION_KEY = '@maths_workout_schema_version';
+/**
+ * Small write-ahead buffer holding only the current session's attempts.
+ * docs/23 F1 — see `persistIncremental`.
+ */
+const PENDING_ATTEMPTS_KEY = '@maths_workout_pending_attempts';
+/**
+ * Per-day aggregates retained forever, so lifetime statistics survive eviction
+ * of the capped attempt log (docs/23 S5).
+ */
+const DAILY_SUMMARY_KEY = '@maths_workout_daily_summary';
 const BOARD_KEY          = '@maths_workout_board';
 const TIMER_PREF_KEY     = '@maths_workout_timer_pref';
 const LANG_KEY           = '@maths_workout_lang';
@@ -167,6 +180,16 @@ interface GameContextType {
   mastery:          Record<SkillId, MasteryEstimate>;
   /** Consecutive days practised. */
   streak:           number;
+  /**
+   * Distinct practice days over the learner's whole history (docs/23 S5).
+   * Survives eviction of the capped attempt log, unlike counting the log alone.
+   */
+  lifetimeDays:     number;
+  /**
+   * True when writes have failed repeatedly (docs/23 F5).
+   * The app must not keep implying progress is saved when it is not.
+   */
+  storageFailing:   boolean;
   /** Questions answered today. */
   answeredToday:    number;
   /** Start an adaptive session: the engine chooses what to practise. */
@@ -258,6 +281,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [totalXp,          setTotalXp]          = useState(0);
   const [lastAward,        setLastAward]        = useState<Award | null>(null);
   /**
+   * True when writes have been failing repeatedly (docs/23 F5).
+   * Surfaced so the app can stop implying that progress is being saved when it
+   * demonstrably is not — silence was measured as days of invisible data loss.
+   */
+  const [storageFailing,   setStorageFailing]   = useState(false);
+  const [dailySummary,     setDailySummary]     = useState<DailySummary[]>([]);
+  const summaryRef = useRef<DailySummary[]>([]);
+  /**
    * Mirrors of `attempts` and `totalXp` for the award path.
    * recordAttempt must read the log and the running total synchronously — a
    * stale closure would mis-price the answer or double-count the XP.
@@ -273,10 +304,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
    * debouncing them would risk losing XP on a hard kill for no benefit.
    */
   const persistProgression = useCallback(async (xp: number, ledger: XpLedger) => {
-    try {
-      await AsyncStorage.setItem(TOTAL_XP_KEY, String(xp));
-      await AsyncStorage.setItem(XP_LEDGER_KEY, JSON.stringify(ledger));
-    } catch { /* offline-first: in-memory state remains correct */ }
+    // docs/23 F1/F9. These are now a CACHE of values derivable from the log,
+    // not authoritative state — `rebuildProgression` recomputes both exactly on
+    // load. Writing them is still worth it (it avoids a replay on every launch)
+    // but a failure here is no longer a correctness problem, only a cost one.
+    await writeDurable(TOTAL_XP_KEY, xp, { backup: false });
+    await writeDurable(XP_LEDGER_KEY, ledger, { backup: false });
   }, []);
   const [board,            setBoardState]       = useState<Board>(DEFAULT_BOARD);
   const [lang,             setLangState]        = useState<Lang>('en');
@@ -313,11 +346,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     ps: ProgressStats,
     tb: Record<number, number>,
     sm: WrongAnswer[],
+    at?: Attempt[],
   ): ProgressData => ({
     highScores:    hs,
     progressStats: ps,
     tablesBest:    tb,
     wrongAnswers:  sm,
+    // docs/23 F3. The attempt log is the only authoritative learner data, and
+    // until now it was the only thing never uploaded. Without it a reinstall
+    // restored four high scores and reported that the child had never
+    // practised anything.
+    attempts:      at ?? attemptsRef.current,
   }), []);
 
   // ─── Load & sync ──────────────────────────────────────────────────────
@@ -339,15 +378,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // left half-written by a crash, and on some platforms is user-editable.
       // A ledger with an out-of-range value would silently mis-price every
       // future answer, so a failed check discards it rather than propagating.
-      try {
-        const parsed = led ? JSON.parse(led) : null;
-        if (isXpLedger(parsed)) { setXpLedger(parsed); ledgerRef.current = parsed; }
-      } catch { /* ledger rebuilds from scratch; only affects future payouts */ }
-      const parsedXp = Number(txp);
-      if (Number.isFinite(parsedXp) && parsedXp >= 0) {
-        setTotalXp(parsedXp);
-        totalXpRef.current = parsedXp;
-      }
+      // XP and the ledger are read as a CACHE only — they are recomputed from
+      // the log below (docs/23 F9). Reading them first just avoids a replay
+      // when the log is empty or a legacy install has no attempts yet.
+      const ledgerRead = await readDurable(XP_LEDGER_KEY, isXpLedger);
+      if (ledgerRead.data) { setXpLedger(ledgerRead.data); ledgerRef.current = ledgerRead.data; }
+      const xpRead = await readDurable<number>(
+        TOTAL_XP_KEY,
+        (x): x is number => typeof x === 'number' && Number.isFinite(x) && x >= 0,
+      );
+      if (xpRead.data !== null) { setTotalXp(xpRead.data); totalXpRef.current = xpRead.data; }
 
       // Each shape is validated on read; a corrupt value falls back to empty
       // rather than propagating into the engine. `sanitiseLog` already did this
@@ -360,7 +400,40 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       let localPS: ProgressStats          = safeParse(ps, isStatMap, {}) as ProgressStats;
       let localTB: Record<number, number> = safeParse(tb, isNumberMap, {}) as Record<number, number>;
       let localSM: WrongAnswer[]          = safeParse(sm, isWrongAnswerList, []) as WrongAnswer[];
-      let localAT: Attempt[]              = at ? sanitiseLog(JSON.parse(at)) : [];
+      // docs/23 F2. The log is read through the durable layer: a torn or
+      // truncated primary fails its checksum and the previous good copy is
+      // used instead, rather than `JSON.parse` throwing and 200 attempts
+      // silently becoming 0.
+      const logRead = await readDurable<unknown[]>(
+        ATTEMPTS_KEY, (x): x is unknown[] => Array.isArray(x),
+      );
+      let localAT: Attempt[] = sanitiseLog(logRead.data ?? []);
+      if (logRead.repaired) {
+        console.warn('[GameContext] attempt log recovered from backup copy');
+      }
+
+      // docs/23 F1. Fold in the write-ahead buffer: attempts recorded after the
+      // last full flush, which a crash would otherwise have discarded.
+      const bufferRead = await readDurable<unknown[]>(
+        PENDING_ATTEMPTS_KEY, (x): x is unknown[] => Array.isArray(x),
+      );
+      const buffered = sanitiseLog(bufferRead.data ?? []);
+      if (buffered.length > 0) {
+        localAT = mergeAttempts(localAT, buffered);
+      }
+      localAT = ensureIds(localAT);
+      seedAttemptIds(localAT);
+
+      // docs/23 S5. Fold the live log into the permanent per-day archive before
+      // anything can evict it. `mergeSummaries` is idempotent, so running this
+      // on every load cannot double-count.
+      const summaryRead = await readDurable<DailySummary[]>(
+        DAILY_SUMMARY_KEY, (x): x is DailySummary[] => Array.isArray(x),
+      );
+      const nextSummary = mergeSummaries(summaryRead.data ?? [], summariseByDay(localAT));
+      summaryRef.current = nextSummary;
+      setDailySummary(nextSummary);
+      void writeDurable(DAILY_SUMMARY_KEY, nextSummary, { backup: false });
 
       // ── Schema migration ────────────────────────────────────────────────
       // Legacy installs stored only {attempted, correct} counters. Those carry
@@ -374,6 +447,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // question with one answer.
       const manifest = await readManifest();
       const schemaVersion = manifest.version || (ver ? Number(ver) : 2);
+      // docs/23 F11. Write the manifest BEFORE the data it describes, and await
+      // it. Previously it was the last statement of `loadAll` and unawaited, so
+      // a crash left current-shaped data with no manifest at all and a future
+      // migration would read version 0 and treat the install as pre-manifest.
+      await writeManifest(MANIFEST_VERSION);
       if (schemaVersion < CURRENT_SCHEMA && localAT.length === 0) {
         localAT = migrateLegacyStats(localPS, Date.now(), resolveSkill);
         await AsyncStorage.setItem(ATTEMPTS_KEY, JSON.stringify(localAT));
@@ -389,16 +467,40 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         localSM = mergeMistakes(localSM, remote.wrongAnswers ?? []);
         // Attempts are immutable facts, so union-merge is correct and
         // commutative — unlike the legacy Math.max merge on counters.
-        localAT = mergeAttempts(localAT, sanitiseLog((remote as { attempts?: unknown }).attempts));
+        // No cast needed now that `attempts` is a declared field: union-by-id
+        // is idempotent, so repeated syncs converge rather than duplicating.
+        localAT = ensureIds(mergeAttempts(localAT, sanitiseLog(remote.attempts)));
 
-        await Promise.all([
-          AsyncStorage.setItem(HIGH_SCORES_KEY,    JSON.stringify(localHS)),
-          AsyncStorage.setItem(STATS_KEY,          JSON.stringify(localPS)),
-          AsyncStorage.setItem(TABLES_BEST_KEY,    JSON.stringify(localTB)),
-          AsyncStorage.setItem(SAVED_MISTAKES_KEY, JSON.stringify(localSM)),
-          AsyncStorage.setItem(ATTEMPTS_KEY,        JSON.stringify(localAT)),
-        ]);
-        pushProgress(deviceId, buildPayload(localHS, localPS, localTB, localSM));
+        // docs/23 #15. One multiSet rather than five independent writes, so a
+        // crash cannot leave the four derived keys disagreeing with each other.
+        // The attempt log keeps its own durable write because it alone needs
+        // the checksum and backup slot.
+        await AsyncStorage.multiSet([
+          [HIGH_SCORES_KEY,    JSON.stringify(localHS)],
+          [STATS_KEY,          JSON.stringify(localPS)],
+          [TABLES_BEST_KEY,    JSON.stringify(localTB)],
+          [SAVED_MISTAKES_KEY, JSON.stringify(localSM)],
+        ]).catch(() => {});
+        await writeDurable(ATTEMPTS_KEY, localAT);
+        pushProgress(deviceId, buildPayload(localHS, localPS, localTB, localSM, localAT));
+      }
+
+      // docs/23 F9/#10. Recompute XP and the ledger from the log rather than
+      // trusting the stored accumulators. They are the only two values that
+      // could disagree with the evidence, and after a crash they DID: the
+      // ledger recorded a high-water mark the log no longer justified, so
+      // `payableDelta` refused to pay for re-learning and the anti-exploit gate
+      // punished the child for the crash. Replay is exact (measured drift 0.0),
+      // so deriving them removes the divergence as a category.
+      if (localAT.length > 0) {
+        const rebuilt = rebuildProgression(localAT);
+        setTotalXp(rebuilt.totalXp);
+        totalXpRef.current = rebuilt.totalXp;
+        setXpLedger(rebuilt.ledger);
+        ledgerRef.current = rebuilt.ledger;
+        // Refresh the cache so the next launch can skip the replay.
+        void writeDurable(TOTAL_XP_KEY, rebuilt.totalXp, { backup: false });
+        void writeDurable(XP_LEDGER_KEY, rebuilt.ledger, { backup: false });
       }
 
       setHighScores(localHS);
@@ -409,7 +511,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setSavedMistakes(localSM);
       setAttempts(localAT);
       attemptsRef.current = localAT;
-      void writeManifest(MANIFEST_VERSION);
+      setStorageFailing(storageHealth().failing);
     } catch (e) { console.error('[GameContext] loadAll failed:', e); }
   }, [getOrCreateDeviceId, buildPayload]);
 
@@ -464,6 +566,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const mastery = useMemo(() => estimateAll(attempts), [attempts]);
   const streak = useMemo(() => currentStreak(attempts), [attempts]);
   const answeredToday = useMemo(() => todayCount(attempts), [attempts]);
+  const lifetimeDays = useMemo(
+    () => lifetimePracticeDays(dailySummary, attempts), [dailySummary, attempts]);
 
   // Derived progression. Level comes from XP (effort, never falls); the mastery
   // index comes from the mastery model (ability, can fall). Keeping them
@@ -615,16 +719,61 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // is under two seconds and AsyncStorage writes are atomic per key.
   const pendingRef = useRef<Attempt[] | null>(null);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Serialises flushes so two in-flight writes cannot land out of order. */
+  const flushChainRef = useRef<Promise<void>>(Promise.resolve());
 
+  /**
+   * Flush the full log.
+   *
+   * docs/23 F6. Every flush is chained onto the previous one rather than racing
+   * it. `flushAttempts` is invoked from three places — the debounce timer,
+   * `endGame()` and the AppState listener — and two overlapping writes could
+   * previously complete out of order, leaving an OLDER snapshot durable.
+   * Measured: writing 25 rows then 10 rows left 10 rows on disk. The log only
+   * ever grows, so a shorter array is always staler.
+   *
+   * `pendingRef` is now cleared only AFTER the write succeeds, so a failure
+   * leaves the snapshot queued for the next attempt instead of dropping it.
+   */
   const flushAttempts = useCallback(async () => {
-    const pending = pendingRef.current;
-    if (!pending) return;
-    pendingRef.current = null;
-    if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
-    try {
-      await AsyncStorage.setItem(ATTEMPTS_KEY, JSON.stringify(pending));
-      await AsyncStorage.setItem(SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA));
-    } catch { /* offline-first: in-memory state remains correct */ }
+    const run = async () => {
+      const pending = pendingRef.current;
+      if (!pending) return;
+      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      const res = await writeDurable(ATTEMPTS_KEY, pending);
+      if (res.ok) {
+        // Only drop the snapshot once it is durable. If more answers arrived
+        // during the write, `pendingRef` now holds a superset — keep it.
+        if (pendingRef.current === pending) pendingRef.current = null;
+        await writeDurable(SCHEMA_VERSION_KEY, CURRENT_SCHEMA, { backup: false });
+        // Clearing the session buffer is safe only once the main log is durable.
+        await AsyncStorage.removeItem(PENDING_ATTEMPTS_KEY).catch(() => {});
+      }
+      setStorageFailing(storageHealth().failing);
+    };
+    flushChainRef.current = flushChainRef.current.then(run, run);
+    return flushChainRef.current;
+  }, []);
+
+  /**
+   * Persist the answer that just happened, immediately and cheaply.
+   *
+   * docs/23 F1, and the fix that matters most. The full log is up to ~1.07 MB
+   * of JSON, which is why writing it per answer was debounced 1500 ms — and why
+   * every OS kill inside that window kept 100% of the XP and 0% of the attempts
+   * that earned it (measured at four crash points).
+   *
+   * Writing only the CURRENT SESSION's rows to a small separate key costs a few
+   * KB, so it can happen on every answer. On load the session buffer is merged
+   * back into the main log, so a crash now loses nothing. The debounced full
+   * write still runs, purely to fold the buffer back and keep it small.
+   */
+  const sessionBufferRef = useRef<Attempt[]>([]);
+
+  const persistIncremental = useCallback(async (attempt: Attempt) => {
+    sessionBufferRef.current = [...sessionBufferRef.current, attempt];
+    await writeDurable(PENDING_ATTEMPTS_KEY, sessionBufferRef.current, { backup: false });
+    setStorageFailing(storageHealth().failing);
   }, []);
 
   const schedulePersist = useCallback((next: Attempt[]) => {
@@ -676,6 +825,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         sessionCategory: selectedCategory,
         difficulty,
         isTablesMode,
+        // docs/23 F7. Every attempt carries an explicit identity from the
+        // moment it is created, so sync can union by id rather than guessing
+        // from field values that collide at millisecond resolution.
+        attemptId: nextAttemptId(deviceIdRef.current ?? 'local'),
       },
     );
 
@@ -691,14 +844,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setTotalXp(result.state.totalXp);
     setXpLedger(result.state.ledger);
 
-    // Persistence is debounced for the log: serialising it on every answer
-    // costs ~1.07 MB of JSON at the 4000-attempt cap, which is visible jank on
-    // a low-end device mid-session. The two small values are written directly.
+    // docs/23 F1. ORDER MATTERS: the evidence is written before the reward.
+    //
+    // Previously XP was persisted immediately and the log 1500 ms later, so a
+    // kill in between kept the payment and lost the proof — and the surviving
+    // xp_ledger then refused to pay for re-learning the same skill. Since XP
+    // and the ledger are both exactly rebuildable from the log
+    // (`rebuildProgression`, verified drift 0.0) but the log is rebuildable
+    // from nothing, the log must land first.
+    //
+    // The incremental write is a few KB, so it is affordable per answer; the
+    // debounced full flush then folds it into the main log.
+    void (async () => {
+      await persistIncremental(result.attempt);
+      await persistProgression(result.state.totalXp, result.state.ledger);
+    })();
     schedulePersist(result.state.log);
-    void persistProgression(result.state.totalXp, result.state.ledger);
 
     return result.misconception;
-  }, [currentIndex, selectedClass, selectedCategory, difficulty, isTablesMode, schedulePersist]);
+  }, [currentIndex, selectedClass, selectedCategory, difficulty, isTablesMode,
+      schedulePersist, persistIncremental, persistProgression]);
 
   const rootGapFor = useCallback(
     (skill: SkillId) => findRootGap(skill, mastery), [mastery]);
@@ -810,12 +975,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       let nextHS = highScores;
       let nextTB = tablesBest;
 
+      // docs/23 #15. Collect the writes and issue them as ONE multiSet, so a
+      // crash cannot leave the high score updated but the mistake list stale.
+      // These three keys are all authoritative and non-derivable, which makes
+      // a partial write a genuine inconsistency rather than a cache miss.
+      const pending: [string, string][] = [];
+
       if (isTablesMode) {
         const current = tablesBest[selectedTable] ?? 0;
         if (score > current) {
           nextTB = { ...tablesBest, [selectedTable]: score };
           setTablesBest(nextTB);
-          await AsyncStorage.setItem(TABLES_BEST_KEY, JSON.stringify(nextTB));
+          pending.push([TABLES_BEST_KEY, JSON.stringify(nextTB)]);
         }
       } else {
         const key     = `${selectedClass}_${selectedCategory}_${difficulty}`;
@@ -823,7 +994,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (score > current) {
           nextHS = { ...highScores, [key]: score };
           setHighScores(nextHS);
-          await AsyncStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(nextHS));
+          pending.push([HIGH_SCORES_KEY, JSON.stringify(nextHS)]);
         }
       }
 
@@ -832,8 +1003,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (wrongAnswers.length > 0) {
         nextSM = mergeMistakes(savedMistakes, wrongAnswers);
         setSavedMistakes(nextSM);
-        await AsyncStorage.setItem(SAVED_MISTAKES_KEY, JSON.stringify(nextSM));
+        pending.push([SAVED_MISTAKES_KEY, JSON.stringify(nextSM)]);
       }
+
+      if (pending.length > 0) await AsyncStorage.multiSet(pending);
+
+      // Make sure the session's attempts are durable before we advertise them
+      // to the server, so a failed upload never outruns local truth.
+      await flushAttempts();
 
       const deviceId = await getOrCreateDeviceId();
       pushProgress(deviceId, buildPayload(nextHS, progressStats, nextTB, nextSM));
@@ -841,29 +1018,33 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, [
     score, isTablesMode, selectedTable, selectedClass, selectedCategory, difficulty,
     highScores, tablesBest, progressStats, savedMistakes, wrongAnswers,
-    getOrCreateDeviceId, buildPayload,
+    getOrCreateDeviceId, buildPayload, flushAttempts,
   ]);
 
-  const saveProgressStats = useCallback(async (correct: boolean, actualCategory?: Category) => {
-    if (isTablesMode) return;
-    try {
-      const catForStats = actualCategory ?? selectedCategory;
-      const key   = `${selectedClass}_${catForStats}_${difficulty}`;
-      const entry = progressStats[key] ?? { attempted: 0, correct: 0 };
-      const nextPS: ProgressStats = {
-        ...progressStats,
-        [key]: { attempted: entry.attempted + 1, correct: entry.correct + (correct ? 1 : 0) },
-      };
-      setProgressStats(nextPS);
-      await AsyncStorage.setItem(STATS_KEY, JSON.stringify(nextPS));
-
-      const deviceId = await getOrCreateDeviceId();
-      pushProgress(deviceId, buildPayload(highScores, nextPS, tablesBest, savedMistakes));
-    } catch (e) { console.error('[GameContext] saveProgressStats failed:', e); }
-  }, [
-    isTablesMode, selectedClass, selectedCategory, difficulty, progressStats,
-    highScores, tablesBest, savedMistakes, getOrCreateDeviceId, buildPayload,
-  ]);
+  /**
+   * Retained as a NO-OP for callers, deliberately.
+   *
+   * docs/23 F4/#11. This used to be the second writer of `progressStats`: it
+   * read-modify-wrote a counter, persisted it to STATS_KEY, and pushed the
+   * whole payload to the server — on every single answer. Meanwhile
+   * `recordAttempt` set the same state from `deriveLegacyStats(log)`, and
+   * `loadAll` discarded the persisted counter entirely whenever a log existed:
+   *
+   *     setProgressStats(localAT.length > 0 ? deriveLegacyStats(localAT) : localPS)
+   *
+   * So the value was written ~30x per session and read only when the log was
+   * empty. Two writers that agree only by coincidence eventually disagree —
+   * measured after a partial log loss, the counter said 50 and the log said 20,
+   * and the app displayed 20 while the true count sat unread on disk.
+   *
+   * The derived value is correct, already displayed, and self-healing. The
+   * counter is now gone. Keeping the function signature avoids churning the
+   * three call sites in `game.tsx` for no behavioural gain, and means the
+   * legacy STATS_KEY is still honoured on load for pre-log installs.
+   */
+  const saveProgressStats = useCallback(async (_correct: boolean, _actualCategory?: Category) => {
+    /* intentionally empty — progressStats is derived from the attempt log */
+  }, []);
 
   /** Remove a single mistake from the persisted list after a successful retry */
   const clearMistake = useCallback(async (display: string, correctAnswer: string) => {
@@ -885,6 +1066,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       score, questions, currentIndex, isGameOver, totalQuestions, wrongAnswers, isTablesMode,
       startGame, startTablesGame, submitAnswer, nextQuestion, endGame,
       highScores, progressStats, tablesBest, savedMistakes,
+      lifetimeDays, storageFailing,
       saveScore, saveProgressStats, clearMistake, loadAll, getHighScore,
       attempts, mastery, streak, answeredToday,
       totalXp, level, masteryIdx, masteryLabel, lastAward,

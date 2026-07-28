@@ -12,6 +12,21 @@ export interface ProgressData {
   progressStats: Record<string, { attempted: number; correct: number }>;
   tablesBest:    Record<string, number>;
   wrongAnswers:  WrongAnswer[];
+  /**
+   * The append-only attempt log — the ONLY authoritative learner data.
+   *
+   * docs/23 F3, the single largest loss vector found in the audit. This field
+   * did not exist, so `pushProgress` never uploaded the log, yet `loadAll`
+   * read `remote.attempts` behind a cast — making the restore path look
+   * implemented when it could never return anything. Measured: a reinstall
+   * recovered 0 attempts, 0 skills and mastery index 0, so a learner who
+   * replaced their phone lost every month of history and landed on level 1
+   * with all chapters locked.
+   *
+   * Everything else in this payload is derivable from it. Optional so that a
+   * client talking to an older server, or vice versa, still works.
+   */
+  attempts?: unknown[];
 }
 
 function apiBase(): string {

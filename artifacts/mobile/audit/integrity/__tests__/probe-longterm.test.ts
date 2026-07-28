@@ -94,10 +94,15 @@ describe('L2 · clock and timezone hazards', () => {
     for (let d = 0; d < 5; d++) log = appendAttempts(log, [mk(START + (22 + d) * DAY + 3600_000)]);
     const after = currentStreak(log, START + 26 * DAY);
 
+    // docs/23 S7 — FIXED. appendAttempts now keeps the log chronological, so a
+    // backwards clock change can still confuse the STREAK (that is inherent to
+    // wall-clock time) but can no longer corrupt log ORDER, which every window
+    // function downstream depends on.
+    const outOfOrder = log.some((a, i) => i > 0 && a.answeredAt < log[i - 1].answeredAt);
     console.log('\n===== L2 · BACKWARDS CLOCK =====');
     console.log(`streak before jump: ${before}, after 5 more days of practice: ${after}`);
-    console.log(`log is now out of chronological order: ${log.some((a, i) => i > 0 && a.answeredAt < log[i - 1].answeredAt)}`);
-    expect(log.some((a, i) => i > 0 && a.answeredAt < log[i - 1].answeredAt)).toBe(true);
+    console.log(`log out of chronological order: ${outOfOrder}`);
+    expect(outOfOrder).toBe(false);
   });
 
   it('crossing a timezone splits or merges a practice day', () => {
@@ -139,7 +144,7 @@ describe('L3 · repeated sync round-trips', () => {
     expect(new Set(sizes).size).toBe(1);
   });
 
-  it('but merge silently truncates when two devices exceed the cap', () => {
+  it('merge still truncates at the cap, but far later and with history retained', () => {
     const mk = (t: number, tag: string): Attempt => ({
       skill: 'add.3digit', correct: true, answeredAt: t, latencyMs: 5000,
       chosen: '7', expected: '7', questionText: `${tag}-${t}`, timedOut: false,
@@ -151,9 +156,12 @@ describe('L3 · repeated sync round-trips', () => {
     const phoneKept = merged.filter(a => a.questionText.startsWith('phone')).length;
     console.log('\n===== L3b · TWO DEVICES, 6000 ATTEMPTS =====');
     console.log(`merged: ${merged.length} (cap ${MAX_ATTEMPTS}); phone rows surviving: ${phoneKept}/3000`);
-    console.log('→ the OLDER device history is evicted with no warning and no backup.');
-    expect(merged.length).toBe(MAX_ATTEMPTS);
-    expect(phoneKept).toBeLessThan(3000);
+    // docs/23 S5 — MITIGATED. 6,000 combined rows now fit under the 12,000 cap,
+    // so nothing is evicted at this scale at all; and beyond it, DailySummary
+    // preserves the per-day facts lifetime statistics need.
+    console.log(`cap is now ${MAX_ATTEMPTS}; nothing evicted at 6,000 rows.`);
+    expect(merged.length).toBe(6000);
+    expect(phoneKept).toBe(3000);
   });
 });
 

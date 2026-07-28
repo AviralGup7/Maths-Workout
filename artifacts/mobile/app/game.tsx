@@ -109,6 +109,16 @@ export default function GameScreen() {
   const [answerState,    setAnswerState]    = useState<AnswerState>('idle');
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [perQLocked,     setPerQLocked]     = useState(false);
+  /**
+   * Synchronous mirror of `perQLocked`, for the submit guard.
+   *
+   * docs/23 F8. `perQLocked` is React state read through the render closure,
+   * so two handlers firing in the SAME tick both observe the stale `false` and
+   * both submit — verified: two calls, two log rows, XP paid twice for one
+   * question. A ref changes at the moment of assignment, which is the only
+   * thing that can close a same-tick window.
+   */
+  const submitLockRef = useRef(false);
   const [perQTime,       setPerQTime]       = useState(PER_Q_SECS);
   const [perQBudget,     setPerQBudget]     = useState(PER_Q_SECS);
   const [blitzTime,      setBlitzTime]      = useState(BLITZ_SECS);
@@ -196,8 +206,9 @@ export default function GameScreen() {
   }, []); // eslint-disable-line
 
   const handleTimeUp = useCallback(() => {
-    if (perQLocked) return;
+    if (submitLockRef.current || perQLocked) return;
     const q = questions[currentIndex];
+    submitLockRef.current = true;
     setPerQLocked(true);
     setAnswerState('wrong');
     lastWrongRef.current = true;
@@ -267,6 +278,7 @@ export default function GameScreen() {
       nextQuestion();
       setAnswerState('idle');
       setSelectedChoice(null);
+      submitLockRef.current = false;
       setPerQLocked(false);
       setPerQTime(secondsFor(questions[currentIndex + 1]));
       setPerQBudget(secondsFor(questions[currentIndex + 1]));
@@ -294,7 +306,7 @@ export default function GameScreen() {
    * set or building a sequence.
    */
   const handleSubmit = (normalised: string) => {
-    if (perQLocked || !currentQuestion) return;
+    if (submitLockRef.current || perQLocked || !currentQuestion) return;
     // Ask before revealing the outcome: a confidence rating collected after the
     // child already knows whether they were right measures memory of the
     // result, not their belief at the moment of answering.
@@ -305,6 +317,9 @@ export default function GameScreen() {
       return;
     }
     if (!isBlitz && timerRef.current) clearInterval(timerRef.current);
+    // Lock synchronously BEFORE any await-able work, so a second tap in this
+    // same tick is rejected rather than racing the state update.
+    submitLockRef.current = true;
     setPerQLocked(true);
     setSelectedChoice(normalised);
 

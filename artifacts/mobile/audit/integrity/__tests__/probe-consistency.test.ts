@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { FakeStorage } from '../fakeStorage';
 import { recordAnswer, type AnswerState } from '../../../progression/recordAnswer';
-import { deriveLegacyStats, appendAttempts, mergeAttempts, sanitiseLog, MAX_ATTEMPTS, type Attempt } from '../../../learning/attempts';
+import { deriveLegacyStats, appendAttempts, mergeAttempts, sanitiseLog, summariseByDay, MAX_ATTEMPTS, type Attempt } from '../../../learning/attempts';
 import { estimateAll, estimateMastery } from '../../../learning/mastery';
 import { levelForXp } from '../../../progression/levels';
 import { isXpLedger, isStatMap } from '../../../lib/storage';
@@ -193,14 +193,17 @@ describe('D3 · duplicate answer submission', () => {
 // ─── D4 · validator gaps ─────────────────────────────────────────────────────
 
 describe('D4 · stored-value validators', () => {
-  it('isStatMap accepts negative counts', () => {
+  it('isStatMap now REJECTS negative counts', () => {
+    // docs/23 F10 — FIXED. The old guard's only numeric check was
+    // `correct <= attempted`, and -10 <= -5 holds, so negative counters passed.
     const evil = { '4th_addition_easy': { attempted: -5, correct: -10 } };
-    console.log('\n===== D4 · VALIDATOR GAPS =====');
+    console.log('\n===== D4 · VALIDATOR GAPS (fixed) =====');
     console.log(`isStatMap({attempted:-5, correct:-10}) = ${isStatMap(evil)}`);
-    expect(isStatMap(evil)).toBe(true);   // accepted — negative counters survive
+    expect(isStatMap(evil)).toBe(false);
+    expect(isStatMap({ '4th_addition_easy': { attempted: 5, correct: 3 } })).toBe(true);
   });
 
-  it('sanitiseLog accepts attempts with impossible field values', () => {
+  it('sanitiseLog now REJECTS attempts with impossible field values', () => {
     const rows = [
       { skill: 'add.3digit', correct: true, answeredAt: START, latencyMs: -9999,
         chosen: 'x', expected: 'y', questionText: 'q', timedOut: false,
@@ -212,12 +215,15 @@ describe('D4 · stored-value validators', () => {
         chosen: 'x', expected: 'y', questionText: 'q', timedOut: false,
         cls: '4th', category: 'addition', difficulty: 'medium' },
     ];
-    const kept = sanitiseLog(rows);
+    // docs/23 F10 — FIXED. All three are now rejected or repaired.
+    const kept = sanitiseLog(rows, START + DAY);
     console.log(`sanitiseLog kept ${kept.length}/3 impossible rows`);
     console.log('  negative latency:', kept.some(a => a.latencyMs < 0));
     console.log('  year-275760 timestamp:', kept.some(a => a.answeredAt > 4e15));
     console.log('  empty skill id:', kept.some(a => a.skill === ''));
-    expect(kept.length).toBe(3);
+    expect(kept.some(a => a.latencyMs < 0)).toBe(false);
+    expect(kept.some(a => a.answeredAt > 4e15)).toBe(false);
+    expect(kept.some(a => a.skill === '')).toBe(false);
   });
 
   it('a future-dated attempt poisons decay and streaks', () => {
@@ -228,17 +234,24 @@ describe('D4 · stored-value validators', () => {
       latencyMs: 5000, chosen: '7', expected: '7', questionText: 'q',
       timedOut: false, cls: '4th', category: 'addition', difficulty: 'medium',
     } as Attempt];
-    const est = estimateMastery('add.3digit', future, START);
-    console.log(`\nfuture-dated attempt → mastery ${est.value.toFixed(3)}, lastPracticed in ${((est.lastPracticed! - START) / DAY).toFixed(0)} days`);
-    expect(est.lastPracticed).toBeGreaterThan(START);
+    // docs/23 F10 — FIXED. sanitiseLog clamps future timestamps to `now`
+    // rather than dropping the attempt: a clock skew is not the child's fault
+    // and the attempt really did happen.
+    const cleaned = sanitiseLog(future, START);
+    const est = estimateMastery('add.3digit', cleaned, START);
+    console.log(`\nfuture-dated attempt clamped → lastPracticed offset ${((est.lastPracticed! - START) / DAY).toFixed(0)} days`);
+    expect(cleaned.length).toBe(1);
+    expect(est.lastPracticed).toBeLessThanOrEqual(START);
   });
 });
 
 // ─── D5 · attempt log cap ────────────────────────────────────────────────────
 
 describe('D5 · eviction at the 4000-attempt cap', () => {
-  it('five years of daily use silently discards early history', () => {
-    // 20 questions/day × 365 × 5 = 36,500 attempts against a 4,000 cap.
+  it('five years of daily use keeps lifetime history in the summary', () => {
+    // docs/23 S5 — MITIGATED. The cap is now 12,000 (≈20 months at 20/day) and
+    // `DailySummary` retains per-day aggregates forever, so lifetime statistics
+    // no longer reset to a rolling window.
     const perDay = 20, years = 5;
     const total = perDay * 365 * years;
     console.log('\n===== D5 · FIVE-YEAR LOG =====');
@@ -246,7 +259,7 @@ describe('D5 · eviction at the 4000-attempt cap', () => {
     console.log(`history retained: ${(MAX_ATTEMPTS / perDay).toFixed(0)} days`);
 
     let log: Attempt[] = [];
-    for (let i = 0; i < 6000; i++) {
+    for (let i = 0; i < MAX_ATTEMPTS + 2000; i++) {
       log = appendAttempts(log, [{
         skill: 'add.3digit', correct: true, answeredAt: START + i * 60_000,
         latencyMs: 5000, chosen: '7', expected: '7', questionText: `q${i}`,
@@ -254,7 +267,11 @@ describe('D5 · eviction at the 4000-attempt cap', () => {
       } as Attempt]);
     }
     expect(log.length).toBe(MAX_ATTEMPTS);
-    // Achievements that count lifetime distinct days read the log directly.
-    console.log('→ achievements counting distinct practice days lose everything older than the cap.');
+    // Lifetime days now come from the permanent summary, not the capped log.
+    const summary = summariseByDay(log);
+    console.log(`days still visible in the log: ${summary.length}`);
+    console.log('→ lifetimePracticeDays() unions the archive with the live log,');
+    console.log('   so eviction costs detail, not history.');
+    expect(MAX_ATTEMPTS).toBeGreaterThanOrEqual(12_000);
   });
 });

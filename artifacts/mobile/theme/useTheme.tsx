@@ -11,6 +11,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { useColorScheme, useWindowDimensions, Appearance } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readEnum, readNumber } from '../lib/storage';
 import {
   PALETTES, TYPE, SPACE, RADIUS, TOUCH, ELEVATION,
   sizeClassFor, CONTENT_MAX_WIDTH,
@@ -66,14 +67,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true;
+    // docs/23 #19. Read through the shared typed façade rather than hand-rolling
+    // validation. The inline version here happened to be correct, but every
+    // duplicate of a validation rule is a place for one to drift.
     Promise.all([
-      AsyncStorage.getItem(THEME_KEY),
-      AsyncStorage.getItem(TEXT_SCALE_KEY),
-    ]).then(([t, s]) => {
+      readEnum(THEME_KEY, ['light', 'dark', 'system'] as const, 'system'),
+      readNumber(TEXT_SCALE_KEY, 1),
+    ]).then(([t, n]) => {
       if (!alive) return;
-      if (t === 'light' || t === 'dark' || t === 'system') setPref(t);
-      const n = Number(s);
-      if (Number.isFinite(n) && n >= TEXT_SCALE_MIN && n <= TEXT_SCALE_MAX) setScale(n);
+      setPref(t);
+      if (n >= TEXT_SCALE_MIN && n <= TEXT_SCALE_MAX) setScale(n);
     }).catch(() => {}).finally(() => { if (alive) setLoaded(true); });
     return () => { alive = false; };
   }, []);
