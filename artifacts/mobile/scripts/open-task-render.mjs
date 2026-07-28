@@ -111,7 +111,7 @@ function seedScript() {
   // not contain one — restart until it does, with a hard cap so a genuine
   // regression fails rather than hangs.
   let found = false;
-  for (let attempt = 0; attempt < 14 && !found; attempt++) {
+  for (let attempt = 0; attempt < 18 && !found; attempt++) {
     await page.goto(base, { waitUntil: 'networkidle' });
     await page.waitForTimeout(1200);
     const started = await page.evaluate(() => {
@@ -123,7 +123,7 @@ function seedScript() {
     if (!started) continue;
     await page.waitForTimeout(2000);
 
-    for (let q = 0; q < 12 && !found; q++) {
+    for (let q = 0; q < 14 && !found; q++) {
       const state = await page.evaluate(() => {
         const txt = document.body.innerText;
         const isOpen = /your answer must|आपका उत्तर ऐसा हो/i.test(txt);
@@ -131,19 +131,45 @@ function seedScript() {
       });
       if (state.isOpen) { found = true; break; }
       // Answer whatever is on screen to advance.
+      //
+      // Clicks by ARIA role, not by text shape. The original version matched
+      // only numeric tile text, which silently stopped the walk the moment a
+      // reasoning item appeared — those render "Step 1" / "Neither step"
+      // (docs/27 P1-14/15/16, 28.5% of eligible questions), so the loop broke
+      // out early and burned an attempt without ever advancing. That is why
+      // this passed locally before reasoning landed and failed on CI after.
       const advanced = await page.evaluate(() => {
-        const tiles = [...document.querySelectorAll('[role="button"]')]
-          .filter(e => /^[\d.,\-\u2212\s]+$/.test((e.textContent || '').trim()) && (e.textContent || '').trim());
-        const el = tiles[0];
-        if (el) { el.dispatchEvent(new MouseEvent('click', { bubbles: true })); return true; }
+        const click = el => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        const opts = [...document.querySelectorAll('[role="button"]')]
+          .filter(e => /option \d+ of \d+/.test(e.getAttribute('aria-label') || ''));
+        if (opts.length) { click(opts[0]); return true; }
+        // Constructed-response surfaces (entry, multiSelect, ordering) have no
+        // option tiles; submit whatever is there so the walk keeps moving.
+        const check = [...document.querySelectorAll('[role="button"]')]
+          .find(e => /check/i.test(e.getAttribute('aria-label') || ''));
+        const digit = [...document.querySelectorAll('[role="button"]')]
+          .find(e => /^Digit \d$/.test(e.getAttribute('aria-label') || ''));
+        if (digit) click(digit);
+        if (check) { click(check); return true; }
         return false;
       });
       if (!advanced) break;
-      await page.waitForTimeout(1600);
+      await page.waitForTimeout(900);
+
+      // Wrong answers hold the screen on the self-explanation prompt
+      // (docs/27 P1-13) and on worked examples; clear either so the walk
+      // reaches the next question instead of stalling on this one.
+      await page.evaluate(() => {
+        const btn = [...document.querySelectorAll('[role="button"]')]
+          .find(e => /I just slipped|मुझसे चूक|Got it|समझ गया|Continue|आगे/i
+            .test((e.getAttribute('aria-label') || '') + ' ' + (e.textContent || '')));
+        if (btn) btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      });
+      await page.waitForTimeout(900);
     }
   }
 
-  check(found, 'an open-response task appears in a real session within 14 attempts');
+  check(found, 'an open-response task appears in a real session within 18 attempts');
 
   if (found) {
     await page.screenshot({ path: join(SHOTS, 'open-task-unanswered.png') });
@@ -183,16 +209,49 @@ function seedScript() {
       'the exemplar stays hidden while the child is still typing');
     await page.screenshot({ path: join(SHOTS, 'open-task-typing.png') });
 
+    // Latch the feedback before submitting. A submission that happens to
+    // satisfy every constraint is CORRECT, and a correct answer advances after
+    // FEEDBACK_MS.correct (280 ms) — so sampling innerText afterwards races
+    // the next question. Observed as an intermittent failure here where the
+    // single typed digit happened to be a valid answer.
+    await page.evaluate(() => {
+      window.__fb = '';
+      const capture = () => {
+        if (window.__fb) return;
+        const t = document.body.innerText;
+        if (/One possible answer|एक संभव उत्तर|That works|यह चल गया/.test(t)) window.__fb = t;
+      };
+      window.__fbTimer = setInterval(capture, 10);
+      new MutationObserver(capture).observe(document.body, { subtree: true, childList: true, characterData: true });
+    });
     await page.evaluate(() => {
       const el = [...document.querySelectorAll('[role="button"]')]
         .find(e => /check/i.test(e.getAttribute('aria-label') || ''));
       el?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
+    await page.waitForTimeout(700);
+
+    // The confidence prompt ("How sure are you?") is asked BEFORE the outcome
+    // is revealed, deliberately — a rating collected afterwards measures
+    // memory of the result, not belief at the moment of answering. It
+    // therefore sits between the Check tap and the feedback, and the walk has
+    // to answer it. Found by dumping the screen on failure rather than by
+    // assuming another race.
+    await page.evaluate(() => {
+      const btn = [...document.querySelectorAll('[role="button"]')]
+        .find(e => /^(Sure|Not sure|पक्का|पक्का नहीं)$/i
+          .test(((e.getAttribute('aria-label') || e.textContent) || '').trim()));
+      if (btn) btn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
     await page.waitForTimeout(1500);
-    const after = await page.evaluate(() => document.body.innerText);
+    const after = await page.evaluate(() => {
+      clearInterval(window.__fbTimer);
+      return window.__fb || document.body.innerText;
+    });
     await page.screenshot({ path: join(SHOTS, 'open-task-graded.png') });
     check(/One possible answer|एक संभव उत्तर|That works|यह चल गया/.test(after),
-      'after submitting, the child is told an answer or that theirs worked');
+      'after submitting, the child is told an answer or that theirs worked'
+      + (/One possible|That works/.test(after) ? '' : ` — saw ${JSON.stringify(after.slice(0, 240))}`));
   }
 
   check(errors.length === 0, `runtime errors: ${errors.length}${errors.length ? ' — ' + errors[0] : ''}`);
