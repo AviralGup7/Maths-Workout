@@ -1,5 +1,8 @@
 # 13 · Learning Effectiveness Audit
 
+> **Status: HISTORICAL.** Its 6.4/10 is superseded by **8.1/10** in `29-consolidated-re-audit.md`, re-measured at `d9054dc`. Retained because the dimension rubric below is the instrument docs/29 re-scores with — deleting this would orphan the method. Its prediction that "fixing instruction and visual models alone would move this to roughly 8.0" is now testable, and it was accurate.
+
+
 **Reviewer stance:** mathematics education, learning science, cognitive
 psychology, CBSE curriculum design.
 **Scope:** the educational design only. Code quality, architecture and

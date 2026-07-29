@@ -1,11 +1,11 @@
 # 27 · Implementation Roadmap
 
-**The single working backlog.** Everything outstanding across docs/01–28, deduplicated, sequenced, and ordered so each item is workable the moment the one above it lands.
+**The single working backlog.** Everything outstanding across docs/01–29, deduplicated, sequenced, and ordered so each item is workable the moment the one above it lands.
 
 Tick items here as they land. Do not maintain a second list anywhere else.
 
 ```
-Progress    78 of 120 complete · Phases 1 and 3 done · Phase 8 Tiers 1-3 done
+Progress    78 of 124 complete · Phases 1 and 3 done · Phase 8 Tiers 1-3 done
 Verify      cd artifacts/mobile && npm run test:fast   # 811 tests, ~43s
 CI          .github/workflows/ci.yml, three parallel jobs on every push:
               fast   typecheck + arch-check + 811 unit tests    ~45s  (gate)
@@ -272,6 +272,17 @@ deliberately declined.*
 
 ---
 
+## Phase 9 · Re-audit findings (docs/29)
+
+*Raised by the consolidated re-audit at `d9054dc`. Each carries its measurement.*
+
+- [ ] **P9-01 · Re-express the docs/21 progression property so it survives curriculum refinement.** The scorecard reports 47% of skills ≥ 0.85 against a ≥ 70% bar and reads as serious decay. It is not: the same simulated learner now finishes with **27% more total mastery** (40.0 → 50.9) across **40% more skills** (45 → 63). Mean mastery is **0.848** and the bar is **0.85**, so the whole distribution sits within a hundredth of the threshold — the share swings 35 points on a 0.04 shift (0.82 → 63%, 0.85 → 47%). Assert `sum(mastery) ≥ 45` instead: monotone in learning, insensitive to how finely the curriculum is cut, and it rises across every commit where the current metric fell. Staleness ruled out (corr 0.080), volume ruled out (`dec.tenths` 0.71 on 195 attempts), accuracy ruled out (raw 0.875). **Deliberately not fixed in the same pass that diagnosed it** — retuning a failing assertion alongside its own diagnosis removes the reader's ability to check the diagnosis.
+- [ ] **P9-02 · Recalibrate achievement thresholds against the post-ladder mastery distribution.** An honest learner earns 9/15, was 12/15. `all-rounder` sits at **0.952** progress. The thresholds were calibrated against a stream that was 99.1% multiple choice; it is now 38.5%, so the estimate is more conservative and better evidenced — and the wall was not moved to match.
+- [ ] **P9-03 · Close the XP-per-unit-learned spread.** **2.6×** against a 2.0× bar. Broke during Phase 2 (2.2× at `7ce503a`) and has widened since; docs/21's 24/24 closure did not catch it. Not exploitable in the ways docs/21 cared about most — the guesser still earns 381 XP against an honest learner's 60,715 — but "all roads pay roughly the same for the same learning" is not held.
+- [ ] **P9-04 · Raise visual coverage in step with the skill count.** 23/63 (**37%**) today against 16/45 (36%) when docs/25 measured it. Nine visuals were added and the ratio did not move, because the skill count grew faster.
+
+---
+
 ## Sequencing summary
 
 | Phase | Open | Status |
@@ -284,7 +295,8 @@ deliberately declined.*
 | 6 · Platform | 4 | P6-01 closed; the rest are strategic |
 | 7 · Validation | 4 | Cannot be faked or deferred indefinitely |
 | 8 · UI/UX | 4 | Tiers 1–3 shipped |
-| **Total open** | **42** | of 120 |
+| 9 · Re-audit findings | 4 | Raised by docs/29; P9-01 is a measurement fix, not a product fix |
+| **Total open** | **46** | of 124 |
 
 ### Do these next
 

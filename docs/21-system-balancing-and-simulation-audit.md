@@ -1,5 +1,8 @@
 # 21 · System Balancing & Simulation Audit
 
+> **Status: LIVE, but its headline score is corrected by `29-consolidated-re-audit.md` §1.** The scorecard here is executable and runs in CI. Re-run at `d9054dc` it reports **20/24 (8.3/10)**, down from 24/24 — but two of the four failures are measurement artefacts, not regressions: the same simulated learner now ends with **27% more total mastery** across **40% more skills**, and the `≥ 0.85` threshold sits 0.002 from the population mean, so the reported share swings 35 points on a 0.04 shift. Read docs/29 §1 before treating any of this as decay. Two failures ARE real — see P9-02 and P9-03.
+
+
 **Scope:** behaviour of the complete learning ecosystem over months and years.
 **Not in scope:** implementation quality, UI, architecture. Every feature is assumed correctly implemented.
 **Method:** every number below was produced by executing the real engine — `buildSession`, `estimateAll`, `recordAnswer`, `awardXp`, `evaluateAchievements`, `chapterStatus`, `generateQuestion` — under a simulated learner population. No claim in this document is an estimate unless labelled as one.

@@ -1,5 +1,8 @@
 # 15 · Phase 1 Implementation
 
+> **Status: HISTORICAL.** A design document for work that has shipped. The live backlog is `27-implementation-roadmap.md`.
+
+
 **Input:** [14 · Educational Improvement Roadmap](./14-educational-improvement-roadmap.md), Phase 1.
 **Status:** shipped. All five Phase 1 items implemented, tested and verified in a browser.
 

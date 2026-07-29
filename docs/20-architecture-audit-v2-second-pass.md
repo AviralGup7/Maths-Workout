@@ -1,5 +1,8 @@
 # 20 · Architecture Audit — V2, Second Pass
 
+> **Status: HISTORICAL — closed.** Its recommendations are now enforced mechanically by `scripts/arch-check.mjs`, which passes **7/7 checks over 126 modules** at `d9054dc`.
+
+
 **Method:** measured, not read. Dependency graphs, dead-code reachability,
 theme-resolution probing in a real browser, bundle and dependency weighting,
 and test-shape analysis were all produced by executing tooling against the tree.

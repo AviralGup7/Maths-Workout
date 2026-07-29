@@ -1,5 +1,8 @@
 # 16 · Progression & Reward System Design
 
+> **Status: HISTORICAL.** A design document for work that has shipped. The live backlog is `27-implementation-roadmap.md`.
+
+
 **Scope:** all progression, XP, reward, achievement and balancing mechanics.
 **Not in scope:** UI. Every number here is a system parameter, not a screen.
 **Status:** designed, implemented as a reference economy in `progression/`, and

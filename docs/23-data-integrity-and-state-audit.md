@@ -1,5 +1,8 @@
 # 23 · Data Integrity & State Management Audit
 
+> **Status: LIVE — score unchanged at 9.4/10**, re-confirmed at `d9054dc` in `29-consolidated-re-audit.md`. The probes below are historical records of defects that were fixed; all remain fixed.
+
+
 **Scope:** can a learner's data be lost, corrupted, duplicated, made inconsistent, incorrectly derived, or become unrecoverable?
 **Not in scope:** UI, architecture, performance — except where they directly cause a correctness failure.
 **Assumption:** daily use for years, by hundreds of thousands of learners, on cheap Android devices that get killed by the OS constantly.

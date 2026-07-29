@@ -1,5 +1,8 @@
 # 25 · Playability, Engagement & Game Economy Audit
 
+> **Status: HISTORICAL.** Its 5.4/10 is superseded by **7.6/10** in `29-consolidated-re-audit.md`. The two figures it named as the core problem — "58.4% of a year's questions are still multiple choice" and "29 of 45 skills have no visual model" — now measure **38.5%** and 40 of 63. Retained because its tier structure is what Phase 4 and Phase 8 of docs/27 are ordered by.
+
+
 **Question:** if this launched today, would children voluntarily return for months while parents still see it as a learning tool?
 
 **Answer: parents yes, children no — and the reason is narrower than it sounds.**

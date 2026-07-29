@@ -1,5 +1,8 @@
 # 28 · World-Class UI/UX, Theme & Child Experience Audit
 
+> **Status: LIVE — partially superseded.** Its dimension scores are re-measured in `29-consolidated-re-audit.md` (child appeal 3.2 → **6.1**, emotional 3.5 → **6.4**, accessibility 6.8 → **8.5**). Its 75 ranked items are still the source for Phase 8 of docs/27, and Tier 4 is open. Its central finding — *an 8.5/10 teaching engine inside a 3.5/10 child experience* — still stands directionally: the engine is now ~8.5 and the experience ~6.2.
+
+
 **Scope:** user experience and visual design only. No code quality or architecture.
 **Method:** every screen exported to a real web build, rendered in Chromium at three
 viewports and two themes, photographed, and measured programmatically. Every number

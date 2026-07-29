@@ -1,5 +1,8 @@
 # 26 · Learning Content & Educational Knowledge Audit
 
+> **Status: HISTORICAL.** Its 6.4/10 is superseded by **8.0/10** in `29-consolidated-re-audit.md`. All 20 Phase 1 and all 10 Phase 3 items have landed: 12 unsupported skills → 0, error analysis 1.1% → 8.4%, open tasks 0 → 3.2% of the stream. Retained for its central recommendation — *do not add curriculum breadth before instructional depth* — which still governs, and which now points at breadth as the honest next move.
+
+
 **Question:** does this app contain enough educational knowledge, instructional depth and curriculum coverage to become one of the world's best mathematics learning applications?
 
 **Answer: not yet — and the gap is instructional, not architectural.** It is an outstanding *assessment* engine attached to a thin *teaching* layer.

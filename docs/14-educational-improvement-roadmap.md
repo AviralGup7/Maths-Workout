@@ -1,5 +1,8 @@
 # 14 · Educational Improvement Roadmap
 
+> **Status: HISTORICAL.** A design document for work that has shipped. The live backlog is `27-implementation-roadmap.md`.
+
+
 **Input:** [13 · Learning Effectiveness Audit](./13-learning-effectiveness-audit.md), treated as validated.
 **Task:** design the best solution to each weakness — not find new ones.
 **Constraint:** this stays a focused mathematics *practice* app. Not a teaching
